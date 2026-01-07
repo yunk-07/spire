@@ -8,6 +8,118 @@ import 'level_data.dart';
 import 'game_state.dart';
 import 'character_data.dart';
 
+// ============================================================================
+// 文件说明 / 主要函数说明及键的作用
+// ============================================================================
+//
+// 【核心状态键说明】
+// 1. _cardKeys (Map<int, GlobalKey>) - 卡牌组件的状态键映射
+//    - 作用：存储每个卡牌widget的GlobalKey，用于后续动画控制
+//    - 使用方式：通过索引访问对应卡牌的key，如 _cardKeys[index]
+//    - 重要性：这是实现卡牌拖动动画、缩放效果和状态追踪的关键
+//    - 示例：拖动时使用 childWhenDragging 配合 key 实现淡出缩放动画
+//
+// 2. _cardAnimationControllers (Map<String, AnimationController>)
+//    - 作用：管理每张卡牌的扫描动画控制器
+//    - 键：卡牌ID (card.id)
+//    - 功能：控制扫描进度、卡牌淡入淡出效果
+//    - 生命周期：摸牌时创建，动画结束后自动清理
+//
+// 3. _dealingCards (Set<String>) - 正在发牌动画中的卡牌ID集合
+// 4. _discardingCards (Set<String>) - 正在弃牌动画中的卡牌ID集合
+//
+// 【核心函数说明】
+//
+// 1. _handArea() - 手牌区域主容器
+//    - 根据当前游戏阶段(gamePhase)显示不同视图
+//    - 玩家回合(PlayerTurn)：显示扇形手牌视图(_fanHandView)
+//    - 弃牌阶段(DiscardPhase)：显示横向选择界面(_discardPhaseView)
+//    - 怪物回合(MonsterTurn)：显示扇形手牌视图
+//    - 游戏结束(GameOver)：显示空状态
+//
+// 2. _fanHandView() - 扇形手牌视图（玩家回合主界面）
+//    - 功能：将手牌排列成扇形布局，支持动态缩放
+//    - 布局算法：
+//      * 根据可用宽度计算每个卡牌槽位(slot)
+//      * 自动缩放(scale)确保所有卡牌都能显示
+//      * 计算旋转角度(maxRot)实现扇形效果
+//    - 卡牌交互：支持拖动功能（用于打出手牌）
+//    - 动画效果：每张卡牌有淡入缩放动画(TweenAnimationBuilder)
+//
+// 3. _discardPhaseView() - 弃牌阶段选择界面
+//    - 功能：横向排列卡牌，让玩家选择保留哪张
+//    - 布局特点：使用ListView实现横向滚动
+//    - 缩放逻辑：与扇形视图保持一致的缩放算法
+//    - 交互：点击卡牌调用selectCardToKeep()选择保留
+//
+// 4. _discardPhaseCardView() - 弃牌阶段单张卡牌视图
+//    - 参数：
+//      * index: 卡牌在手中的索引位置
+//      * card: 卡牌数据对象(CardData)
+//    - 功能：显示可点击的卡牌，支持点击选择保留
+//    - 隐藏处理：正在动画中的卡牌显示为 SizedBox.shrink()
+//
+// 5. _cardView() - 通用卡牌视图容器（拖动功能）
+//    - 功能：包装卡牌widget，添加拖动(Draggable)支持
+//    - 核心组件：Draggable<CardData>
+//    - 拖动优化：
+//      * feedback: 拖动时显示的卡片样式（放大+旋转）
+//      * childWhenDragging: 原始位置的卡片动画（淡出+缩小）
+//    - 扫描动画：集成卡牌扫描效果（见_scanAnimationStack）
+//
+// 6. _cardWidget() - 卡牌渲染组件
+//    - 功能：根据卡牌类型绘制卡片外观
+//    - 参数：
+//      * card: 卡牌数据
+//      * dragging: 是否正在拖动（改变阴影效果）
+//      * showCompleteAnimation: 显示完成动画（发光效果）
+//    - 样式：根据cost显示颜色边框，卡面显示名称和描述
+//
+// 7. selectCardToKeep() - 弃牌阶段选择逻辑
+//    - 参数：保留的卡牌ID (cardId)
+//    - 处理流程：
+//      1. 收集所有要弃掉的卡牌ID到discardIds
+//      2. 清空手牌(hand.clear())
+//      3. 只添加选中的卡牌(hand.add(cardId))
+//      4. 播放弃牌动画并移除其他卡牌
+//      5. 进入怪物回合
+//
+// 8. 卡牌扫描动画流程（摸牌/弃牌阶段）
+//    - 阶段1：扫描网格显示
+//    - 阶段2：扫描线从上往下移动
+//    - 阶段3：扫描进度>80%时卡牌内容淡入
+//    - 阶段4：扫描完成，卡牌完全显示
+// ============================================================================
+
+class GridPainter extends CustomPainter {
+  final Color color;
+
+  GridPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint =
+        Paint()
+          ..color = color.withValues(alpha: 0.5)
+          ..strokeWidth = 1;
+
+    // 绘制水平网格线
+    for (double y = 0; y < size.height; y += 12) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+
+    // 绘制垂直网格线
+    for (double x = 0; x < size.width; x += 12) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return false;
+  }
+}
+
 /// 游戏阶段枚举
 enum GamePhase {
   playerTurn, // 玩家回合
@@ -410,13 +522,14 @@ class BattlePage extends StatefulWidget {
   State<BattlePage> createState() => _BattlePageState();
 }
 
-class _BattlePageState extends State<BattlePage> {
+class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   final anim = AnimationService();
   final GlobalKey _drawPileKey = GlobalKey();
   final GlobalKey _discardPileKey = GlobalKey();
   final Map<int, GlobalKey> _cardKeys = {};
   final Set<String> _dealingCards = {};
   final Set<String> _discardingCards = {};
+  final Map<String, AnimationController> _cardAnimationControllers = {};
 
   final player = Entity("玩家", GameState.playerHp, maxHp: GameState.playerMaxHp);
   late List<Entity> monsters;
@@ -451,6 +564,16 @@ class _BattlePageState extends State<BattlePage> {
     drawPile.shuffle();
     // 游戏开始时自动进入玩家回合
     startPlayerTurn();
+  }
+
+  @override
+  void dispose() {
+    // 释放所有动画控制器
+    for (final controller in _cardAnimationControllers.values) {
+      controller.dispose();
+    }
+    _cardAnimationControllers.clear();
+    super.dispose();
   }
 
   // 根据怪物ID构建怪物实体
@@ -727,7 +850,7 @@ class _BattlePageState extends State<BattlePage> {
         final box = ctx?.findRenderObject() as RenderBox?;
         final end = box?.localToGlobal(const Offset(36, 48));
         if (start != null && end != null) {
-          anim.playCardMotion(hand[idx], start, end);
+          // 移除原有的发牌动画，改为扫描带显现
         }
       }
     });
@@ -750,17 +873,27 @@ class _BattlePageState extends State<BattlePage> {
       final end = dbox?.localToGlobal(const Offset(50, 30));
       if (start != null && end != null) {
         _discardingCards.add(id);
+        // 创建动画控制器
+        _cardAnimationControllers[id] = AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 800),
+        );
+        // 启动动画
+        _cardAnimationControllers[id]?.forward();
         setState(() {});
-        anim.playCardMotion(id, start, end);
-        Future.delayed(const Duration(milliseconds: 520), () {
+        // 移除原有的弃牌动画，改为扫描带消失
+        Future.delayed(const Duration(milliseconds: 820), () {
           _discardingCards.remove(id);
           hand.remove(id);
           discardPile.add(id);
+          // 释放动画控制器
+          _cardAnimationControllers[id]?.dispose();
+          _cardAnimationControllers.remove(id);
           setState(() {});
         });
       }
     }
-    Future.delayed(const Duration(milliseconds: 560), () {
+    Future.delayed(const Duration(milliseconds: 860), () {
       energy = 3;
       drawCards();
       // 增加回合数统计
@@ -829,10 +962,20 @@ class _BattlePageState extends State<BattlePage> {
         if (start != null && end != null) {
           final cid = hand[idx];
           _dealingCards.add(cid);
+          // 创建动画控制器
+          _cardAnimationControllers[cid] = AnimationController(
+            vsync: this,
+            duration: const Duration(milliseconds: 800),
+          );
+          // 启动动画
+          _cardAnimationControllers[cid]?.forward();
           setState(() {});
-          anim.playCardMotion(cid, start, end);
-          Future.delayed(const Duration(milliseconds: 520), () {
+          // 移除原有的发牌动画，改为扫描带显现
+          Future.delayed(const Duration(milliseconds: 820), () {
             _dealingCards.remove(cid);
+            // 释放动画控制器
+            _cardAnimationControllers[cid]?.dispose();
+            _cardAnimationControllers.remove(cid);
             setState(() {});
           });
         }
@@ -904,9 +1047,13 @@ class _BattlePageState extends State<BattlePage> {
         (monster.baseDamage + (turnCount ~/ 3) + random.nextInt(3));
     // 关键区域：怪物攻击动画
     anim.playAttack(monster, player);
-    _applyDamage(player, totalDamage);
-    // 关键区域：玩家生命值检查
-    checkBattleResult();
+
+    // 延迟执行伤害，等待攻击动画完成后再处理伤害和判定
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _applyDamage(player, totalDamage);
+      // 关键区域：玩家生命值检查
+      checkBattleResult();
+    });
 
     print("${monster.name}攻击玩家，造成$totalDamage点伤害");
   }
@@ -976,7 +1123,23 @@ class _BattlePageState extends State<BattlePage> {
         final dbox = dctx?.findRenderObject() as RenderBox?;
         final end = dbox?.localToGlobal(const Offset(50, 30));
         if (start != null && end != null) {
-          anim.playCardMotion(id, start, end);
+          _discardingCards.add(id);
+          // 创建动画控制器
+          _cardAnimationControllers[id] = AnimationController(
+            vsync: this,
+            duration: const Duration(milliseconds: 800),
+          );
+          // 启动动画
+          _cardAnimationControllers[id]?.forward();
+          setState(() {});
+          // 移除原有的弃牌动画，改为扫描带消失
+          Future.delayed(const Duration(milliseconds: 820), () {
+            _discardingCards.remove(id);
+            // 释放动画控制器
+            _cardAnimationControllers[id]?.dispose();
+            _cardAnimationControllers.remove(id);
+            setState(() {});
+          });
         }
       }
       discardPile.addAll(hand.sublist(1));
@@ -1023,39 +1186,56 @@ class _BattlePageState extends State<BattlePage> {
     if (gamePhase != GamePhase.discardPhase) return;
 
     // 将选中的牌保留，其他牌弃掉
-    final discardIndices = <int>[];
-    for (int i = 0; i < hand.length; i++) {
-      if (hand[i] != cardId) discardIndices.add(i);
-    }
-    for (final idx in discardIndices) {
-      final id = hand[idx];
-      final key = _cardKeys[idx];
-      final ctx = key?.currentContext;
-      final box = ctx?.findRenderObject() as RenderBox?;
-      final start = box?.localToGlobal(const Offset(36, 48));
-      final dctx = _discardPileKey.currentContext;
-      final dbox = dctx?.findRenderObject() as RenderBox?;
-      final end = dbox?.localToGlobal(const Offset(50, 30));
-      if (start != null && end != null) {
-        _discardingCards.add(id);
-        setState(() {});
-        anim.playCardMotion(id, start, end);
-        Future.delayed(const Duration(milliseconds: 520), () {
-          _discardingCards.remove(id);
-          discardPile.add(id);
-          hand.remove(id);
-          setState(() {});
-        });
+    final discardIds = <String>[];
+    for (final id in hand) {
+      if (id != cardId) {
+        discardIds.add(id);
       }
     }
-    if (!hand.contains(cardId)) {
-      hand.add(cardId);
+
+    // 对所有要弃掉的卡牌播放动画
+    for (final id in discardIds) {
+      final idx = hand.indexOf(id);
+      if (idx >= 0) {
+        final key = _cardKeys[idx];
+        final ctx = key?.currentContext;
+        final box = ctx?.findRenderObject() as RenderBox?;
+        final start = box?.localToGlobal(const Offset(36, 48));
+        final dctx = _discardPileKey.currentContext;
+        final dbox = dctx?.findRenderObject() as RenderBox?;
+        final end = dbox?.localToGlobal(const Offset(50, 30));
+        if (start != null && end != null) {
+          _discardingCards.add(id);
+          // 创建动画控制器
+          _cardAnimationControllers[id] = AnimationController(
+            vsync: this,
+            duration: const Duration(milliseconds: 800),
+          );
+          // 启动动画
+          _cardAnimationControllers[id]?.forward();
+          setState(() {});
+          // 移除弃牌动画
+          Future.delayed(const Duration(milliseconds: 820), () {
+            _discardingCards.remove(id);
+            discardPile.add(id);
+            // 释放动画控制器
+            _cardAnimationControllers[id]?.dispose();
+            _cardAnimationControllers.remove(id);
+            setState(() {});
+          });
+        }
+      }
     }
 
+    // 清空手牌，只保留选中的卡牌
+    hand.clear();
+    hand.add(cardId);
+
+    // 显示弃牌信息
+    print("弃牌阶段：选择了1张牌保留，弃掉了${discardIds.length}张牌");
+
     // 完成弃牌阶段
-    Future.delayed(const Duration(milliseconds: 560), () {
-      completeDiscardPhase();
-    });
+    completeDiscardPhase();
   }
 
   /// =====================
@@ -1090,6 +1270,10 @@ class _BattlePageState extends State<BattlePage> {
                   ),
                   // 根据屏幕方向选择不同布局
                   isLandscape ? _landscapeLayout() : _portraitLayout(),
+                  // 弃牌阶段：显示卡牌选择覆盖层
+                  if (gamePhase == GamePhase.discardPhase && isDiscardPhase)
+                    _bottomDiscardOverlay(),
+                  // 玩家回合：显示进入弃牌按钮
                   if (gamePhase == GamePhase.playerTurn &&
                       hasDrawnCards &&
                       !isDiscardPhase)
@@ -2169,26 +2353,76 @@ class _BattlePageState extends State<BattlePage> {
     );
   }
 
-  /// 弃牌阶段界面：让玩家选择保留哪张牌
+  /// 弃牌阶段界面：让玩家选择保留哪张牌（使用与扇形视图一致的布局）
   Widget _discardPhaseView() {
     return Column(
       children: [
-        Text(
-          "请选择一张牌保留，其他牌将被弃掉",
-          style: TextStyle(fontSize: 14, color: Colors.orange.shade800),
-          textAlign: TextAlign.center,
-        ),
-        SizedBox(height: 8),
         Expanded(
-          child: GridView.count(
-            crossAxisCount: 3,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-            childAspectRatio: 0.7,
-            children: [
-              for (int i = 0; i < hand.length; i++)
-                _discardPhaseCardView(i, cardDatabase[hand[i]]!),
-            ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final w = constraints.maxWidth;
+              final h = constraints.maxHeight;
+              const cardW = 72.0;
+              const cardH = 96.0;
+              final n = hand.length;
+              if (n == 0) {
+                return const Center(
+                  child: Icon(Icons.inbox_outlined, size: 28, color: Colors.white38),
+                );
+              }
+
+              final margin = 8.0;
+              final availableW = max(0.0, w - margin * 2);
+              final slot = availableW / n;
+              final scale = slot >= cardW ? 1.0 : max(0.6, slot / cardW);
+              final cardWS = cardW * scale;
+              final cardHS = cardH * scale;
+              final baseY = max(0.0, h - cardHS - margin);
+              final maxRot = 0.18;
+
+              final children = <Widget>[];
+              for (int i = 0; i < n; i++) {
+                final t = n == 1 ? 0.5 : i / (n - 1);
+                final rot = (t - 0.5) * 2 * maxRot;
+                var dx = margin + i * slot + (slot - cardWS) / 2;
+                dx = dx.clamp(0.0, w - cardWS);
+
+                final card = cardDatabase[hand[i]]!;
+                children.add(
+                  Positioned(
+                    left: dx,
+                    top: baseY,
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: 1),
+                      duration: const Duration(milliseconds: 200),
+                      builder: (_, __, ___) => GestureDetector(
+                        onTap: () => selectCardToKeep(card.id),
+                        child: Transform.rotate(
+                          angle: rot,
+                          child: Transform.scale(
+                            scale: scale,
+                            child: _cardView(i, card),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              return Stack(children: children);
+            },
+          ),
+        ),
+        // 底部提示文字
+        Container(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(
+            "点击卡牌保留，其他将弃掉",
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.orange.shade800.withOpacity(0.8),
+            ),
           ),
         ),
       ],
@@ -2196,6 +2430,8 @@ class _BattlePageState extends State<BattlePage> {
   }
 
   /// 弃牌阶段的卡牌视图（可点击选择保留）
+  /// @param index - 卡牌在手中的索引位置
+  /// @param card - 卡牌数据对象
   Widget _discardPhaseCardView(int index, CardData card) {
     final hidden =
         _dealingCards.contains(card.id) || _discardingCards.contains(card.id);
@@ -2205,98 +2441,306 @@ class _BattlePageState extends State<BattlePage> {
         cursor: SystemMouseCursors.click,
         child: KeyedSubtree(
           key: _cardKeys[index] ??= GlobalKey(),
-          child: SizedBox(
-            width: 72,
-            height: 96,
-            child: hidden ? const SizedBox.shrink() : _cardWidget(card),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _cardView(int index, CardData card) {
-    final hidden =
-        _dealingCards.contains(card.id) || _discardingCards.contains(card.id);
-    return Draggable<CardData>(
-      data: card,
-
-      // 拖动开始时的回调
-      onDragStarted: () {
-        // 添加拖动开始的动画效果
-        setState(() {
-          // 可以在这里添加拖动开始的状态变化
-        });
-      },
-
-      // 拖动结束时的回调
-      onDragEnd: (details) {
-        // 添加拖动结束的动画效果
-        setState(() {
-          // 可以在这里添加拖动结束的状态变化
-        });
-      },
-
-      /// 🔑 优化点 1：feedback 用 Material 包裹，添加更流畅的动画效果
-      feedback: Material(
-        color: Colors.transparent,
-        elevation: 20,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          width: 88, // 竖屏布局中略微增大卡牌尺寸
-          height: 114,
-          child: Transform.rotate(
-            angle: 0.08, // 轻微旋转增加动态感
-            child: _cardWidget(card, dragging: true),
-          ),
-        ),
-      ),
-
-      /// 🔑 优化点 2：childWhenDragging 固定尺寸，添加吸附动画和阴影效果
-      childWhenDragging: TweenAnimationBuilder<double>(
-        duration: const Duration(milliseconds: 300),
-        tween: Tween(begin: 1.0, end: 0.2),
-        builder: (context, opacity, child) {
-          return Opacity(
-            opacity: opacity,
-            child: Transform.scale(
-              scale: 0.85, // 缩小效果更明显
-              child: SizedBox(
-                width: 72,
-                height: 96,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 10,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: _cardWidget(card),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-
-      child: KeyedSubtree(
-        key: _cardKeys[index] ??= GlobalKey(),
-        child: SizedBox(
-          width: 72,
-          height: 96,
           child: hidden ? const SizedBox.shrink() : _cardWidget(card),
         ),
       ),
     );
   }
 
-  Widget _cardWidget(CardData c, {bool dragging = false}) {
+  Widget _cardView(int index, CardData card) {
+    return Stack(
+      children: [
+        Draggable<CardData>(
+          data: card,
+
+          // 拖动开始时的回调
+          onDragStarted: () {
+            // 添加拖动开始的动画效果
+            setState(() {
+              // 可以在这里添加拖动开始的状态变化
+            });
+          },
+
+          // 拖动结束时的回调
+          onDragEnd: (details) {
+            // 添加拖动结束的动画效果
+            setState(() {
+              // 可以在这里添加拖动结束的状态变化
+            });
+          },
+
+          /// 🔑 优化点 1：feedback 用 Material 包裹，添加更流畅的动画效果
+          feedback: Material(
+            color: Colors.transparent,
+            elevation: 20,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              width: 88, // 竖屏布局中略微增大卡牌尺寸
+              height: 114,
+              child: Transform.rotate(
+                angle: 0.08, // 轻微旋转增加动态感
+                child: _cardWidget(card, dragging: true),
+              ),
+            ),
+          ),
+
+          /// 🔑 优化点 2：childWhenDragging 固定尺寸，添加吸附动画和阴影效果
+          childWhenDragging: TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 300),
+            tween: Tween(begin: 1.0, end: 0.2),
+            builder: (context, opacity, child) {
+              return Opacity(
+                opacity: opacity,
+                child: Transform.scale(
+                  scale: 0.85, // 缩小效果更明显
+                  child: SizedBox(
+                    width: 72,
+                    height: 96,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 10,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: _cardWidget(card, showCompleteAnimation: true),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+
+          child: KeyedSubtree(
+            key: _cardKeys[index] ??= GlobalKey(),
+            child: SizedBox(
+              width: 72,
+              height: 96,
+              // 🔧 修复：扫描动画期间隐藏正常卡牌，扫描完成后再显示
+              child:
+                  _dealingCards.contains(card.id) &&
+                          _cardAnimationControllers.containsKey(card.id) &&
+                          _cardAnimationControllers[card.id]!.value < 1.0
+                      ? const SizedBox.shrink() // 扫描未完成时不显示
+                      : _cardWidget(card),
+            ),
+          ),
+        ),
+        // 摸牌扫描带动画
+        if (_dealingCards.contains(card.id) &&
+            _cardAnimationControllers.containsKey(card.id))
+          AnimatedBuilder(
+            animation: _cardAnimationControllers[card.id]!,
+            builder: (context, child) {
+              Color getScanColor() {
+                switch (card.level) {
+                  case 1:
+                    return Colors.green.shade400;
+                  case 2:
+                    return Colors.blue.shade400;
+                  case 3:
+                    return Colors.purple.shade400;
+                  case 4:
+                    return Colors.orange.shade400;
+                  case 5:
+                    return Colors.red.shade400;
+                  default:
+                    return Colors.grey.shade400;
+                }
+              }
+
+              final scanColor = getScanColor();
+              final progress = _cardAnimationControllers[card.id]!.value;
+              
+              // 特写动画：扫描完成后放大弹跳
+              final completionProgress = (progress - 0.8).clamp(0.0, 1.0) * 5;
+              final zoomEffect = completionProgress >= 1.0
+                  ? TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 1.0, end: 1.15),
+                      duration: const Duration(milliseconds: 150),
+                      curve: Curves.easeOut,
+                      builder: (context, zoom, child) {
+                        return TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 1.15, end: 1.0),
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeOutBack,
+                          builder: (context, finalZoom, child) {
+                            return Transform.scale(
+                              scale: finalZoom,
+                              child: child,
+                            );
+                          },
+                          child: child,
+                        );
+                      },
+                      child: child,
+                    )
+                  : const SizedBox.shrink();
+
+              return Stack(
+                children: [
+                  // 扫描网格背景
+                  Container(
+                    width: 72,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          scanColor.withValues(alpha: 0.3),
+                          scanColor.withValues(alpha: 0.1),
+                        ],
+                      ),
+                    ),
+                    child: CustomPaint(painter: GridPainter(scanColor)),
+                  ),
+                  // 扫描线
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: progress * 96 - 4,
+                    height: 8,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            scanColor.withValues(alpha: 0.0),
+                            scanColor.withValues(alpha: 0.8),
+                            scanColor.withValues(alpha: 0.0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // 🔧 扫描完成后显示卡牌内容（淡入 + 特写动画）
+                  if (progress > 0.8)
+                    Opacity(
+                      opacity: (progress - 0.8) * 5, // 0.8-1.0区间渐变
+                      child: completionProgress >= 1.0 ? zoomEffect : child,
+                    ),
+                ],
+              );
+            },
+            child: SizedBox(width: 72, height: 96, child: _cardWidget(card)),
+          ),
+        // 弃牌扫描带动画
+        if (_discardingCards.contains(card.id) &&
+            _cardAnimationControllers.containsKey(card.id))
+          AnimatedBuilder(
+            animation: _cardAnimationControllers[card.id]!,
+            builder: (context, child) {
+              Color getScanColor() {
+                switch (card.level) {
+                  case 1:
+                    return Colors.green.shade400;
+                  case 2:
+                    return Colors.blue.shade400;
+                  case 3:
+                    return Colors.purple.shade400;
+                  case 4:
+                    return Colors.orange.shade400;
+                  case 5:
+                    return Colors.red.shade400;
+                  default:
+                    return Colors.grey.shade400;
+                }
+              }
+
+              final scanColor = getScanColor();
+              final progress = _cardAnimationControllers[card.id]!.value;
+              
+              // 特写动画：扫描完成后放大弹跳
+              final completionProgress = (progress - 0.8).clamp(0.0, 1.0) * 5;
+              final zoomEffect = completionProgress >= 1.0
+                  ? TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 1.0, end: 1.15),
+                      duration: const Duration(milliseconds: 150),
+                      curve: Curves.easeOut,
+                      builder: (context, zoom, child) {
+                        return TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 1.15, end: 1.0),
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeOutBack,
+                          builder: (context, finalZoom, child) {
+                            return Transform.scale(
+                              scale: finalZoom,
+                              child: child,
+                            );
+                          },
+                          child: child,
+                        );
+                      },
+                      child: child,
+                    )
+                  : const SizedBox.shrink();
+
+              return Stack(
+                children: [
+                  // 扫描网格背景
+                  Container(
+                    width: 72,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          scanColor.withValues(alpha: 0.3),
+                          scanColor.withValues(alpha: 0.1),
+                        ],
+                      ),
+                    ),
+                    child: CustomPaint(painter: GridPainter(scanColor)),
+                  ),
+                  // 扫描线 - 从上往下移动
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: progress * 96 - 4,
+                    height: 8,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            scanColor.withValues(alpha: 0.0),
+                            scanColor.withValues(alpha: 0.8),
+                            scanColor.withValues(alpha: 0.0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // 🔧 扫描完成后显示卡牌内容（淡入 + 特写动画）
+                  if (progress > 0.8)
+                    Opacity(
+                      opacity: (progress - 0.8) * 5, // 0.8-1.0区间渐变
+                      child: completionProgress >= 1.0 ? zoomEffect : child,
+                    ),
+                ],
+              );
+            },
+            child: SizedBox(width: 72, height: 96, child: _cardWidget(card)),
+          ),
+      ],
+    );
+  }
+
+  Widget _cardWidget(
+    CardData c, {
+    bool dragging = false,
+    bool showCompleteAnimation = false,
+  }) {
     Color getCardColor() {
       switch (c.level) {
         case 1:
@@ -2338,84 +2782,185 @@ class _BattlePageState extends State<BattlePage> {
         hsl.withLightness((hsl.lightness - 0.08).clamp(0.0, 1.0)).toColor();
     final glow = base.withValues(alpha: dragging ? 0.9 : 0.5);
 
-    return Container(
-      width: 72,
-      height: 96,
-      margin: const EdgeInsets.all(4),
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [lighter, base, darker],
-        ),
-        borderRadius: BorderRadius.circular(8), // 增大圆角
-        border: Border.all(
-          color: dragging ? Colors.orange : Colors.black.withValues(alpha: 0.3),
-          width: dragging ? 2 : 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 10,
-            spreadRadius: 2,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: glow,
-            blurRadius: dragging ? 20 : 12,
-            spreadRadius: dragging ? 4 : 2,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  c.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black.withValues(alpha: 0.9),
+    return showCompleteAnimation
+        ? TweenAnimationBuilder<double>(
+          duration: const Duration(milliseconds: 500),
+          tween: Tween(begin: 1.5, end: 1.0),
+          curve: Curves.bounceOut,
+          builder: (context, scale, child) {
+            return Transform.scale(
+              scale: scale,
+              child: Container(
+                width: 72,
+                height: 96,
+                margin: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [lighter, base, darker],
                   ),
+                  borderRadius: BorderRadius.circular(8), // 增大圆角
+                  border: Border.all(
+                    color:
+                        dragging
+                            ? Colors.orange
+                            : Colors.black.withValues(alpha: 0.3),
+                    width: dragging ? 2 : 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                      offset: const Offset(0, 4),
+                    ),
+                    BoxShadow(
+                      color: glow,
+                      blurRadius: dragging ? 20 : 12,
+                      spreadRadius: dragging ? 4 : 2,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            c.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black.withValues(alpha: 0.9),
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Text(
+                            "${c.cost}",
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black.withValues(alpha: 0.85),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Expanded(
+                      child: Text(
+                        primaryText(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.black.withValues(alpha: 0.9),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(5),
-                ),
+            );
+          },
+        )
+        : Container(
+          width: 72,
+          height: 96,
+          margin: const EdgeInsets.all(4),
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [lighter, base, darker],
+            ),
+            borderRadius: BorderRadius.circular(8), // 增大圆角
+            border: Border.all(
+              color:
+                  dragging
+                      ? Colors.orange
+                      : Colors.black.withValues(alpha: 0.3),
+              width: dragging ? 2 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 10,
+                spreadRadius: 2,
+                offset: const Offset(0, 4),
+              ),
+              BoxShadow(
+                color: glow,
+                blurRadius: dragging ? 20 : 12,
+                spreadRadius: dragging ? 4 : 2,
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      c.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      "${c.cost}",
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black.withValues(alpha: 0.85),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Expanded(
                 child: Text(
-                  "${c.cost}",
+                  primaryText(),
                   style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black.withValues(alpha: 0.85),
+                    fontSize: 11,
+                    color: Colors.black.withValues(alpha: 0.9),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Expanded(
-            child: Text(
-              primaryText(),
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.black.withValues(alpha: 0.9),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+        );
   }
 
   // 格式化效果描述
