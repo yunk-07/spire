@@ -7,6 +7,7 @@ class GameState {
   static int playerMaxHp = 80; // 最大完整度 (Max Integrity)
   static int playerHp = 80;    // 当前完整度 (Current Integrity)
   static int playerBlock = 0;  // 防火墙强度 (Firewall Strength)
+  static int playerStrength = 0; // 算力加成 (Strength)
   static String selectedCharacterId = "ironclad"; // 默认选择铁甲战士
   
   // 数据包（抽牌堆，跨关卡持久化）

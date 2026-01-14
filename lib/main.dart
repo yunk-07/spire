@@ -1,3 +1,6 @@
+/**
+ * 游戏主逻辑文件，包含战斗系统、卡牌渲染、Buff 说明浮层等核心 UI 与逻辑实现。
+ */
 import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -267,12 +270,12 @@ class AnimationService extends ChangeNotifier {
     attacks.add(eff);
     notifyListeners();
 
-    // 关键区域：在冲锋撞击瞬间触发全局数据过载效果（约 270ms 后，对应 t=0.3）
-    Future.delayed(const Duration(milliseconds: 270), () {
+    // 关键区域：在冲锋撞击瞬间触发全局数据过载效果（约 300ms 后，对应 t=0.3）
+    Future.delayed(const Duration(milliseconds: 300), () {
       triggerScreenOverload();
     });
 
-    Future.delayed(const Duration(milliseconds: 900), () {
+    Future.delayed(const Duration(milliseconds: 1000), () { // 增加总时长对齐 widget
       attacks.remove(eff);
       charging.remove(from);
       notifyListeners();
@@ -283,7 +286,7 @@ class AnimationService extends ChangeNotifier {
     final m = CardMotion(instanceId, start, end);
     motions.add(m);
     notifyListeners();
-    Future.delayed(const Duration(milliseconds: 500), () {
+    Future.delayed(const Duration(milliseconds: 650), () { // 对齐 _cardMotionWidget
       motions.remove(m);
       notifyListeners();
     });
@@ -356,11 +359,14 @@ class AnimationService extends ChangeNotifier {
   void showActionFeedback(Entity target) {
     bouncing.add(target);
     notifyListeners();
-    Future.delayed(const Duration(milliseconds: 300), () {
+    Future.delayed(const Duration(milliseconds: 450), () {
       bouncing.remove(target);
       notifyListeners();
     });
   }
+
+  // 手动触发状态刷新
+  void refresh() => notifyListeners();
 
   void triggerScreenOverload() {
     isScreenOverloaded = true;
@@ -388,18 +394,64 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// 为卡牌背景添加微弱的科技感线条
-class _CardTechPainter extends CustomPainter {
+// 套装背景画笔：为不同套装提供独特的背景纹理
+class SuiteTechPainter extends CustomPainter {
+  final CardSuite suite;
   final Color color;
-  _CardTechPainter(this.color);
+  SuiteTechPainter(this.suite, this.color);
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
       ..strokeWidth = 0.5;
-    // 画几条斜线
-    for (double i = -size.height; i < size.width; i += 15) {
-      canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), paint);
+
+    switch (suite) {
+      case CardSuite.classic:
+        // 经典：平行的 45 度斜线
+        for (double i = -size.height; i < size.width; i += 15) {
+          canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), paint);
+        }
+        break;
+      case CardSuite.overload:
+        // 过载：不规则的水平短促故障线
+        final random = Random(42);
+        for (int i = 0; i < 15; i++) {
+          final y = random.nextDouble() * size.height;
+          final x = random.nextDouble() * size.width;
+          final len = random.nextDouble() * 20 + 5;
+          canvas.drawLine(Offset(x, y), Offset(x + len, y), paint..strokeWidth = 1.0);
+        }
+        break;
+      case CardSuite.secure:
+        // 矩阵：垂直的虚线
+        for (double x = 5; x < size.width; x += 12) {
+          for (double y = 0; y < size.height; y += 8) {
+            if ((x + y) % 16 < 8) {
+              canvas.drawCircle(Offset(x, y), 0.5, paint);
+            }
+          }
+        }
+        break;
+      case CardSuite.industrial:
+        // 工业：交叉的网格
+        for (double i = 0; i < size.width; i += 15) {
+          canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
+        }
+        for (double i = 0; i < size.height; i += 15) {
+          canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
+        }
+        break;
+      case CardSuite.quantum:
+        // 量子：同心圆弧片段
+        for (int i = 0; i < 3; i++) {
+          canvas.drawCircle(
+            Offset(size.width * 0.8, size.height * 0.2),
+            20.0 + i * 15,
+            paint..style = PaintingStyle.stroke,
+          );
+        }
+        break;
     }
   }
 
@@ -623,7 +675,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   final Set<String> _discardingCards = {};
   final Map<String, AnimationController> _cardAnimationControllers = {};
 
-  final player = Entity("接入单元", GameState.playerHp, maxHp: GameState.playerMaxHp);
+  final player = Entity("接入单元", GameState.playerHp, maxHp: GameState.playerMaxHp)
+    ..strength = GameState.playerStrength
+    ..block = GameState.playerBlock;
   late List<Entity> activePrograms;
   late CharacterData characterData; // 当前角色数据
 
@@ -640,6 +694,17 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   bool hasDrawnCards = false; // 当前回合是否已抽牌
   bool isVictory = false; // 胜负标识
   bool _victoryRecorded = false; // 胜利记录一次
+
+  // Buff 详情查看状态
+  String? _activeBuffName;
+  String? _activeBuffDesc;
+
+  static const Map<String, String> _buffExplanations = {
+    "算力": "每层算力使攻击造成的伤害增加 1 点。",
+    "虚弱": "虚弱状态下，攻击造成的伤害减少 25%。",
+    "脆弱": "脆弱状态下，受到攻击时受到的伤害增加 50%。",
+    "恶意代码": "每层恶意代码使受到攻击时额外受到的伤害增加 2 点。",
+  };
 
   @override
   void initState() {
@@ -727,15 +792,23 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
       switch (command) {
         case 'damage':
-          if (target != null && parts.length > 1) {
-            final value = int.tryParse(parts[1]) ?? card.value;
-            _applyDamage(player, target as Entity, value);
+          if (parts.length > 1) {
+            final value = int.tryParse(parts[1]) ?? 0;
+            if (card.target == CardTarget.all) {
+              for (final enemy in activePrograms) {
+                if (enemy.hp > 0) {
+                  _applyDamage(player, enemy, value);
+                }
+              }
+            } else if (target != null) {
+              _applyDamage(player, target as Entity, value);
+            }
           }
           break;
 
         case 'block':
           if (parts.length > 1) {
-            final value = int.tryParse(parts[1]) ?? card.value;
+            final value = int.tryParse(parts[1]) ?? 0;
             player.block += value;
             anim.showBlockGain(player, value);
           }
@@ -744,8 +817,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         case 'draw':
           if (parts.length > 1) {
             final count = int.tryParse(parts[1]) ?? 1;
-            drawCount = count;
-            drawCards();
+            drawCards(count);
           }
           break;
 
@@ -757,23 +829,41 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           break;
 
         case 'vulnerable':
-          if (target != null && parts.length > 1) {
+          if (parts.length > 1) {
             final turns = int.tryParse(parts[1]) ?? 1;
-            (target as Entity).vulnerable += turns;
+            if (card.target == CardTarget.all) {
+              for (final enemy in activePrograms) {
+                if (enemy.hp > 0) enemy.vulnerable += turns;
+              }
+            } else if (target != null) {
+              (target as Entity).vulnerable += turns;
+            }
           }
           break;
 
         case 'weak':
-          if (target != null && parts.length > 1) {
+          if (parts.length > 1) {
             final turns = int.tryParse(parts[1]) ?? 1;
-            (target as Entity).weak += turns;
+            if (card.target == CardTarget.all) {
+              for (final enemy in activePrograms) {
+                if (enemy.hp > 0) enemy.weak += turns;
+              }
+            } else if (target != null) {
+              (target as Entity).weak += turns;
+            }
           }
           break;
 
         case 'curse':
-          if (target != null && parts.length > 1) {
+          if (parts.length > 1) {
             final turns = int.tryParse(parts[1]) ?? 1;
-            (target as Entity).curse += turns;
+            if (card.target == CardTarget.all) {
+              for (final enemy in activePrograms) {
+                if (enemy.hp > 0) enemy.curse += turns;
+              }
+            } else if (target != null) {
+              (target as Entity).curse += turns;
+            }
           }
           break;
 
@@ -873,22 +963,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         });
       } else {
         CardEffect.execute(card.effect!, card, target, this);
-      }
-    } else {
-      // 如果没有DSL效果，使用默认逻辑
-      if (card.type == CardType.exploit && target != null) {
-        anim.playAttack(player, target);
-        _playAttackSound();
-        
-        Future.delayed(const Duration(milliseconds: 300), () {
-          _applyDamage(player, target, card.value);
-          checkBattleResult();
-          setState(() {});
-        });
-      } else if (card.type == CardType.encryption) {
-        player.block += card.value;
-        anim.showBlockGain(player, card.value);
-        _playBlockSound();
       }
     }
     // 增加使用卡牌统计
@@ -996,7 +1070,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   /// 抽牌
   /// =====================
 
-  void drawCards() {
+  void drawCards([int? count]) {
     if (drawPile.isEmpty) {
       // 如果抽牌堆为空，将弃牌堆洗入抽牌堆
       drawPile.addAll(discardPile);
@@ -1005,7 +1079,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       drawPile.shuffle();
     }
 
-    final cardsToDraw = drawCount.clamp(0, drawPile.length);
+    final actualCount = count ?? drawCount;
+    final cardsToDraw = actualCount.clamp(0, drawPile.length);
     final newCards = <CardInstance>[];
     for (int i = 0; i < cardsToDraw; i++) {
       final instance = drawPile.removeAt(0);
@@ -1456,15 +1531,26 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         if (didPop) return;
         final shouldExit = await _onWillPopConfirm();
         if (shouldExit && context.mounted) {
-          Navigator.pop(context);
+          // 返回到开始页面（根路由）
+          Navigator.popUntil(context, (route) => route.isFirst);
         }
       },
       child: Scaffold(
-        body: AnimatedBuilder(
-          animation: anim,
-          builder:
-              (context, _) => Stack(
-                children: [
+        body: GestureDetector(
+          onTap: () {
+            if (_activeBuffName != null) {
+              setState(() {
+                _activeBuffName = null;
+                _activeBuffDesc = null;
+              });
+            }
+          },
+          behavior: HitTestBehavior.translucent,
+          child: AnimatedBuilder(
+            animation: anim,
+            builder:
+                (context, _) => Stack(
+                  children: [
                   // 关键区域：全域背景美化 - 动态扫描线与网格
                   const Positioned.fill(
                     child: _BattleBackground(),
@@ -1490,6 +1576,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                   if (_statusTip != null) _statusTipWidget(),
                 ],
               ),
+          ),
         ),
       ),
     );
@@ -1538,8 +1625,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             ),
           ),
         ),
-        // 结束/弃牌按钮
-        if (gamePhase == GamePhase.syncPhase) _bottomDiscardOverlay(),
       ],
     );
   }
@@ -1586,7 +1671,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             onTap: () => _showCardListDialog("已执行指令 (弃牌堆)", discardPile, const Color(0xFFFF5A5A)),
           ),
         ),
-        if (gamePhase == GamePhase.syncPhase) _bottomDiscardOverlay(),
       ],
     );
   }
@@ -1763,7 +1847,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                 height: height,
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: Colors.red.withValues(alpha: 0.4 * (0.3 + 0.7 * sin(val * pi))),
+                    color: Colors.red.withValues(alpha: (0.4 * (0.3 + 0.7 * sin(val * pi))).clamp(0.0, 1.0)),
                     width: 1.5,
                   ),
                 ),
@@ -1874,7 +1958,10 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       onTap: () {
                         Navigator.push(
                           context,
-                          createHoloRoute(const MapScreen(canReturnToGame: true)),
+                          createHoloRoute(const MapScreen(
+                            canReturnToGame: true,
+                            canSelect: false,
+                          )),
                         );
                       },
                       child: Container(
@@ -1980,7 +2067,13 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                 // 右侧：设置按钮
                 IconButton(
                   icon: const Icon(Icons.power_settings_new, size: 18, color: Color(0xFF8FA3C0)),
-                  onPressed: _onWillPopConfirm,
+                  onPressed: () async {
+                    final shouldExit = await _onWillPopConfirm();
+                    if (shouldExit && context.mounted) {
+                      // 返回到开始页面（根路由）
+                      Navigator.popUntil(context, (route) => route.isFirst);
+                    }
+                  },
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),
@@ -2002,6 +2095,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       bottom: 20, // 稍微上移一点，避免被系统条遮挡
       child: Center(
         child: _buildSciFiButton(
+          heroTag: 'main_action_button',
           text: "同步当前周期",
           onTap: startDiscardPhase,
           color: const Color(0xFF6CE4FF),
@@ -2015,7 +2109,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
   Widget _battleField() {
     return Container(
-      height: 200, // 减小高度，从240降到200
+      height: 220, // 增加高度，从 200 增加到 220，为 Buff 栏预留空间
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
@@ -2049,14 +2143,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         if (instance == null) return false;
         final card = instance.data;
         if (card == null) return false;
-        final eff = card.effect ?? "";
-        final accept =
-            card.type == CardType.encryption ||
-            card.type == CardType.routine ||
-            eff.contains('block') ||
-            eff.contains('energy') ||
-            eff.contains('heal') ||
-            eff.contains('strength');
+        
+        // 根据卡牌定义的 target 来决定是否接受
+        final accept = card.target == CardTarget.self || card.target == CardTarget.all;
         
         if (accept) {
           highlightedTarget = player;
@@ -2129,7 +2218,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             ),
             Positioned.fill(
               child: Opacity(
-                opacity: 0.1,
+                opacity: 0.1.clamp(0.0, 1.0),
                 child: CyberScanline(color: const Color(0xFF6CE4FF)),
               ),
             ),
@@ -2174,7 +2263,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: const Color(0xFF6CE4FF).withValues(alpha: 1.0 - (val - 1.0) * 3),
+                      color: const Color(0xFF6CE4FF).withValues(alpha: (1.0 - (val - 1.0) * 3).clamp(0.0, 1.0)),
                       width: 2,
                     ),
                   ),
@@ -2187,29 +2276,34 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
     final box = TweenAnimationBuilder<double>(
       key: ValueKey("player_anim_builder_${e.id}_${isGlitching}_${isProtecting}_$isBouncing"),
-      duration: Duration(milliseconds: isGlitching ? 300 : 200),
+      duration: Duration(milliseconds: isGlitching ? 400 : (isBouncing ? 450 : 200)),
       tween: Tween(begin: 0, end: 1),
+      curve: isBouncing ? Curves.easeOutBack : Curves.linear,
       builder: (context, t, child) {
         double dx = 0, dy = 0;
         double scale = 1.0;
+        double rotation = 0.0;
+
+        // 基础空闲呼吸效果
+        final breathTime = DateTime.now().millisecondsSinceEpoch / 1500.0;
+        scale += sin(breathTime * 2) * 0.015;
 
         if (isGlitching) {
-          // 线性衰减的水平抖动
-          dx = sin(t * 4 * pi) * 6 * (1 - t);
+          dx = sin(t * 8 * pi) * 6 * (1 - t);
+          rotation = sin(t * 4 * pi) * 0.03 * (1 - t);
         }
 
         if (isBouncing) {
-          dy = -sin(t * pi) * 8; 
-          scale = 1.05;
+          dy = -sin(t * pi) * 10; 
+          scale = 1.0 + 0.05 * sin(t * pi);
         }
 
         Widget content = buildCore();
 
         if (isGlitching) {
-          // 白色高亮闪烁效果
           content = ColorFiltered(
             colorFilter: ColorFilter.mode(
-              Colors.white.withOpacity(0.6 * (1 - t)),
+              Colors.white.withValues(alpha: (0.6 * (1 - t)).clamp(0.0, 1.0)),
               BlendMode.srcATop,
             ),
             child: content,
@@ -2218,9 +2312,12 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
         return Transform.translate(
           offset: Offset(dx, dy),
-          child: Transform.scale(
-            scale: scale,
-            child: content,
+          child: Transform.rotate(
+            angle: rotation,
+            child: Transform.scale(
+              scale: scale,
+              child: content,
+            ),
           ),
         );
       },
@@ -2229,7 +2326,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     // 将 GlobalKey 提升到最顶层容器，确保其唯一性
     return AnimatedOpacity(
       key: e.key,
-      opacity: anim.isCharging(e) ? 0.0 : 1.0,
+      opacity: (anim.isCharging(e) ? 0.0 : 1.0).clamp(0.0, 1.0),
       duration: const Duration(milliseconds: 100),
       child: box,
     );
@@ -2241,8 +2338,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     required Color color,
     IconData? icon,
     double? width,
+    String? heroTag,
   }) {
-    return GestureDetector(
+    Widget button = GestureDetector(
       onTap: onTap,
       child: Container(
         width: width,
@@ -2279,32 +2377,46 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             ),
             // 按钮内容
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (icon != null) ...[
-                    Icon(icon, color: color, size: 18),
-                    const SizedBox(width: 8),
-                  ],
-                  Text(
-                    text,
-                    style: TextStyle(
-                      color: color.withValues(alpha: 0.9),
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                      fontFamily: 'monospace',
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), // 减小水平内边距，原为 20
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (icon != null) ...[
+                      Icon(icon, color: color, size: 18),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(
+                      text,
+                      style: TextStyle(
+                        color: color.withValues(alpha: 0.9),
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                        fontFamily: 'monospace',
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
         ),
       ),
     );
+
+    if (heroTag != null) {
+      return Hero(
+        tag: heroTag,
+        child: Material(
+          color: Colors.transparent,
+          child: button,
+        ),
+      );
+    }
+    return button;
   }
 
   // 关键区域：结果层（胜利/失败）
@@ -2339,7 +2451,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                     Transform.scale(
                       scale: scale,
                       child: Container(
-                        width: 360, // 增加宽度以适应两个 140 宽度的按钮
+                        width: 400, // 增加宽度以适应两个 160 宽度的按钮，原为 360
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
                         decoration: BoxDecoration(
                           color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
@@ -2424,38 +2536,22 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                         Icons.map,
                                         "拓扑网络",
                                         () {
-                                          Navigator.push(
+                                          // 胜利后，标记当前关卡已击败
+                                          if (widget.levelId != null) {
+                                            GameProgress.markDefeated(widget.levelId!);
+                                          }
+                                          Navigator.pushReplacement(
                                             context,
                                             createHoloRoute(
-                                              const MapScreen(canReturnToGame: true),
+                                              const MapScreen(
+                                                canReturnToGame: true,
+                                                canSelect: true,
+                                              ),
                                             ),
                                           );
                                         },
                                         color: const Color(0xFF6CE4FF),
-                                      ),
-                                      _overlayButton(
-                                        Icons.skip_next,
-                                        "下一节点",
-                                        () {
-                                          final next = GameProgress.nextRandomLevel();
-                                          if (next != null) {
-                                            Navigator.pushReplacement(
-                                              context,
-                                              createHoloRoute(
-                                                BattlePage(
-                                                  programIds: next.programIds,
-                                                  levelId: next.id,
-                                                ),
-                                              ),
-                                            );
-                                          } else {
-                                            Navigator.push(
-                                              context,
-                                              createHoloRoute(const MapScreen()),
-                                            );
-                                          }
-                                        },
-                                        color: const Color(0xFFFFA06A),
+                                        heroTag: 'main_action_button',
                                       ),
                                     ] else ...[
                                       _overlayButton(
@@ -2469,6 +2565,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                           );
                                         },
                                         color: const Color(0xFFFF6A6A),
+                                        heroTag: 'main_action_button',
                                       ),
                                     ],
                                   ],
@@ -2489,19 +2586,20 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     );
   }
 
-  // 关键区域：结果页自定义按钮
   Widget _overlayButton(
     IconData icon,
     String label,
     VoidCallback onTap, {
     required Color color,
+    String? heroTag,
   }) {
     return _buildSciFiButton(
+      heroTag: heroTag,
       text: label,
       onTap: onTap,
       color: color,
       icon: icon,
-      width: 140, // 增加宽度防止文本溢出
+      width: 160, // 增加宽度防止文本溢出，原为 140
     );
   }
 
@@ -2624,35 +2722,36 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   }
 
   // 关键区域：胜利粒子效果（星光）
+  // 关键区域：胜利后的粒子飘散效果 - 动态增强版
   Widget _victoryParticles(double t) {
-    final stars = <Alignment>[
-      const Alignment(-0.6, -0.7),
-      const Alignment(0.7, -0.6),
-      const Alignment(-0.8, 0.1),
-      const Alignment(0.8, 0.2),
-      const Alignment(-0.2, 0.85),
-      const Alignment(0.3, 0.75),
-    ];
+    // 预设一些更丰富的粒子轨道
+    final particles = List.generate(12, (i) {
+      final angle = (i * 30) * pi / 180;
+      final dist = 0.5 + 0.5 * sin(t * pi + i);
+      return Alignment(
+        cos(angle) * dist * (0.8 + 0.2 * t),
+        sin(angle) * dist * (0.8 + 0.2 * t) - (0.3 * t), // 向上飘动
+      );
+    });
+
     return Stack(
-      children:
-          stars
-              .map(
-                (a) => Align(
-                  alignment: a,
-                  child: Opacity(
-                    opacity: (0.1 + 0.9 * t).clamp(0.0, 1.0),
-                    child: Transform.scale(
-                      scale: 0.8 + 0.2 * t,
-                      child: const Icon(
-                        Icons.star,
-                        color: Colors.amberAccent,
-                        size: 18,
-                      ),
-                    ),
-                  ),
-                ),
-              )
-              .toList(),
+      children: particles.map((a) {
+        final index = particles.indexOf(a);
+        return Align(
+          alignment: a,
+          child: Opacity(
+            opacity: (1.0 - t).clamp(0.0, 1.0),
+            child: Transform.scale(
+              scale: ((0.5 + 0.5 * t) * (index % 2 == 0 ? 1.2 : 0.8)).clamp(0.0, 2.0),
+              child: Icon(
+                index % 3 == 0 ? Icons.auto_awesome : Icons.star,
+                color: index % 2 == 0 ? Colors.amberAccent : Colors.cyanAccent,
+                size: 14 + 10 * (1 - t),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -2744,13 +2843,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                             ctx, 
                             '确认断开', 
                             const Color(0xFFFF6A6A), 
-                            () {
-                              Navigator.pushAndRemoveUntil(
-                                context,
-                                createHoloRoute(const StartScreen()),
-                                (route) => false,
-                              );
-                            }
+                            () => Navigator.pop(ctx, true)
                           ),
                         ],
                       ),
@@ -2794,12 +2887,16 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     return DragTarget<CardInstance>(
       onWillAccept: (instance) {
         final card = instance?.data;
-        if (card?.type == CardType.exploit && program.hp > 0) {
+        if (card == null) return false;
+        
+        // 根据卡牌定义的 target 来决定是否接受
+        final accept = (card.target == CardTarget.enemy || card.target == CardTarget.all) && program.hp > 0;
+        
+        if (accept) {
           highlightedTarget = program;
           setState(() {});
-          return true;
         }
-        return false;
+        return accept;
       },
       onAccept: (instance) {
         useCard(instance, program);
@@ -2883,7 +2980,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                 ),
                 Positioned.fill(
                   child: Opacity(
-                    opacity: 0.05,
+                    opacity: 0.05.clamp(0.0, 1.0),
                     child: CyberScanline(color: coreColor),
                   ),
                 ),
@@ -2923,7 +3020,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: const Color(0xFFFF4444).withValues(alpha: 1.0 - (val - 1.0) * 5),
+                          color: const Color(0xFFFF4444).withValues(alpha: (1.0 - (val - 1.0) * 5).clamp(0.0, 1.0)),
                           width: 2,
                         ),
                       ),
@@ -2936,29 +3033,38 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
         final box = TweenAnimationBuilder<double>(
           key: ValueKey("monster_anim_builder_${program.id}_${isGlitching}_${isProtecting}_$isBouncing"),
-          duration: Duration(milliseconds: isGlitching ? 300 : 200),
+          duration: Duration(milliseconds: isGlitching ? 400 : (isBouncing ? 450 : 200)),
           tween: Tween(begin: 0, end: 1),
+          curve: isBouncing ? Curves.easeOutBack : Curves.linear,
           builder: (context, t, child) {
             double dx = 0, dy = 0;
             double scale = 1.0;
+            double rotation = 0.0;
+
+            // 基础空闲悬浮动画 (idle floating)
+            final idleTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
+            dy += sin(idleTime * 2 + program.id.hashCode % 10) * 3;
 
             if (isGlitching) {
-              // 线性衰减的水平抖动
-              dx = sin(t * 4 * pi) * 6 * (1 - t);
+              // 更加剧烈的故障抖动
+              dx = sin(t * 8 * pi) * 8 * (1 - t);
+              rotation = sin(t * 4 * pi) * 0.05 * (1 - t);
+              scale = 1.0 - 0.05 * sin(t * pi);
             }
 
             if (isBouncing) {
-              dy = -sin(t * pi) * 8; 
-              scale = 1.05;
+              // 更加平滑的弹跳
+              dy -= sin(t * pi) * 12; 
+              scale = 1.0 + 0.08 * sin(t * pi);
             }
 
             Widget content = buildCore();
 
             if (isGlitching) {
-              // 白色高亮闪烁效果
+              // 增强故障闪烁效果
               content = ColorFiltered(
                 colorFilter: ColorFilter.mode(
-                  Colors.white.withOpacity(0.6 * (1 - t)),
+                  Colors.white.withValues(alpha: (0.7 * (1 - t)).clamp(0.0, 1.0)),
                   BlendMode.srcATop,
                 ),
                 child: content,
@@ -2967,9 +3073,12 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
             return Transform.translate(
               offset: Offset(dx, dy),
-              child: Transform.scale(
-                scale: scale,
-                child: content,
+              child: Transform.rotate(
+                angle: rotation,
+                child: Transform.scale(
+                  scale: scale,
+                  child: content,
+                ),
               ),
             );
           },
@@ -3003,7 +3112,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
         return AnimatedOpacity(
           key: program.key,
-          opacity: isDead ? 0.4 : (anim.isCharging(program) ? 0.0 : 1.0),
+          opacity: (isDead ? 0.4 : (anim.isCharging(program) ? 0.0 : 1.0)).clamp(0.0, 1.0),
           duration: const Duration(milliseconds: 100),
           child: Stack(
             clipBehavior: Clip.none,
@@ -3160,7 +3269,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3.clamp(0.0, 1.0)),
                           blurRadius: 6,
                           spreadRadius: 2,
                         ),
@@ -3288,8 +3397,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           // 内部内容
           TweenAnimationBuilder<double>(
             key: ValueKey("energy_$energy"),
-            duration: const Duration(milliseconds: 300),
-            tween: Tween(begin: 1.2, end: 1.0),
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.elasticOut,
+            tween: Tween(begin: 1.3, end: 1.0),
             builder: (context, scale, child) {
               return Transform.scale(
                 scale: scale,
@@ -3299,7 +3409,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                     Text(
                       "BANDWIDTH",
                       style: TextStyle(
-                        color: const Color(0xFF6CE4FF).withValues(alpha: 0.5),
+                        color: const Color(0xFF6CE4FF).withValues(alpha: (0.5 + (scale - 1.0) * 2).clamp(0.0, 1.0)),
                         fontSize: 7,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
@@ -3312,24 +3422,29 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       crossAxisAlignment: CrossAxisAlignment.baseline,
                       textBaseline: TextBaseline.alphabetic,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.bolt_rounded,
-                          color: Color(0xFF6CE4FF),
+                          color: const Color(0xFF6CE4FF).withValues(alpha: (0.8 + (scale - 1.0) * 0.5).clamp(0.0, 1.0)),
                           size: 14,
                         ),
                         Text(
                           "$energy",
-                          style: const TextStyle(
-                            color: Color(0xFF6CE4FF),
+                          style: TextStyle(
+                            color: const Color(0xFF6CE4FF),
                             fontSize: 24,
                             fontWeight: FontWeight.w900,
                             fontFamily: 'monospace',
                             height: 1.0,
                             shadows: [
                               Shadow(
-                                color: Color(0xFF6CE4FF),
-                                blurRadius: 10,
+                                color: const Color(0xFF6CE4FF).withValues(alpha: 0.8),
+                                blurRadius: 10 * scale,
                               ),
+                              if (scale > 1.0)
+                                Shadow(
+                                  color: const Color(0xFF6CE4FF).withValues(alpha: 0.3),
+                                  blurRadius: 20 * scale,
+                                ),
                             ],
                           ),
                         ),
@@ -3346,11 +3461,110 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   }
 
   Widget _handArea() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-      child: gamePhase == GamePhase.discardPhase
-          ? _discardPhaseView()
-          : _fanHandView(),
+    return Stack(
+      alignment: Alignment.bottomCenter,
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+          child: gamePhase == GamePhase.discardPhase
+              ? _discardPhaseView()
+              : _fanHandView(),
+        ),
+        if (_activeBuffName != null)
+          Positioned(
+            bottom: 125, // 位于手牌上方
+            left: 20,
+            right: 20,
+            child: _buffInfoPanel(),
+          ),
+      ],
+    );
+  }
+
+  /// Buff 效果说明面板
+  Widget _buffInfoPanel() {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 200),
+      builder: (context, val, child) {
+        return Opacity(
+          opacity: val,
+          child: Transform.translate(
+            offset: Offset(0, 10 * (1 - val)),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: const Color(0xFF6CE4FF).withValues(alpha: 0.6),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF6CE4FF).withValues(alpha: 0.2),
+                    blurRadius: 15,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 3,
+                            height: 14,
+                            color: const Color(0xFF6CE4FF),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _activeBuffName!,
+                            style: const TextStyle(
+                              color: Color(0xFF6CE4FF),
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _activeBuffName = null;
+                            _activeBuffDesc = null;
+                          });
+                        },
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white38,
+                          size: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _activeBuffDesc!,
+                    style: const TextStyle(
+                      color: Color(0xFFE1E9FF),
+                      fontSize: 12,
+                      height: 1.5,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -3468,21 +3682,40 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           final instance = hand[i];
           final card = instance.data;
           if (card == null) continue;
+          
+          // 使用 AnimatedPositioned 实现平滑的手牌位移
           children.add(
-            Positioned(
+            AnimatedPositioned(
+              key: ValueKey("hand_card_${instance.instanceId}"),
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeOutCubic,
               left: dx,
               top: baseY,
               child: TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: 1),
-                duration: const Duration(milliseconds: 200),
-                builder:
-                    (_, __, ___) => Transform.rotate(
-                      angle: rot,
-                      child: Transform.scale(
-                        scale: scale,
-                        child: _cardView(i, instance),
-                      ),
+                // 仅用于初次进入时的缩放/淡入效果
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutBack,
+                builder: (context, entryScale, child) {
+                  return Transform.scale(
+                    scale: entryScale,
+                    child: Opacity(
+                      opacity: entryScale.clamp(0.0, 1.0),
+                      child: child,
                     ),
+                  );
+                },
+                child: AnimatedRotation(
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeOutCubic,
+                  turns: rot / (2 * pi),
+                  child: AnimatedScale(
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeOutCubic,
+                    scale: scale,
+                    child: _cardView(i, instance),
+                  ),
+                ),
               ),
             ),
           );
@@ -3555,18 +3788,36 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                 final instance = hand[i];
                 final card = instance.data;
                 if (card == null) continue;
+                
                 children.add(
-                  Positioned(
+                  AnimatedPositioned(
+                    key: ValueKey("discard_card_${instance.instanceId}"),
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeOutCubic,
                     left: dx,
                     top: baseY,
                     child: TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0, end: 1),
-                      duration: const Duration(milliseconds: 200),
-                      builder: (_, __, ___) => GestureDetector(
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutBack,
+                      builder: (context, entryScale, child) {
+                        return Transform.scale(
+                          scale: entryScale,
+                          child: Opacity(
+                            opacity: entryScale.clamp(0.0, 1.0),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: GestureDetector(
                         onTap: () => selectCardToKeep(instance),
-                        child: Transform.rotate(
-                          angle: rot,
-                          child: Transform.scale(
+                        child: AnimatedRotation(
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeOutCubic,
+                          turns: rot / (2 * pi),
+                          child: AnimatedScale(
+                            duration: const Duration(milliseconds: 400),
+                            curve: Curves.easeOutCubic,
                             scale: scale,
                             child: _cardView(i, instance),
                           ),
@@ -3622,47 +3873,60 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             });
           },
 
-          /// 🔑 优化点 1：feedback 用 Material 包裹，添加更流畅的动画效果
+          /// 🔑 优化点 1：使用 TweenAnimationBuilder 实现更柔和的弹出反馈
           feedback: Material(
             color: Colors.transparent,
-            elevation: 20,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOut,
-              width: 100, // 放大
-              height: 133,
-              child: Transform.rotate(
-                angle: 0.08, // 轻微旋转增加动态感
-                child: _cardWidget(card, dragging: true),
-              ),
+            elevation: 0,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutBack,
+              builder: (context, t, child) {
+                return Transform.scale(
+                  scale: 1.0 + 0.1 * t, // 稍微放大
+                  child: Transform.rotate(
+                    angle: 0.05 * t, // 轻微旋转
+                    child: Opacity(
+                      opacity: (0.8 + 0.2 * t).clamp(0.0, 1.0),
+                      child: SizedBox(
+                        width: 84,
+                        height: 112,
+                        child: _cardWidget(card, dragging: true),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
 
-          /// 🔑 优化点 2：childWhenDragging 固定尺寸，添加吸附动画和阴影效果
+          /// 🔑 优化点 2：拖拽时原位置显示动态占位，增加吸附感
           childWhenDragging: TweenAnimationBuilder<double>(
-            duration: const Duration(milliseconds: 300),
-            tween: Tween(begin: 1.0, end: 0.2),
+            duration: const Duration(milliseconds: 350),
+            tween: Tween(begin: 1.0, end: 0.4),
+            curve: Curves.easeOutQuart,
             builder: (context, opacity, child) {
               return Opacity(
-                opacity: opacity,
+                opacity: opacity.clamp(0.0, 1.0),
                 child: Transform.scale(
-                  scale: 0.85, // 缩小效果更明显
-                  child: SizedBox(
+                  scale: 0.92, 
+                  child: Container(
                     width: 84,
                     height: 112,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.3),
-                            blurRadius: 10,
-                            spreadRadius: 2,
-                          ),
-                        ],
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        width: 1,
                       ),
-                      child: _cardWidget(card, showCompleteAnimation: true),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.hourglass_empty,
+                        color: Colors.white.withValues(alpha: 0.2),
+                        size: 24,
+                      ),
                     ),
                   ),
                 ),
@@ -3692,13 +3956,12 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             animation: _cardAnimationControllers[instanceId]!,
             builder: (context, child) {
               Color getScanColor() {
-                switch (card.level) {
-                  case 1: return const Color(0xFF6CE4FF); // 蓝绿色 (普通)
-                  case 2: return const Color(0xFF44FF44); // 绿色 (优秀)
-                  case 3: return const Color(0xFFE26CFF); // 紫色 (稀有)
-                  case 4: return const Color(0xFFFFD700); // 金色 (史诗)
-                  case 5: return const Color(0xFFFF4444); // 红色 (传说)
-                  default: return Colors.white70;
+                switch (card.suite) {
+                  case CardSuite.classic: return const Color(0xFF6CE4FF);
+                  case CardSuite.overload: return const Color(0xFFFF4444);
+                  case CardSuite.secure: return const Color(0xFF44FF44);
+                  case CardSuite.industrial: return const Color(0xFFFFB344);
+                  case CardSuite.quantum: return const Color(0xFFE26CFF);
                 }
               }
 
@@ -3771,7 +4034,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                   // 🔧 扫描完成后显示卡牌内容（淡入 + 特写动画）
                   if (progress > 0.8)
                     Opacity(
-                      opacity: (progress - 0.8) * 5, // 0.8-1.0区间渐变
+                      opacity: ((progress - 0.8) * 5).clamp(0.0, 1.0), // 0.8-1.0区间渐变
                       child: completionProgress >= 1.0 ? zoomEffect : child,
                     ),
                 ],
@@ -3786,13 +4049,12 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             animation: _cardAnimationControllers[instanceId]!,
             builder: (context, child) {
               Color getScanColor() {
-                switch (card.level) {
-                  case 1: return const Color(0xFF6CE4FF); // 蓝绿色 (普通)
-                  case 2: return const Color(0xFF44FF44); // 绿色 (优秀)
-                  case 3: return const Color(0xFFE26CFF); // 紫色 (稀有)
-                  case 4: return const Color(0xFFFFD700); // 金色 (史诗)
-                  case 5: return const Color(0xFFFF4444); // 红色 (传说)
-                  default: return Colors.white70;
+                switch (card.suite) {
+                  case CardSuite.classic: return const Color(0xFF6CE4FF);
+                  case CardSuite.overload: return const Color(0xFFFF4444);
+                  case CardSuite.secure: return const Color(0xFF44FF44);
+                  case CardSuite.industrial: return const Color(0xFFFFB344);
+                  case CardSuite.quantum: return const Color(0xFFE26CFF);
                 }
               }
 
@@ -3865,7 +4127,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                   // 🔧 扫描完成后显示卡牌内容（淡入 + 特写动画）
                   if (progress > 0.8)
                     Opacity(
-                      opacity: (progress - 0.8) * 5, // 0.8-1.0区间渐变
+                      opacity: ((progress - 0.8) * 5).clamp(0.0, 1.0), // 0.8-1.0区间渐变
                       child: completionProgress >= 1.0 ? zoomEffect : child,
                     ),
                 ],
@@ -3943,24 +4205,145 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     }
   }
 
+  /// 构建卡牌描述文本，智能识别正面/负面效果并着色
+  Widget _buildCardDescription(CardData c, Color highlightColor) {
+    final text = c.description ?? "";
+    if (text.isEmpty) return const SizedBox.shrink();
+
+    // 关键词分类
+    const buffKeywords = {'防火墙加固', '算力', '系统修复', '能量', '能量点', '数据包', '带宽'};
+    const debuffKeywords = {'虚弱', '脆弱', '漏洞暴露', '恶意代码'};
+    const damageKeywords = {'冲击', '自损', '受损'};
+
+    // 匹配数字和关键效果词汇
+    final regex = RegExp(r'(\d+)|(冲击|防火墙加固|数据包|算力|虚弱|脆弱|恶意代码|自损|系统修复|能量|能量点|漏洞暴露|受损|带宽)');
+    final List<TextSpan> spans = [];
+    int lastMatchEnd = 0;
+
+    for (final match in regex.allMatches(text)) {
+      // 1. 添加普通文本（淡化）
+      if (match.start > lastMatchEnd) {
+        spans.add(TextSpan(
+          text: text.substring(lastMatchEnd, match.start),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 8),
+        ));
+      }
+
+      final isNumber = match.group(1) != null;
+      final matchText = match.group(0)!;
+      
+      // 2. 智能判定该项是“好”还是“坏”
+      bool isBadEffect = false;
+      
+      // 确定该项关联的关键字和目标
+      String associatedKeyword = "";
+      if (isNumber) {
+        // 数字寻找最近的关键字（前后探测）
+        final afterText = text.substring(match.end, (match.end + 12).clamp(0, text.length));
+        final beforeText = text.substring((match.start - 12).clamp(0, text.length), match.start);
+        
+        for (var k in [...buffKeywords, ...debuffKeywords, ...damageKeywords]) {
+          if (afterText.contains(k) || beforeText.contains(k)) {
+            associatedKeyword = k;
+            break;
+          }
+        }
+      } else {
+        associatedKeyword = matchText;
+      }
+
+      // 确定目标
+      CardTarget target = c.target;
+      if (associatedKeyword == "自损" || associatedKeyword == "受损") {
+        target = CardTarget.self;
+      }
+
+      // 应用判定矩阵
+      if (damageKeywords.contains(associatedKeyword)) {
+        // 伤害：对自己是坏，对敌人是好
+        isBadEffect = (target == CardTarget.self);
+      } else if (buffKeywords.contains(associatedKeyword)) {
+        // Buff：对自己是好，对敌人是坏
+        isBadEffect = (target != CardTarget.self);
+      } else if (debuffKeywords.contains(associatedKeyword)) {
+        // Debuff：对自己是坏，对敌人是好
+        isBadEffect = (target == CardTarget.self);
+      }
+
+      // 3. 添加高亮项
+      Color displayColor = isBadEffect ? const Color(0xFFFF4444) : (isNumber ? Colors.white : highlightColor);
+      
+      spans.add(TextSpan(
+        text: matchText,
+        style: TextStyle(
+          color: displayColor,
+          fontWeight: (isNumber || isBadEffect) ? FontWeight.w900 : FontWeight.bold,
+          fontSize: isNumber ? 10 : 9,
+          shadows: [
+            Shadow(color: displayColor.withValues(alpha: 0.6), blurRadius: 4),
+          ],
+        ),
+      ));
+
+      lastMatchEnd = match.end;
+    }
+
+    if (lastMatchEnd < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(lastMatchEnd),
+        style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 8),
+      ));
+    }
+
+    return RichText(
+      text: TextSpan(children: spans, style: const TextStyle(fontFamily: 'monospace', height: 1.3)),
+      maxLines: 4,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
   Widget _cardWidget(
     CardData c, {
     bool dragging = false,
     bool showCompleteAnimation = false,
   }) {
+    // 关键区域：根据卡牌套装(Suite)确定视觉风格
+    Color getSuiteColor() {
+      switch (c.suite) {
+        case CardSuite.classic: return const Color(0xFF6CE4FF); // 经典霓虹青
+        case CardSuite.overload: return const Color(0xFFFF4444); // 红色过载
+        case CardSuite.secure: return const Color(0xFF44FF44); // 矩阵终端绿
+        case CardSuite.industrial: return const Color(0xFFFFB344); // 工业机械橙
+        case CardSuite.quantum: return const Color(0xFFE26CFF); // 量子虚空紫
+      }
+    }
+
     Color getRarityColor() {
-      switch (c.level) {
-        case 1: return const Color(0xFF6CE4FF); // 蓝绿色 (普通)
-        case 2: return const Color(0xFF44FF44); // 绿色 (优秀)
-        case 3: return const Color(0xFFE26CFF); // 紫色 (稀有)
+        switch (c.level) {
+          case 1: return const Color(0xFF44FF44); // 绿色 (普通) - 已对换
+          case 2: return const Color(0xFF6CE4FF); // 蓝绿色 (优秀) - 已对换
+          case 3: return const Color(0xFFE26CFF); // 紫色 (稀有)
         case 4: return const Color(0xFFFFD700); // 金色 (史诗)
         case 5: return const Color(0xFFFF4444); // 红色 (传说)
         default: return Colors.white70;
       }
     }
 
+    final suiteColor = getSuiteColor();
     final rarityColor = getRarityColor();
-    final cardBgColor = const Color(0xFF101722).withValues(alpha: 0.85);
+    
+    // 背景色微调：不同套装背景略有差异
+    Color getCardBgColor() {
+      switch (c.suite) {
+        case CardSuite.overload: return const Color(0xFF1A0A0A);
+        case CardSuite.secure: return const Color(0xFF0A1A0A);
+        case CardSuite.industrial: return const Color(0xFF1A140A);
+        case CardSuite.quantum: return const Color(0xFF140A1A);
+        case CardSuite.classic: return const Color(0xFF101722);
+      }
+    }
+    
+    final cardBgColor = getCardBgColor().withValues(alpha: 0.9);
     
     Widget cardBody(double scale) {
       return Transform.scale(
@@ -3973,12 +4356,12 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             color: cardBgColor,
             borderRadius: BorderRadius.circular(4),
             border: Border.all(
-              color: dragging ? Colors.white : rarityColor.withValues(alpha: 0.6),
+              color: dragging ? Colors.white : suiteColor.withValues(alpha: 0.6),
               width: dragging ? 1.5 : 1.0,
             ),
             boxShadow: [
               BoxShadow(
-                color: rarityColor.withValues(alpha: dragging ? 0.5 : 0.2),
+                color: suiteColor.withValues(alpha: dragging ? 0.5 : 0.2),
                 blurRadius: dragging ? 15 : 8,
                 spreadRadius: dragging ? 2 : 1,
               ),
@@ -3993,23 +4376,26 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             borderRadius: BorderRadius.circular(3),
             child: Stack(
               children: [
-                // 1. 背景网格纹理
+                // 1. 背景纹理：不同套装使用不同画笔
                 Positioned.fill(
                   child: CustomPaint(
-                    painter: _CardTechPainter(rarityColor.withValues(alpha: 0.08)),
+                    painter: SuiteTechPainter(c.suite, suiteColor.withValues(alpha: 0.1)),
                   ),
                 ),
-                // 2. 动态扫描线 (独立于弹窗的扫描线，用于卡牌内部)
+                // 2. 动态扫描线
                 Positioned.fill(
                   child: IgnorePointer(
-                    child: CyberScanline(color: rarityColor.withValues(alpha: 0.15)),
+                    child: CyberScanline(
+                      color: suiteColor.withValues(alpha: 0.15),
+                      isGlitch: c.suite == CardSuite.overload, // 过载套装带故障效果
+                    ),
                   ),
                 ),
                 // 3. 科技感边角装饰
                 Positioned.fill(
                   child: IgnorePointer(
                     child: CustomPaint(
-                      painter: CyberCornerPainter(color: rarityColor.withValues(alpha: 0.3)),
+                      painter: CyberCornerPainter(color: suiteColor.withValues(alpha: 0.15)),
                     ),
                   ),
                 ),
@@ -4035,7 +4421,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                 letterSpacing: 0.5,
                                 fontFamily: 'monospace',
                                 shadows: [
-                                  Shadow(color: rarityColor.withValues(alpha: 0.5), blurRadius: 4),
+                                  Shadow(color: suiteColor.withValues(alpha: 0.5), blurRadius: 4),
                                 ],
                               ),
                             ),
@@ -4045,21 +4431,21 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                             decoration: BoxDecoration(
                               color: const Color(0xFF05060A),
                               borderRadius: BorderRadius.circular(2),
-                              border: Border.all(color: rarityColor.withValues(alpha: 0.5), width: 0.5),
+                              border: Border.all(color: suiteColor.withValues(alpha: 0.5), width: 0.5),
                             ),
                             child: Row(
                               children: [
                                 Icon(
-                                  Icons.bolt_rounded,
+                                  _getSuiteIcon(c.suite),
                                   size: 8,
-                                  color: rarityColor,
+                                  color: suiteColor,
                                 ),
                                 Text(
                                   "${c.cost}",
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w900,
-                                    color: rarityColor,
+                                    color: suiteColor,
                                     fontFamily: 'monospace',
                                   ),
                                 ),
@@ -4069,48 +4455,40 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      // 类型标识 (小标签风格)
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0.5),
-                            decoration: BoxDecoration(
-                              color: rarityColor.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(2),
-                              border: Border.all(color: rarityColor.withValues(alpha: 0.3), width: 0.5),
-                            ),
-                            child: Text(
-                              c.type.name.toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 6,
-                                fontWeight: FontWeight.bold,
-                                color: rarityColor,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
+                      // 标题下方的彩色横线：使用卡组风格颜色
+                      Container(
+                        width: double.infinity,
+                        height: 1.5,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              suiteColor,
+                              suiteColor.withValues(alpha: 0.2),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       // 描述文字
                       Expanded(
-                        child: Text(
-                          c.description ?? "",
-                          style: TextStyle(
-                            fontSize: 8.5,
-                            color: Colors.white.withValues(alpha: 0.8),
-                            height: 1.3,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
+                        child: _buildCardDescription(c, suiteColor),
                       ),
-                      // 目标图标
-                      Align(
-                        alignment: Alignment.bottomRight,
-                        child: Opacity(
-                          opacity: 0.8,
-                          child: _smallTargetIcon(c.target, rarityColor),
-                        ),
+                      // 底部标识
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Lv${c.level}",
+                            style: TextStyle(
+                              fontSize: 6,
+                              fontWeight: FontWeight.bold,
+                              color: rarityColor.withValues(alpha: 0.9),
+                              fontFamily: 'monospace',
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          _smallTargetIcon(c.target, suiteColor),
+                        ],
                       ),
                     ],
                   ),
@@ -4131,6 +4509,16 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       );
     } else {
       return cardBody(1.0);
+    }
+  }
+
+  IconData _getSuiteIcon(CardSuite suite) {
+    switch (suite) {
+      case CardSuite.classic: return Icons.bolt_rounded;
+      case CardSuite.overload: return Icons.warning_amber_rounded;
+      case CardSuite.secure: return Icons.security_rounded;
+      case CardSuite.industrial: return Icons.settings_rounded;
+      case CardSuite.quantum: return Icons.auto_awesome_rounded;
     }
   }
 
@@ -4155,37 +4543,58 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   Widget _attackEffect(AttackEffect e) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 900),
-      curve: Curves.easeInOutCubic,
+      duration: const Duration(milliseconds: 950), // 稍微增加总时长
+      curve: Curves.easeInOutQuart, // 更平滑的整体曲线
       builder: (_, t, __) {
         Offset pos;
+        double stageProgress;
+        
         if (t < 0.3) {
-          pos = Offset.lerp(e.start, e.end, t / 0.3)!;
-        } else if (t < 0.35) {
-          final overshoot = e.end + (e.end - e.start) * 0.03;
-          pos = Offset.lerp(e.end, overshoot, (t - 0.3) / 0.05)!;
-        } else if (t < 0.8) {
-          pos = e.end;
+          // 冲锋阶段：加速推进
+          stageProgress = Curves.easeInQuint.transform((t / 0.3).clamp(0.0, 1.0));
+          pos = Offset.lerp(e.start, e.end, stageProgress)!;
+        } else if (t < 0.38) {
+          // 撞击超冲阶段：极短的爆发
+          stageProgress = Curves.elasticOut.transform(((t - 0.3) / 0.08).clamp(0.0, 1.0));
+          final overshoot = e.end + (e.end - e.start) * 0.04;
+          pos = Offset.lerp(e.end, overshoot, stageProgress)!;
+        } else if (t < 0.75) {
+          // 停留阶段：在目标处稍微颤动
+          stageProgress = ((t - 0.38) / 0.37).clamp(0.0, 1.0);
+          final jitter = Offset(
+            sin(stageProgress * 20 * pi) * 0.5,
+            cos(stageProgress * 20 * pi) * 0.5,
+          );
+          pos = e.end + jitter;
         } else {
-          pos = Offset.lerp(e.end, e.start, (t - 0.8) / 0.2)!;
+          // 回退阶段：平滑归位
+          stageProgress = Curves.easeOutCubic.transform(((t - 0.75) / 0.25).clamp(0.0, 1.0));
+          pos = Offset.lerp(e.end, e.start, stageProgress)!;
         }
 
-        final dir = (e.end - e.start);
-        final mag = (dir.distance == 0) ? 1.0 : dir.distance;
-        final unit = dir / mag;
-
         final scale =
-            t < 0.35
-                ? 1.0 + 0.06 * (t / 0.35)
-                : t < 0.8
-                ? 1.06
-                : 1.0 + 0.06 * (1 - (t - 0.8) / 0.2);
+            t < 0.38
+                ? 1.0 + 0.12 * Curves.easeOut.transform((t / 0.38).clamp(0.0, 1.0))
+                : t < 0.75
+                ? 1.12
+                : 1.12 - 0.12 * Curves.easeIn.transform(((t - 0.75) / 0.25).clamp(0.0, 1.0));
+                
         final rot =
-            (e.attacker == player ? 0.04 : -0.04) *
-            (t < 0.8 ? 1.0 : (1 - (t - 0.8) / 0.2));
+            (e.attacker == player ? 0.06 : -0.06) *
+            (t < 0.75 ? 1.0 : (1 - (t - 0.75) / 0.25));
 
         return Stack(
           children: [
+            // 添加拖尾效果（可选，通过多个透明层模拟）
+            if (t > 0 && t < 0.3)
+              Positioned(
+                left: Offset.lerp(e.start, e.end, (t - 0.05).clamp(0, 1) / 0.3)!.dx,
+                top: Offset.lerp(e.start, e.end, (t - 0.05).clamp(0, 1) / 0.3)!.dy,
+                child: Opacity(
+                  opacity: 0.3,
+                  child: _entityGhostWidget(e.attacker, scale: 0.95),
+                ),
+              ),
             Positioned(
               left: pos.dx,
               top: pos.dy,
@@ -4241,7 +4650,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       ),
     );
     return Opacity(
-      opacity: 0.95,
+      opacity: 0.95.clamp(0.0, 1.0),
       child: Transform.rotate(
         angle: rotation,
         child: Transform.scale(scale: scale, child: child),
@@ -4251,23 +4660,34 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
   Widget _damagePopup(DamagePopup p) {
     return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: -40),
-      duration: const Duration(milliseconds: 800),
-      curve: Curves.easeOutCubic,
-      builder: (_, offset, __) {
-        final scale = offset < -20 ? 1.0 : 1.5 + (offset / 40);
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 900),
+      curve: Curves.easeOutBack,
+      builder: (_, t, __) {
+        final dy = -60 * Curves.easeOutQuart.transform(t.clamp(0.0, 1.0));
+        final dx = sin(t.clamp(0.0, 1.0) * pi * 4) * 4 * (1 - t.clamp(0.0, 1.0));
+        final scale = t < 0.2 ? 0.6 + t * 4 : 1.4 - (t - 0.2) * 0.5;
+        final opacity = t < 0.6 ? 1.0 : 1.0 - (t - 0.6) / 0.4;
+
         return Positioned(
-          left: p.pos.dx,
-          top: p.pos.dy + offset,
-          child: Transform.scale(
-            scale: scale,
-            child: Text(
-              "-${p.value}",
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.red,
-                shadows: [Shadow(color: Colors.red, blurRadius: 10)],
+          left: p.pos.dx + dx,
+          top: p.pos.dy + dy,
+          child: Opacity(
+            opacity: opacity.clamp(0.0, 1.0),
+            child: Transform.scale(
+              scale: scale.clamp(0.0, 1.8),
+              child: Text(
+                "-${p.value}",
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.redAccent,
+                  fontFamily: 'monospace',
+                  shadows: [
+                    Shadow(color: Colors.black, blurRadius: 4),
+                    Shadow(color: Colors.red, blurRadius: 15),
+                  ],
+                ),
               ),
             ),
           ),
@@ -4279,18 +4699,34 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   // 关键区域：防火墙冲击弹窗
   Widget _blockDamagePopup(BlockPopup p) {
     return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: -30),
+      tween: Tween(begin: 0, end: 1),
       duration: const Duration(milliseconds: 800),
-      builder: (_, offset, __) {
+      curve: Curves.easeOutCubic,
+      builder: (_, t, __) {
+        final dy = -40 * Curves.easeOutQuad.transform(t.clamp(0.0, 1.0));
+        final opacity = t < 0.6 ? 1.0 : 1.0 - (t - 0.6) / 0.4;
+        final scale = t < 0.2 ? 0.8 + t : 1.0;
+
         return Positioned(
           left: p.pos.dx,
-          top: p.pos.dy + offset,
-          child: Text(
-            "-${p.value}",
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.cyanAccent,
+          top: p.pos.dy + dy,
+          child: Opacity(
+            opacity: opacity.clamp(0.0, 1.0),
+            child: Transform.scale(
+              scale: scale.clamp(0.0, 2.0),
+              child: Text(
+                "-${p.value}",
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.cyanAccent,
+                  fontFamily: 'monospace',
+                  shadows: [
+                    Shadow(color: Colors.black, blurRadius: 4),
+                    Shadow(color: Colors.cyanAccent, blurRadius: 8),
+                  ],
+                ),
+              ),
             ),
           ),
         );
@@ -4300,25 +4736,41 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
   Widget _blockGainPopup(BlockGainPopup p) {
     return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: -30),
-      duration: const Duration(milliseconds: 800),
-      builder: (_, offset, __) {
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 900),
+      curve: Curves.elasticOut,
+      builder: (_, t, __) {
+        final dy = -35 * Curves.easeOutExpo.transform(t.clamp(0.0, 1.0));
+        final opacity = t < 0.7 ? 1.0 : 1.0 - (t - 0.7) / 0.3;
+        final scale = t < 0.3 ? 0.5 + t * 2 : 1.1 - (t - 0.3) * 0.1;
+
         return Positioned(
           left: p.pos.dx,
-          top: p.pos.dy + offset,
-          child: Row(
-            children: [
-              const Icon(Icons.shield, size: 18, color: Colors.cyanAccent),
-              const SizedBox(width: 4),
-              Text(
-                "+${p.value}",
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.cyanAccent,
-                ),
+          top: p.pos.dy + dy,
+          child: Opacity(
+            opacity: opacity.clamp(0, 1),
+            child: Transform.scale(
+              scale: scale.clamp(0, 1.2),
+              child: Row(
+                children: [
+                  const Icon(Icons.shield, size: 20, color: Colors.cyanAccent),
+                  const SizedBox(width: 4),
+                  Text(
+                    "+${p.value}",
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.cyanAccent,
+                      fontFamily: 'monospace',
+                      shadows: [
+                        Shadow(color: Colors.black, blurRadius: 4),
+                        Shadow(color: Colors.cyanAccent, blurRadius: 10),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },
@@ -4327,25 +4779,41 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
   Widget _healPopup(HealPopup p) {
     return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: -40),
-      duration: const Duration(milliseconds: 800),
-      builder: (_, offset, __) {
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 900),
+      curve: Curves.easeOutBack,
+      builder: (_, t, __) {
+        final dy = -45 * Curves.easeOutQuart.transform(t.clamp(0.0, 1.0));
+        final opacity = t < 0.7 ? 1.0 : 1.0 - (t - 0.7) / 0.3;
+        final scale = t < 0.3 ? 0.5 + t * 2 : 1.1;
+
         return Positioned(
           left: p.pos.dx,
-          top: p.pos.dy + offset,
-          child: Row(
-            children: [
-              const Icon(Icons.favorite, size: 18, color: Colors.greenAccent),
-              const SizedBox(width: 4),
-              Text(
-                "+${p.value}",
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.greenAccent,
-                ),
+          top: p.pos.dy + dy,
+          child: Opacity(
+            opacity: opacity.clamp(0.0, 1.0),
+            child: Transform.scale(
+              scale: scale.clamp(0.0, 1.3),
+              child: Row(
+                children: [
+                  const Icon(Icons.favorite, size: 20, color: Colors.greenAccent),
+                  const SizedBox(width: 4),
+                  Text(
+                    "+${p.value}",
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.greenAccent,
+                      fontFamily: 'monospace',
+                      shadows: [
+                        Shadow(color: Colors.black, blurRadius: 4),
+                        Shadow(color: Colors.greenAccent, blurRadius: 10),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },
@@ -4353,45 +4821,64 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   }
 
   Widget _statusIcon(IconData icon, String value, Color color, String tooltip) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.8, end: 1.0),
-      duration: const Duration(seconds: 1),
-      curve: Curves.easeInOut,
-      builder: (context, val, child) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0A0F16).withValues(alpha: 0.8),
-            borderRadius: BorderRadius.circular(2),
-            border: Border.all(color: color.withValues(alpha: 0.5), width: 0.8),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.1 * val),
-                blurRadius: 4,
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Transform.scale(
-                scale: val,
-                child: Icon(icon, size: 10, color: color),
-              ),
-              const SizedBox(width: 3),
-              Text(
-                value,
-                style: TextStyle(
-                  color: color.withValues(alpha: 0.9),
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'monospace',
-                ),
-              ),
-            ],
-          ),
-        );
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (_activeBuffName == tooltip) {
+            _activeBuffName = null;
+            _activeBuffDesc = null;
+          } else {
+            _activeBuffName = tooltip;
+            _activeBuffDesc = _buffExplanations[tooltip] ?? "暂无说明";
+          }
+        });
       },
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.8, end: 1.0),
+        duration: const Duration(seconds: 1),
+        curve: Curves.easeInOut,
+        builder: (context, val, child) {
+          final isHighlighted = _activeBuffName == tooltip;
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            decoration: BoxDecoration(
+              color: isHighlighted 
+                  ? color.withValues(alpha: 0.2) 
+                  : const Color(0xFF0A0F16).withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(2),
+              border: Border.all(
+                color: isHighlighted ? color : color.withValues(alpha: 0.5), 
+                width: isHighlighted ? 1.2 : 0.8
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: (isHighlighted ? 0.3 : 0.1 * val).clamp(0.0, 1.0)),
+                  blurRadius: isHighlighted ? 8 : 4,
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Transform.scale(
+                  scale: val,
+                  child: Icon(icon, size: 10, color: color),
+                ),
+                const SizedBox(width: 3),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: color.withValues(alpha: 0.9),
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -4429,17 +4916,40 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     return Container(
       height: 18,
       alignment: Alignment.center,
-      child: Wrap(
-        spacing: 6,
-        alignment: WrapAlignment.center,
-        children: effects,
+      child: Material(
+        color: Colors.transparent,
+        child: Wrap(
+          spacing: 6,
+          alignment: WrapAlignment.center,
+          children: effects,
+        ),
       ),
     );
   }
 
   // 显示卡牌使用时的粒子效果
   void _showCardUseEffect(CardData card, Entity target) {
-    // 根据卡牌类型添加不同的粒子效果
+    // 根据卡牌类型添加不同的粒子效果反馈
+    final ctx = target.key.currentContext;
+    if (ctx == null) return;
+    
+    final box = ctx.findRenderObject() as RenderBox;
+    final pos = box.localToGlobal(const Offset(50, 20));
+    
+    // 触发屏幕抖动或颜色反馈
+    if (card.type == CardType.exploit) {
+      anim.triggerScreenOverload();
+      // 在目标位置产生一个冲击波效果（借用 DamagePopup 但值为 0）
+      final p = DamagePopup(0, pos);
+      anim.popups.add(p);
+      anim.refresh();
+      Future.delayed(const Duration(milliseconds: 800), () {
+        anim.popups.remove(p);
+        anim.refresh();
+      });
+    } else if (card.type == CardType.encryption) {
+      anim.showActionFeedback(target);
+    }
   }
 
   // 关键区域：防火墙崩溃特效
@@ -4486,14 +4996,24 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     if (card == null) return const SizedBox.shrink();
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOut,
+      duration: const Duration(milliseconds: 650), // 增加时长使动作更优雅
+      curve: Curves.easeOutQuart, // 使用更平滑的减速曲线
       builder: (_, t, __) {
+        // 弧形路径：在直线移动的基础上增加一点垂直弧度
+        final arc = sin(t * pi) * 20;
         final x = m.start.dx + (m.end.dx - m.start.dx) * t;
-        final y = m.start.dy + (m.end.dy - m.start.dy) * t;
-        final s = 0.9 + 0.1 * t;
-        final rot = (m.start.dy > m.end.dy ? -0.15 : 0.12) * (1 - t);
-        final opacity = 0.85 + 0.15 * t;
+        final y = m.start.dy + (m.end.dy - m.start.dy) * t - arc;
+        
+        // 动态缩放：先缩小再恢复，模拟从手牌抽出的动态
+        final s = 0.85 + 0.15 * Curves.easeOutBack.transform(t.clamp(0.0, 1.0));
+        
+        // 动态旋转：根据移动方向增加倾斜感
+        final horizontalShift = (m.end.dx - m.start.dx).clamp(-50, 50) / 50.0;
+        final rot = (m.start.dy > m.end.dy ? -0.2 : 0.15) * (1 - t) + (horizontalShift * 0.1 * t);
+        
+        // 透明度：更加平滑的淡入
+        final opacity = (t * 2).clamp(0.0, 1.0);
+        
         return Positioned(
           left: x,
           top: y,

@@ -4,12 +4,14 @@ import 'dart:ui';
 import 'character_data.dart';
 import 'level_data.dart';
 import 'main.dart';
+import 'map_screen.dart';
 import 'game_state.dart';
 
 /// 赛博朋克风格扫描线
 class CyberScanline extends StatefulWidget {
   final Color color;
-  const CyberScanline({required this.color});
+  final bool isGlitch;
+  const CyberScanline({required this.color, this.isGlitch = false});
 
   @override
   State<CyberScanline> createState() => _CyberScanlineState();
@@ -24,7 +26,7 @@ class _CyberScanlineState extends State<CyberScanline>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 4),
+      duration: Duration(seconds: widget.isGlitch ? 2 : 4),
     )..repeat();
   }
 
@@ -43,6 +45,7 @@ class _CyberScanlineState extends State<CyberScanline>
           painter: _ScanlinePainter(
             progress: _controller.value,
             color: widget.color,
+            isGlitch: widget.isGlitch,
           ),
         );
       },
@@ -53,36 +56,46 @@ class _CyberScanlineState extends State<CyberScanline>
 class _ScanlinePainter extends CustomPainter {
   final double progress;
   final Color color;
-  _ScanlinePainter({required this.progress, required this.color});
+  final bool isGlitch;
+  _ScanlinePainter({required this.progress, required this.color, this.isGlitch = false});
 
   @override
   void paint(Canvas canvas, Size size) {
+    final random = math.Random();
+    final glitchOffset = isGlitch ? (random.nextDouble() - 0.5) * 5 : 0.0;
+    
     final paint = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
           Colors.transparent,
-          color.withValues(alpha: 0.1),
-          color.withValues(alpha: 0.05),
+          color.withValues(alpha: isGlitch ? 0.3 : 0.1),
+          color.withValues(alpha: isGlitch ? 0.15 : 0.05),
           Colors.transparent,
         ],
         stops: const [0.0, 0.45, 0.55, 1.0],
-      ).createShader(Rect.fromLTWH(0, size.height * progress - 50, size.width, 100));
+      ).createShader(Rect.fromLTWH(0, size.height * progress - 50 + glitchOffset, size.width, 100));
 
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
 
     // 绘制极细的横线
     final linePaint = Paint()
-      ..color = color.withValues(alpha: 0.2)
-      ..strokeWidth = 0.5;
+      ..color = color.withValues(alpha: isGlitch ? 0.4 : 0.2)
+      ..strokeWidth = isGlitch ? 1.0 : 0.5;
     
-    double y = size.height * progress;
+    double y = size.height * progress + glitchOffset;
     canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
+    
+    if (isGlitch && random.nextDouble() > 0.8) {
+      // 额外故障横线
+      final gy = random.nextDouble() * size.height;
+      canvas.drawLine(Offset(0, gy), Offset(size.width, gy), linePaint..color = color.withValues(alpha: 0.1));
+    }
   }
 
   @override
-  bool shouldRepaint(_ScanlinePainter oldDelegate) => oldDelegate.progress != progress;
+  bool shouldRepaint(_ScanlinePainter oldDelegate) => true;
 }
 
 /// 赛博朋克装饰背景
@@ -366,6 +379,7 @@ class CyberButton extends StatelessWidget {
   final double height;
   final Color color;
   final double fontSize;
+  final String? heroTag;
 
   const CyberButton({
     super.key,
@@ -375,6 +389,7 @@ class CyberButton extends StatelessWidget {
     this.height = 50,
     this.fontSize = 14,
     this.color = const Color(0xFF6CE4FF),
+    this.heroTag,
   });
 
   @override
@@ -382,7 +397,7 @@ class CyberButton extends StatelessWidget {
     final bool isDisabled = onPressed == null;
     final Color activeColor = isDisabled ? Colors.grey : color;
 
-    return Opacity(
+    Widget button = Opacity(
       opacity: isDisabled ? 0.5 : 1.0,
       child: GestureDetector(
         onTap: onPressed,
@@ -442,6 +457,17 @@ class CyberButton extends StatelessWidget {
         ),
       ),
     );
+
+    if (heroTag != null) {
+      return Hero(
+        tag: heroTag!,
+        child: Material(
+          color: Colors.transparent,
+          child: button,
+        ),
+      );
+    }
+    return button;
   }
 }
 
@@ -572,6 +598,7 @@ class StartScreen extends StatelessWidget {
 
                 // 开始游戏按钮
                 CyberButton(
+                  heroTag: 'main_action_button',
                   label: '初始化接入序列',
                   onPressed: () {
                     Navigator.push(
@@ -616,32 +643,50 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
 
   @override
   void dispose() {
-    _animationControllers.values.forEach((controller) => controller.dispose());
+    for (var controller in _animationControllers.values) {
+      controller.dispose();
+    }
+    _animationControllers.clear();
     super.dispose();
   }
 
   void _startAnimation(String characterId) {
-    // 停止其他卡片的动画
-    for (var id in _animationControllers.keys) {
-      if (id != characterId) {
-        _animationControllers[id]?.stop();
-        _animationControllers[id]?.dispose();
+    // 1. 彻底清理现有的动画控制器，防止内存泄漏和竞争
+    for (var controller in _animationControllers.values) {
+      try {
+        controller.stop();
+        controller.dispose();
+      } catch (_) {
+        // 忽略已释放或正在释放的控制器的异常
       }
     }
-    _animationControllers.removeWhere((id, _) => id != characterId);
+    _animationControllers.clear();
 
-    // 创建新的动画控制器
-    _animationControllers[characterId] = AnimationController(
+    // 2. 创建新的动画控制器
+    final controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    _animationControllers[characterId]!.forward().then((_) {
-      _animationControllers[characterId]!.dispose();
-      _animationControllers.remove(characterId);
-      setState(() {
-        _animatingCharacterId = null;
-      });
+    
+    _animationControllers[characterId] = controller;
+    
+    // 3. 动画完成后安全清理
+    controller.forward().then((_) {
+      if (mounted && _animationControllers[characterId] == controller) {
+        _animationControllers.remove(characterId);
+        try {
+          controller.dispose();
+        } catch (_) {}
+        setState(() {
+          if (_animatingCharacterId == characterId) {
+            _animatingCharacterId = null;
+          }
+        });
+      }
+    }).catchError((_) {
+      // 捕获动画过程中可能产生的异常（例如被dispose）
     });
+
     setState(() {
       _animatingCharacterId = characterId;
     });
@@ -649,93 +694,106 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          // 关键区域：背景美化
-          const Positioned.fill(
-            child: CyberBackground(),
-          ),
-          Column(
-            children: [
-              // 自定义美化标题栏
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.only(
-                  top: MediaQuery.of(context).padding.top + 10,
-                  bottom: 20,
-                  left: 20,
-                  right: 20,
-                ),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      const Color(0xFF101722).withValues(alpha: 0.9),
-                      const Color(0xFF0A0F16).withValues(alpha: 0.0),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldExit = await _confirmExit(context);
+        if (shouldExit && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            // 关键区域：背景美化
+            const Positioned.fill(
+              child: CyberBackground(),
+            ),
+            Column(
+              children: [
+                // 自定义美化标题栏
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).padding.top + 10,
+                    bottom: 20,
+                    left: 20,
+                    right: 20,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        const Color(0xFF101722).withValues(alpha: 0.9),
+                        const Color(0xFF0A0F16).withValues(alpha: 0.0),
+                      ],
+                    ),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: const Color(0xFF6CE4FF).withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "// SYSTEM_NEURAL_LINK",
+                            style: TextStyle(
+                              color: const Color(0xFF6CE4FF).withValues(alpha: 0.5),
+                              fontSize: 8,
+                              letterSpacing: 1.5,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                          CyberButton(
+                            width: 60,
+                            height: 20,
+                            label: "返回",
+                            fontSize: 9,
+                            color: const Color(0xFF6CE4FF),
+                            onPressed: () async {
+                              final shouldPop = await _confirmExit(context);
+                              if (shouldPop && context.mounted) {
+                                Navigator.pop(context);
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.psychology, color: Color(0xFF6CE4FF), size: 20),
+                          const SizedBox(width: 15),
+                          const Text(
+                            '配置接入单元',
+                            style: TextStyle(
+                              color: Color(0xFFE1E9FF),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 22,
+                              letterSpacing: 4,
+                              shadows: [
+                                Shadow(
+                                  color: Color(0xFF6CE4FF),
+                                  blurRadius: 10,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 15),
+                          const Icon(Icons.psychology, color: Color(0xFF6CE4FF), size: 20),
+                        ],
+                      ),
                     ],
                   ),
-                  border: Border(
-                    bottom: BorderSide(
-                      color: const Color(0xFF6CE4FF).withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
                 ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "// SYSTEM_NEURAL_LINK",
-                          style: TextStyle(
-                            color: const Color(0xFF6CE4FF).withValues(alpha: 0.5),
-                            fontSize: 8,
-                            letterSpacing: 1.5,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                        Text(
-                          "STATUS: READY",
-                          style: TextStyle(
-                            color: const Color(0xFF6CE4FF).withValues(alpha: 0.5),
-                            fontSize: 8,
-                            letterSpacing: 1,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.psychology, color: Color(0xFF6CE4FF), size: 20),
-                        const SizedBox(width: 15),
-                        const Text(
-                          '配置接入单元',
-                          style: TextStyle(
-                            color: Color(0xFFE1E9FF),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 22,
-                            letterSpacing: 4,
-                            shadows: [
-                              Shadow(
-                                color: Color(0xFF6CE4FF),
-                                blurRadius: 10,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 15),
-                        const Icon(Icons.psychology, color: Color(0xFF6CE4FF), size: 20),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
               // 角色选择说明
               Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -849,23 +907,24 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                                   ],
                                 ),
                               ),
-                              if (_animatingCharacterId == character.id &&
-                                  _animationControllers.containsKey(
-                                    character.id,
-                                  ))
-                                Positioned.fill(
-                                  child: AnimatedBuilder(
-                                    animation: _animationControllers[character.id]!,
-                                    builder: (context, _) {
-                                      final t =
-                                          _animationControllers[character.id]!.value;
-                                      return CustomPaint(
-                                        painter: _HoloGridPainter(
-                                          progress: t,
-                                        ),
-                                      );
-                                    },
-                                  ),
+                              if (_animatingCharacterId == character.id)
+                                Builder(
+                                  builder: (context) {
+                                    final controller = _animationControllers[character.id];
+                                    if (controller == null) return const SizedBox.shrink();
+                                    return Positioned.fill(
+                                      child: AnimatedBuilder(
+                                        animation: controller,
+                                        builder: (context, _) {
+                                          return CustomPaint(
+                                            painter: _HoloGridPainter(
+                                              progress: controller.value,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    );
+                                  }
                                 ),
                             ],
                           ),
@@ -880,12 +939,12 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
               Container(
                 padding: const EdgeInsets.all(16),
                 child: CyberButton(
+                  heroTag: 'main_action_button',
                   width: double.infinity,
                   label: '同步数据并开始渗透',
                   onPressed: selectedCharacterId != null
                       ? () {
                           GameProgress.startRun();
-                          final info = GameProgress.startFirstBattle();
                           // 保存选择的角色ID到全局状态
                           GameState.selectedCharacterId = selectedCharacterId!;
                           // 更新玩家HP
@@ -897,9 +956,9 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                           Navigator.push(
                             context,
                             createHoloRoute(
-                              BattlePage(
-                                programIds: info.programIds,
-                                levelId: info.id,
+                              const MapScreen(
+                                canReturnToGame: true,
+                                canSelect: true, // 初始选择角色后，允许选择第一个节点
                               ),
                             ),
                           );
@@ -911,6 +970,117 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
           ),
         ],
       ),
+    ),
+  );
+}
+
+  Future<bool> _confirmExit(BuildContext context) async {
+    final res = await showGeneralDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "EXIT_CONFIRM",
+      barrierColor: Colors.black.withValues(alpha: 0.8),
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (ctx, anim1, anim2) {
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: 320,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: const Color(0xFFFF6A6A).withValues(alpha: 0.8),
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFF6A6A).withValues(alpha: 0.2),
+                    blurRadius: 30,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: const CyberScanline(color: Color(0x11FF6A6A)),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: CyberCornerPainter(color: const Color(0x66FF6A6A)),
+                    ),
+                  ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: Color(0xFFFF6A6A),
+                            size: 20,
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            "EXIT_CONFIRMATION",
+                            style: TextStyle(
+                              color: Color(0xFFFF6A6A),
+                              fontSize: 10,
+                              fontFamily: 'monospace',
+                              letterSpacing: 2,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        '确认要退出角色选择并返回主菜单吗？',
+                        style: TextStyle(
+                          color: Color(0xFFE1E9FF),
+                          fontSize: 14,
+                          height: 1.6,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          CyberButton(
+                            width: 100,
+                            height: 36,
+                            fontSize: 12,
+                            label: '取消',
+                            color: const Color(0xFF6CE4FF),
+                            onPressed: () => Navigator.pop(ctx, false),
+                          ),
+                          const SizedBox(width: 16),
+                          CyberButton(
+                            width: 100,
+                            height: 36,
+                            fontSize: 12,
+                            label: '确认',
+                            color: const Color(0xFFFF6A6A),
+                            onPressed: () => Navigator.pop(ctx, true),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
+    return res ?? false;
   }
 }

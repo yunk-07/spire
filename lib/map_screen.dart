@@ -6,11 +6,18 @@ import 'package:flutter/material.dart';
 import 'start_screen.dart';
 import 'level_data.dart';
 import 'main.dart';
+import 'rest_page.dart';
+import 'exchange_page.dart';
 
 /// 树状地图页面 - 科幻风格重设计
 class MapScreen extends StatefulWidget {
   final bool canReturnToGame;
-  const MapScreen({super.key, this.canReturnToGame = false});
+  final bool canSelect; // 是否允许选择并进入节点
+  const MapScreen({
+    super.key,
+    this.canReturnToGame = false,
+    this.canSelect = false,
+  });
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -20,10 +27,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   List<List<LevelInfo>> get _layers => levelLayers;
   late AnimationController _pulseController;
   late AnimationController _scanLineController;
+  late TransformationController _transformationController;
 
   @override
   void initState() {
     super.initState();
+    _transformationController = TransformationController();
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
@@ -32,12 +41,65 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 3000),
     )..repeat();
+
+    // 初始聚焦到玩家当前位置
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToCurrentPosition();
+    });
+  }
+
+  void _scrollToCurrentPosition() {
+    final currentLevelId = GameProgress.currentLevelId;
+    int layerIndex = -1;
+    int nodeIndex = -1;
+
+    // 查找当前关卡所在位置
+    for (int i = 0; i < _layers.length; i++) {
+      for (int j = 0; j < _layers[i].length; j++) {
+        if (_layers[i][j].id == currentLevelId) {
+          layerIndex = i;
+          nodeIndex = j;
+          break;
+        }
+      }
+      if (layerIndex != -1) break;
+    }
+
+    // 如果没找到当前关卡（例如刚开始游戏还没进入第一关），默认看第一层
+    if (layerIndex == -1) {
+      layerIndex = 0;
+      nodeIndex = _layers[0].length ~/ 2;
+    }
+
+    // 计算目标坐标
+    // 逻辑与 _buildNodesLayer 中的 spaceEvenly 保持一致
+    const double mapWidth = 1000.0;
+    const double mapHeight = 1200.0;
+    
+    final double y = mapHeight * (layerIndex + 1) / (_layers.length + 1);
+    final double x = mapWidth * (nodeIndex + 1) / (_layers[layerIndex].length + 1);
+
+    // 获取视口大小以进行居中计算
+    final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox != null) {
+      final viewportSize = renderBox.size;
+      
+      // 计算矩阵：平移到中心
+      // 注意：InteractiveViewer 的 transform 是应用在 child 上的
+      // 目标是将 (x, y) 移动到视口中心 (viewportSize.width/2, viewportSize.height/2)
+      final double targetX = -x + viewportSize.width / 2;
+      final double targetY = -y + viewportSize.height / 2;
+
+      _transformationController.value = Matrix4.identity()
+        ..translate(targetX, targetY);
+    }
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
     _scanLineController.dispose();
+    _transformationController.dispose();
     super.dispose();
   }
 
@@ -47,12 +109,15 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        if (widget.canReturnToGame) {
+        // 如果是处于战斗中查看地图（canSelect为false），直接返回战斗
+        if (!widget.canSelect) {
           Navigator.pop(context);
         } else {
+          // 否则（如胜利后的地图，或初始地图），需要二级确认
           final shouldExit = await _confirmExit(context);
           if (shouldExit && context.mounted) {
-            Navigator.pop(context);
+            // 返回到开始页面（根路由）
+            Navigator.popUntil(context, (route) => route.isFirst);
           }
         }
       },
@@ -117,7 +182,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.hub_outlined, color: Color(0xFF6CE4FF), size: 16),
+                      Icon(
+                        Icons.hub_outlined,
+                        color: Color(0xFF6CE4FF),
+                        size: 16,
+                      ),
                       SizedBox(width: 12),
                       Text(
                         '全域网络拓扑图',
@@ -130,7 +199,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         ),
                       ),
                       SizedBox(width: 12),
-                      Icon(Icons.hub_outlined, color: Color(0xFF6CE4FF), size: 16),
+                      Icon(
+                        Icons.hub_outlined,
+                        color: Color(0xFF6CE4FF),
+                        size: 16,
+                      ),
                     ],
                   ),
                 ],
@@ -141,9 +214,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         body: Stack(
           children: [
             // 关键区域：统一背景美化
-            const Positioned.fill(
-              child: CyberBackground(),
-            ),
+            const Positioned.fill(child: CyberBackground()),
             // 新增：漂浮数据装饰层
             Positioned.fill(
               child: IgnorePointer(
@@ -162,6 +233,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             // 地图内容
             Positioned.fill(
               child: InteractiveViewer(
+                transformationController: _transformationController,
                 constrained: false,
                 boundaryMargin: const EdgeInsets.all(400),
                 minScale: 0.6,
@@ -198,12 +270,17 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   padding: const EdgeInsets.all(12),
                   child: Center(
                     child: CyberButton(
-                      label: widget.canReturnToGame ? '重返渗透节点' : '返回主菜单',
-                      onPressed: () {
-                        if (widget.canReturnToGame) {
+                      heroTag: 'main_action_button',
+                      label: widget.canSelect ? '退出本次渗透' : '重返渗透节点',
+                      onPressed: () async {
+                        if (!widget.canSelect) {
                           Navigator.pop(context);
                         } else {
-                          _confirmExit(context);
+                          final shouldExit = await _confirmExit(context);
+                          if (shouldExit && context.mounted) {
+                            // 返回到开始页面（根路由）
+                            Navigator.popUntil(context, (route) => route.isFirst);
+                          }
                         }
                       },
                     ),
@@ -225,9 +302,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           for (int i = 0; i < _layers.length; i++)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: _layers[i]
-                  .map((node) => _nodeWidget(context, node, i))
-                  .toList(),
+              children:
+                  _layers[i]
+                      .map((node) => _nodeWidget(context, node, i))
+                      .toList(),
             ),
         ],
       ),
@@ -240,8 +318,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     final nodeIndex = levelLayers[layerIndex].indexOf(node);
     final allowedIndices = GameProgress.allowedNextIndices();
     final isAllowed = isNext && allowedIndices.contains(nodeIndex);
-    final isCurrent = layerIndex == GameProgress.currentLayer && node.id == GameProgress.currentLevelId;
-    
+    final isCurrent =
+        layerIndex == GameProgress.currentLayer &&
+        node.id == GameProgress.currentLevelId;
+
     // 节点颜色方案
     Color glowColor;
     switch (node.type) {
@@ -254,7 +334,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       default:
         glowColor = const Color(0xFF6CE4FF);
     }
-    
+
     final isAccessible = isAllowed || isCurrent;
     final alpha = defeated ? 0.4 : (isAccessible ? 1.0 : 0.3);
 
@@ -272,15 +352,41 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
     return GestureDetector(
       onTap: () {
-        CyberToast.show(context, '全域拓扑图仅供查看当前渗透位置');
+        if (!widget.canSelect) {
+          CyberToast.show(context, '当前模式仅支持查看拓扑结构');
+          return;
+        }
+        if (isAllowed) {
+          // 处理进入新节点
+          GameProgress.setCurrentLevel(node);
+          
+          Widget targetPage;
+          if (node.type == 'sync') {
+            targetPage = RestPage(levelId: node.id);
+          } else if (node.type == 'exchange') {
+            targetPage = ExchangePage(levelId: node.id);
+          } else {
+            targetPage = BattlePage(programIds: node.programIds, levelId: node.id);
+          }
+
+          Navigator.pushReplacement(
+            context,
+            createHoloRoute(targetPage),
+          );
+        } else if (isCurrent) {
+          CyberToast.show(context, '当前正处于此渗透节点');
+        } else if (defeated) {
+          CyberToast.show(context, '该节点已完成渗透');
+        } else {
+          CyberToast.show(context, '该节点目前无法接入，请先完成前置渗透');
+        }
       },
       child: AnimatedBuilder(
         animation: _pulseController,
         builder: (context, child) {
-          double glowIntensity = isCurrent 
-              ? (1.0 + _pulseController.value * 0.4) 
-              : 1.0;
-          
+          double glowIntensity =
+              isCurrent ? (1.0 + _pulseController.value * 0.4) : 1.0;
+
           return Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.center,
@@ -309,18 +415,22 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   color: const Color(0xFF0A0F16).withValues(alpha: 0.8 * alpha),
                   borderRadius: BorderRadius.circular(4),
                   border: Border.all(
-                    color: isCurrent 
-                        ? glowColor 
-                        : glowColor.withValues(alpha: 0.3 * alpha),
+                    color:
+                        isCurrent
+                            ? glowColor
+                            : glowColor.withValues(alpha: 0.3 * alpha),
                     width: isCurrent ? 1.5 : 1.0,
                   ),
-                  boxShadow: isCurrent ? [
-                    BoxShadow(
-                      color: glowColor.withValues(alpha: 0.3),
-                      blurRadius: 15,
-                      spreadRadius: 1,
-                    )
-                  ] : [],
+                  boxShadow:
+                      isCurrent
+                          ? [
+                            BoxShadow(
+                              color: glowColor.withValues(alpha: 0.3),
+                              blurRadius: 15,
+                              spreadRadius: 1,
+                            ),
+                          ]
+                          : [],
                 ),
                 child: Stack(
                   clipBehavior: Clip.none,
@@ -331,7 +441,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         borderRadius: BorderRadius.circular(3),
                         child: Opacity(
                           opacity: alpha,
-                          child: CyberScanline(color: glowColor.withValues(alpha: 0.2)),
+                          child: CyberScanline(
+                            color: glowColor.withValues(alpha: 0.2),
+                          ),
                         ),
                       ),
                     ),
@@ -376,9 +488,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         children: [
                           Icon(
                             icon,
-                            color: defeated 
-                                ? Colors.white.withValues(alpha: 0.3) 
-                                : glowColor.withValues(alpha: 0.9 * alpha),
+                            color:
+                                defeated
+                                    ? Colors.white.withValues(alpha: 0.3)
+                                    : glowColor.withValues(alpha: 0.9 * alpha),
                             size: 24,
                           ),
                           const SizedBox(height: 2),
@@ -386,9 +499,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                             node.title.toUpperCase(),
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: defeated 
-                                  ? Colors.white.withValues(alpha: 0.3) 
-                                  : Colors.white.withValues(alpha: 0.9 * alpha),
+                              color:
+                                  defeated
+                                      ? Colors.white.withValues(alpha: 0.3)
+                                      : Colors.white.withValues(
+                                        alpha: 0.9 * alpha,
+                                      ),
                               fontSize: 9,
                               fontWeight: FontWeight.bold,
                               fontFamily: 'monospace',
@@ -427,7 +543,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     child: Opacity(
                       opacity: 0.8 + _pulseController.value * 0.2,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: glowColor,
                           borderRadius: BorderRadius.circular(2),
@@ -452,7 +571,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-              
+
               if (defeated && !isCurrent)
                 Positioned(
                   top: -6,
@@ -463,7 +582,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     decoration: BoxDecoration(
                       color: const Color(0xFF0A0F16),
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF6CE4FF), width: 1),
+                      border: Border.all(
+                        color: const Color(0xFF6CE4FF),
+                        width: 1,
+                      ),
                     ),
                     child: const Icon(
                       Icons.check,
@@ -511,17 +633,16 @@ Future<bool> _confirmExit(BuildContext context) async {
             ),
             child: Stack(
               children: [
-                // 内部扫描线
                 Positioned.fill(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(2),
-                    child: const CyberScanline(color: Color(0x22FF6A6A)),
+                    child: const CyberScanline(color: Color(0x11FF6A6A)),
                   ),
                 ),
                 // 装饰边角
                 Positioned.fill(
                   child: CustomPaint(
-                    painter: CyberCornerPainter(color: const Color(0xFFFF6A6A)),
+                    painter: CyberCornerPainter(color: const Color(0x66FF6A6A)),
                   ),
                 ),
                 Column(
@@ -529,7 +650,11 @@ Future<bool> _confirmExit(BuildContext context) async {
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.warning_amber_rounded, color: Color(0xFFFF6A6A), size: 20),
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          color: Color(0xFFFF6A6A),
+                          size: 20,
+                        ),
                         SizedBox(width: 10),
                         Text(
                           "DISCONNECT_REQUEST",
@@ -572,13 +697,7 @@ Future<bool> _confirmExit(BuildContext context) async {
                           fontSize: 12,
                           label: '确认断开',
                           color: const Color(0xFFFF6A6A),
-                          onPressed: () {
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              createHoloRoute(const StartScreen()),
-                              (route) => false,
-                            );
-                          },
+                          onPressed: () => Navigator.pop(ctx, true),
                         ),
                       ],
                     ),
@@ -598,35 +717,36 @@ Future<bool> _confirmExit(BuildContext context) async {
 class _MapPathPainter extends CustomPainter {
   final List<List<LevelInfo>> layers;
   final AnimationController pulseController;
-  
+
   _MapPathPainter({required this.layers, required this.pulseController});
-  
+
   @override
   void paint(Canvas canvas, Size size) {
     // 获取屏幕尺寸和节点位置
     final layerHeight = size.height / (layers.length + 1);
-    
+
     // 绘制层间主要路径（简化版：只连接关键节点）
     for (int i = 0; i < layers.length - 1; i++) {
       final currentLayer = layers[i];
       final nextLayer = layers[i + 1];
-      
+
       // 只绘制主要的连接线，避免错综复杂
       for (int j = 0; j < currentLayer.length && j < nextLayer.length; j++) {
         final nextNode = nextLayer[j];
-        
+
         final nextDefeated = GameProgress.isDefeated(nextNode.id);
         final nextLayerIndex = i + 1;
         final nextNodeIndex = nextLayer.indexOf(nextNode);
         final allowedIndices = GameProgress.allowedNextIndices();
         final isNext = nextLayerIndex == GameProgress.currentLayer + 1;
-        final isNextAccessible = isNext && allowedIndices.contains(nextNodeIndex);
-        
+        final isNextAccessible =
+            isNext && allowedIndices.contains(nextNodeIndex);
+
         // 路径颜色
         Color pathColor;
         double opacity = 0.3;
         double strokeWidth = 1.5;
-        
+
         if (nextDefeated) {
           pathColor = const Color(0xFF6CE4FF); // 已完成的路径
           opacity = 0.5;
@@ -637,37 +757,35 @@ class _MapPathPainter extends CustomPainter {
           pathColor = const Color(0xFF2A4158); // 未解锁的路径
           opacity = 0.3;
         }
-        
+
         // 计算节点位置
-        final currentX = size.width * (0.2 + j * 0.6 / (currentLayer.length - 1));
+        final currentX =
+            size.width * (0.2 + j * 0.6 / (currentLayer.length - 1));
         final currentY = layerHeight * (i + 1);
         final nextX = size.width * (0.2 + j * 0.6 / (nextLayer.length - 1));
         final nextY = layerHeight * (i + 2);
-        
-        final pathPaint = Paint()
-          ..color = pathColor.withValues(alpha: opacity)
-          ..strokeWidth = strokeWidth
-          ..style = PaintingStyle.stroke;
-        
+
+        final pathPaint =
+            Paint()
+              ..color = pathColor.withValues(alpha: opacity)
+              ..strokeWidth = strokeWidth
+              ..style = PaintingStyle.stroke;
+
         // 绘制贝塞尔曲线路径
-        final path = Path()
-          ..moveTo(currentX, currentY);
-        
+        final path = Path()..moveTo(currentX, currentY);
+
         final controlY = (currentY + nextY) / 2;
-        path.cubicTo(
-          currentX, controlY, 
-          nextX, controlY, 
-          nextX, nextY
-        );
-        
+        path.cubicTo(currentX, controlY, nextX, controlY, nextX, nextY);
+
         canvas.drawPath(path, pathPaint);
-        
+
         // --- 新增：数据流脉冲效果 ---
         if (nextDefeated || isNextAccessible) {
-          final pulsePaint = Paint()
-            ..color = pathColor.withValues(alpha: 0.8)
-            ..strokeWidth = 2.5
-            ..style = PaintingStyle.fill;
+          final pulsePaint =
+              Paint()
+                ..color = pathColor.withValues(alpha: 0.8)
+                ..strokeWidth = 2.5
+                ..style = PaintingStyle.fill;
 
           // 使用 pulseController 实现沿路径移动的小点
           final pathMetrics = path.computeMetrics();
@@ -675,34 +793,40 @@ class _MapPathPainter extends CustomPainter {
             // 在一条线上放两个点，交替出现
             for (int k = 0; k < 2; k++) {
               double offsetPercent = (pulseController.value + k * 0.5) % 1.0;
-              final tangent = metric.getTangentForOffset(metric.length * offsetPercent);
+              final tangent = metric.getTangentForOffset(
+                metric.length * offsetPercent,
+              );
               if (tangent == null) continue;
               final pos = tangent.position;
-              
+
               canvas.drawCircle(pos, 1.5, pulsePaint);
               // 外层光晕
-              final glowPulsePaint = Paint()
-                ..color = pathColor.withValues(alpha: 0.3)
-                ..style = PaintingStyle.fill
-                ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
+              final glowPulsePaint =
+                  Paint()
+                    ..color = pathColor.withValues(alpha: 0.3)
+                    ..style = PaintingStyle.fill
+                    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
               canvas.drawCircle(pos, 3.0, glowPulsePaint);
             }
           }
         }
-        
+
         // 可访问路径的发光效果
         if (isNextAccessible && opacity > 0.4) {
-          final glowPaint = Paint()
-            ..color = pathColor.withValues(alpha: 0.15 * pulseController.value)
-            ..strokeWidth = strokeWidth + 4
-            ..style = PaintingStyle.stroke
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+          final glowPaint =
+              Paint()
+                ..color = pathColor.withValues(
+                  alpha: 0.15 * pulseController.value,
+                )
+                ..strokeWidth = strokeWidth + 4
+                ..style = PaintingStyle.stroke
+                ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
           canvas.drawPath(path, glowPaint);
         }
       }
     }
   }
-  
+
   @override
   bool shouldRepaint(_MapPathPainter oldDelegate) =>
       oldDelegate.pulseController.value != pulseController.value;
@@ -715,9 +839,7 @@ class _FloatingDataPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final textPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-    );
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
     final randomPositions = [
       const Offset(0.1, 0.2),

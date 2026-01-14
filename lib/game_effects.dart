@@ -45,14 +45,22 @@ class CardEffectExecutor {
     
     switch (command) {
       case 'damage':
-        if (target != null && parts.length > 1) {
-          final value = int.tryParse(parts[1]) ?? card.value;
-          battle.applyDamage(target, value);
+        if (parts.length > 1) {
+          final value = int.tryParse(parts[1]) ?? 0;
+          if (card.target == CardTarget.all) {
+            for (final enemy in battle.activePrograms) {
+              if (enemy.hp > 0) {
+                battle.applyDamage(enemy, value);
+              }
+            }
+          } else if (target != null) {
+            battle.applyDamage(target, value);
+          }
         }
         break;
       case 'block':
         if (parts.length > 1) {
-          final value = int.tryParse(parts[1]) ?? card.value;
+          final value = int.tryParse(parts[1]) ?? 0;
           battle.player.block += value;
           battle.anim.showBlockGain(battle.player, value);
         }
@@ -60,8 +68,7 @@ class CardEffectExecutor {
       case 'draw':
         if (parts.length > 1) {
           final count = int.tryParse(parts[1]) ?? 1;
-          battle.drawCount = count;
-          battle.drawCards();
+          battle.drawCards(count);
         }
         break;
       case 'energy':
@@ -71,39 +78,59 @@ class CardEffectExecutor {
         }
         break;
       case 'vulnerable':
-        if (target != null && parts.length > 1) {
-          // 脆弱效果：目标受到额外伤害
+        if (parts.length > 1) {
           final turns = int.tryParse(parts[1]) ?? 1;
-          target.vulnerable += turns;
+          if (card.target == CardTarget.all) {
+            for (final enemy in battle.activePrograms) {
+              if (enemy.hp > 0) enemy.vulnerable += turns;
+            }
+          } else if (target != null) {
+            target.vulnerable += turns;
+          }
         }
         break;
       case 'heal':
-        if (target != null && parts.length > 1) {
-          final value = int.tryParse(parts[1]) ?? card.value;
-          target.hp = (target.hp + value).clamp(0, target.maxHp);
-          battle.anim.showHeal(target, value);
+        if (parts.length > 1) {
+          final value = int.tryParse(parts[1]) ?? 0;
+          battle.player.hp = (battle.player.hp + value).clamp(0, battle.player.maxHp);
+          battle.anim.showHeal(battle.player, value);
         }
         break;
       case 'self_damage':
         if (parts.length > 1) {
-          final value = int.tryParse(parts[1]) ?? card.value;
-          // 修复：自损不计入算力加成，直接扣除HP
+          final value = int.tryParse(parts[1]) ?? 0;
           battle.player.hp = (battle.player.hp - value).clamp(0, 999);
           battle.anim.showDamage(battle.player, value);
         }
         break;
       case 'weak':
-        if (target != null && parts.length > 1) {
-          // 虚弱效果：目标造成伤害减少
+        if (parts.length > 1) {
           final turns = int.tryParse(parts[1]) ?? 1;
-          target.weak += turns;
+          if (card.target == CardTarget.all) {
+            for (final enemy in battle.activePrograms) {
+              if (enemy.hp > 0) enemy.weak += turns;
+            }
+          } else if (target != null) {
+            target.weak += turns;
+          }
         }
         break;
       case 'curse':
-        if (target != null && parts.length > 1) {
-          // 诅咒效果：目标受到各种负面效果
+        if (parts.length > 1) {
           final turns = int.tryParse(parts[1]) ?? 1;
-          target.curse += turns;
+          if (card.target == CardTarget.all) {
+            for (final enemy in battle.activePrograms) {
+              if (enemy.hp > 0) enemy.curse += turns;
+            }
+          } else if (target != null) {
+            target.curse += turns;
+          }
+        }
+        break;
+      case 'strength':
+        if (parts.length > 1) {
+          final value = int.tryParse(parts[1]) ?? 1;
+          battle.player.strength += value;
         }
         break;
       default:

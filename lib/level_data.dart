@@ -32,47 +32,107 @@ const List<List<LevelInfo>> levelLayers = [
   // L2 过渡层
   [
     LevelInfo(id: 'L2-A', title: '集群节点·逻辑块', programIds: ['goblin', 'goblin']),
-    LevelInfo(id: 'L2-B', title: '逻辑空洞·碎片数据', programIds: ['skeleton', 'slime']),
+    LevelInfo(
+      id: 'L2-B',
+      title: '逻辑空洞·碎片数据',
+      programIds: ['skeleton', 'slime'],
+    ),
     LevelInfo(id: 'L2-C', title: '虚拟通道·拦截器', programIds: ['goblin', 'slime']),
     LevelInfo(id: 'R2-D', title: '数据缓存站', programIds: [], type: 'sync'),
     LevelInfo(id: 'S2-E', title: '数据交易所', programIds: [], type: 'exchange'),
   ],
   // L3 提升难度层
   [
-    LevelInfo(id: 'L3-A', title: '上行链路·加密锁', programIds: ['skeleton', 'skeleton']),
-    LevelInfo(id: 'L3-B', title: '协议裂痕·异常流', programIds: ['slime', 'slime', 'slime']),
+    LevelInfo(
+      id: 'L3-A',
+      title: '上行链路·加密锁',
+      programIds: ['skeleton', 'skeleton'],
+    ),
+    LevelInfo(
+      id: 'L3-B',
+      title: '协议裂痕·异常流',
+      programIds: ['slime', 'slime', 'slime'],
+    ),
     LevelInfo(id: 'L3-C', title: '传输网关·探测器', programIds: ['goblin']),
   ],
   // L4 精英前置层
   [
     LevelInfo(id: 'L4-A', title: '高级防御程序·ORC', programIds: ['orc_warrior']),
     LevelInfo(id: 'L4-B', title: '高级加密模块·MAGE', programIds: ['dark_mage']),
-    LevelInfo(id: 'L4-C', title: '守护进程·复合防御', programIds: ['orc_warrior', 'goblin']),
+    LevelInfo(
+      id: 'L4-C',
+      title: '守护进程·复合防御',
+      programIds: ['orc_warrior', 'goblin'],
+    ),
     LevelInfo(id: 'S4-D', title: '数据交易所', programIds: [], type: 'exchange'),
   ],
   // L5 混战层
   [
-    LevelInfo(id: 'L5-A', title: '加密集群·深度扫描', programIds: ['dark_mage', 'skeleton']),
-    LevelInfo(id: 'L5-B', title: '冲突域·并行处理', programIds: ['orc_warrior', 'goblin']),
-    LevelInfo(id: 'L5-C', title: '溢出协议·混合异常', programIds: ['slime', 'dark_mage']),
+    LevelInfo(
+      id: 'L5-A',
+      title: '加密集群·深度扫描',
+      programIds: ['dark_mage', 'skeleton'],
+    ),
+    LevelInfo(
+      id: 'L5-B',
+      title: '冲突域·并行处理',
+      programIds: ['orc_warrior', 'goblin'],
+    ),
+    LevelInfo(
+      id: 'L5-C',
+      title: '溢出协议·混合异常',
+      programIds: ['slime', 'dark_mage'],
+    ),
   ],
   // L6 强化精英层
   [
-    LevelInfo(id: 'L6-A', title: '全域冲突·强化防御', programIds: ['dark_mage', 'orc_warrior']),
-    LevelInfo(id: 'L6-B', title: '系统防火墙·前哨', programIds: ['orc_warrior', 'skeleton']),
-    LevelInfo(id: 'L6-C', title: '高频突袭·探测群', programIds: ['goblin', 'goblin', 'goblin']),
+    LevelInfo(
+      id: 'L6-A',
+      title: '全域冲突·强化防御',
+      programIds: ['dark_mage', 'orc_warrior'],
+    ),
+    LevelInfo(
+      id: 'L6-B',
+      title: '系统防火墙·前哨',
+      programIds: ['orc_warrior', 'skeleton'],
+    ),
+    LevelInfo(
+      id: 'L6-C',
+      title: '高频突袭·探测群',
+      programIds: ['goblin', 'goblin', 'goblin'],
+    ),
   ],
   // L7 终章前置层
   [
-    LevelInfo(id: 'L7-A', title: '逻辑枢纽·全量防御', programIds: ['dark_mage', 'skeleton', 'skeleton']),
-    LevelInfo(id: 'L7-B', title: '系统内核·深度扫描', programIds: ['slime', 'slime', 'goblin']),
-    LevelInfo(id: 'L7-C', title: '系统防火墙·主网关', programIds: ['orc_warrior', 'goblin']),
+    LevelInfo(
+      id: 'L7-A',
+      title: '逻辑枢纽·全量防御',
+      programIds: ['dark_mage', 'skeleton', 'skeleton'],
+    ),
+    LevelInfo(
+      id: 'L7-B',
+      title: '系统内核·深度扫描',
+      programIds: ['slime', 'slime', 'goblin'],
+    ),
+    LevelInfo(
+      id: 'L7-C',
+      title: '系统防火墙·主网关',
+      programIds: ['orc_warrior', 'goblin'],
+    ),
   ],
   // L8 Boss层
   [
     LevelInfo(id: 'L8-A', title: '核心防火墙·DRAGON', programIds: ['dragon']),
-    LevelInfo(id: 'L8-B', title: '核心防御·高级模块', programIds: ['dark_mage', 'orc_warrior']),
-    LevelInfo(id: 'L8-C', title: '核心防御·物理隔离', programIds: ['orc_warrior', 'orc_warrior']),
+    LevelInfo(
+      id: 'L8-B',
+      title: '核心防御·高级模块',
+      programIds: ['dark_mage', 'orc_warrior'],
+    ),
+    LevelInfo(
+      id: 'L8-C',
+      title: '核心防御·物理隔离',
+      programIds: ['orc_warrior', 'orc_warrior'],
+    ),
   ],
 ];
 
