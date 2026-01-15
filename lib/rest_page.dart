@@ -43,7 +43,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
     switch (suite) {
       case CardSuite.classic: return const Color(0xFF6CE4FF);
       case CardSuite.overload: return const Color(0xFFFF4444);
-      case CardSuite.secure: return const Color(0xFF44FF44);
+      case CardSuite.secure: return const Color(0xFFC3A6FF);
       case CardSuite.industrial: return const Color(0xFFFFB344);
       case CardSuite.quantum: return const Color(0xFFE26CFF);
     }

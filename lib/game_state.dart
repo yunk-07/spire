@@ -12,6 +12,9 @@ class GameState {
   
   // 数据包（抽牌堆，跨关卡持久化）
   static List<String> drawPile = [];
+  
+  // 焰心：热量进度（跨关卡持久化）
+  static int heatProgress = 0;
 
   /// 修复完整度
   static void heal(int amount) {

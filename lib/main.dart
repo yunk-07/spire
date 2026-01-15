@@ -12,6 +12,12 @@ import 'map_screen.dart';
 import 'level_data.dart';
 import 'game_state.dart';
 import 'character_data.dart';
+import 'laser_painter.dart';
+import 'slash_painter.dart';
+import 'animation_constants.dart';
+import 'effect_styles.dart';
+import 'scanline_jitter_painter.dart';
+import 'effects_widgets.dart';
 
 // ============================================================================
 // 文件说明 / 主要函数说明及键的作用
@@ -148,6 +154,7 @@ class Entity {
   int hp;
   final int maxHp;
   int block = 0;
+  int fire = 0;
   final GlobalKey key = GlobalKey();
   String? id;
   int baseDamage = 8;
@@ -174,11 +181,20 @@ class DamagePopup {
 }
 
 /// 关键区域：攻击特效
+enum AttackEffectType {
+  impact,   // 物理撞击
+  laser,    // 激光射线
+  slash,    // 斩击特效
+  explosion,// 爆炸特效
+  inject,   // 注入特效
+}
+
 class AttackEffect {
   final Entity attacker;
   final Offset start;
   final Offset end;
-  AttackEffect(this.attacker, this.start, this.end);
+  final AttackEffectType type;
+  AttackEffect(this.attacker, this.start, this.end, {this.type = AttackEffectType.impact});
 }
 
 class CardMotion {
@@ -208,6 +224,21 @@ class BlockGainPopup {
   BlockGainPopup(this.value, this.pos);
 }
 
+/// 关键区域：背景网格脉冲效果
+class GridPulse {
+  final Offset center;
+  final DateTime startTime;
+  GridPulse(this.center) : startTime = DateTime.now();
+}
+
+/// 关键区域：角色专属特效
+class RoleEffect {
+  final CharacterClass role;
+  final Offset pos;
+  final DateTime startTime;
+  RoleEffect(this.role, this.pos) : startTime = DateTime.now();
+}
+
 /// 关键区域：系统修复弹窗
 class HealPopup {
   final int value;
@@ -218,7 +249,8 @@ class HealPopup {
 class AnimationService extends ChangeNotifier {
   final List<DamagePopup> popups = [];
   final List<AttackEffect> attacks = [];
-  final Set<Entity> charging = {};
+  final List<GridPulse> gridPulses = []; // 网格脉冲效果列表
+  final List<RoleEffect> roleEffects = []; // 角色专属特效列表
   final Set<Entity> protecting = {}; // 防御脉冲状态
   final Set<Entity> glitching = {}; // 数据过载/故障状态
   final Set<Entity> bouncing = {}; // 使用卡牌时的弹跳状态
@@ -229,13 +261,12 @@ class AnimationService extends ChangeNotifier {
   final List<BlockGainPopup> blockGains = [];
   final List<HealPopup> healPopups = [];
 
-  bool isCharging(Entity e) => charging.contains(e);
-
   void showDamage(Entity target, int value) {
     final ctx = target.key.currentContext;
     if (ctx == null) return;
 
-    final box = ctx.findRenderObject() as RenderBox;
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null) return;
     final pos = box.localToGlobal(const Offset(50, 10));
 
     glitching.add(target); // 开启数据故障效果
@@ -254,30 +285,40 @@ class AnimationService extends ChangeNotifier {
     });
   }
 
-  // 关键区域：播放攻击轨迹
-  void playAttack(Entity from, Entity to) {
+  // 播放角色专属特效
+  void playRoleEffect(CharacterClass role, Offset pos) {
+    final effect = RoleEffect(role, pos);
+    roleEffects.add(effect);
+    notifyListeners();
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      roleEffects.remove(effect);
+      notifyListeners();
+    });
+  }
+
+  // 关键区域：播放攻击轨迹（已移除旧版位移逻辑，仅保留特效）
+  void playAttack(Entity from, Entity to, {AttackEffectType type = AttackEffectType.impact}) {
     final fctx = from.key.currentContext;
     final tctx = to.key.currentContext;
     if (fctx == null || tctx == null) return;
 
-    final fbox = fctx.findRenderObject() as RenderBox;
-    final tbox = tctx.findRenderObject() as RenderBox;
+    final fbox = fctx.findRenderObject() as RenderBox?;
+    final tbox = tctx.findRenderObject() as RenderBox?;
+    if (fbox == null || tbox == null) return;
     final fpos = fbox.localToGlobal(const Offset(50, 40));
     final tpos = tbox.localToGlobal(const Offset(50, 40));
 
-    charging.add(from);
-    final eff = AttackEffect(from, fpos, tpos);
+    final eff = AttackEffect(from, fpos, tpos, type: type);
     attacks.add(eff);
     notifyListeners();
 
-    // 关键区域：在冲锋撞击瞬间触发全局数据过载效果（约 300ms 后，对应 t=0.3）
+    // 关键区域：在攻击瞬间触发全局数据过载效果
     Future.delayed(const Duration(milliseconds: 300), () {
       triggerScreenOverload();
     });
 
     Future.delayed(const Duration(milliseconds: 1000), () { // 增加总时长对齐 widget
       attacks.remove(eff);
-      charging.remove(from);
       notifyListeners();
     });
   }
@@ -295,7 +336,8 @@ class AnimationService extends ChangeNotifier {
   void showBlockDamage(Entity target, int value) {
     final ctx = target.key.currentContext;
     if (ctx == null) return;
-    final box = ctx.findRenderObject() as RenderBox;
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null) return;
     final pos = box.localToGlobal(const Offset(60, 120));
     final b = BlockPopup(value, pos);
     blockPopups.add(b);
@@ -309,7 +351,8 @@ class AnimationService extends ChangeNotifier {
   void playShieldBreak(Entity target) {
     final ctx = target.key.currentContext;
     if (ctx == null) return;
-    final box = ctx.findRenderObject() as RenderBox;
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null) return;
     final center = box.localToGlobal(const Offset(60, 80));
     final s = ShieldBreakEffect(center);
     shieldBreaks.add(s);
@@ -323,7 +366,8 @@ class AnimationService extends ChangeNotifier {
   void showBlockGain(Entity target, int value) {
     final ctx = target.key.currentContext;
     if (ctx == null) return;
-    final box = ctx.findRenderObject() as RenderBox;
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null) return;
     final pos = box.localToGlobal(const Offset(60, 100));
 
     protecting.add(target); // 开启防御脉冲
@@ -345,7 +389,8 @@ class AnimationService extends ChangeNotifier {
   void showHeal(Entity target, int value) {
     final ctx = target.key.currentContext;
     if (ctx == null) return;
-    final box = ctx.findRenderObject() as RenderBox;
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null) return;
     final pos = box.localToGlobal(const Offset(50, 10));
     final h = HealPopup(value, pos);
     healPopups.add(h);
@@ -361,6 +406,17 @@ class AnimationService extends ChangeNotifier {
     notifyListeners();
     Future.delayed(const Duration(milliseconds: 450), () {
       bouncing.remove(target);
+      notifyListeners();
+    });
+  }
+
+  // 关键区域：播放背景网格扩散脉冲
+  void playGridPulse(Offset center) {
+    final pulse = GridPulse(center);
+    gridPulses.add(pulse);
+    notifyListeners();
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      gridPulses.remove(pulse);
       notifyListeners();
     });
   }
@@ -457,6 +513,248 @@ class SuiteTechPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// 已迁移激光与斩击画笔到独立文件，移除旧定义
+
+/// 关键区域：角色专属特效绘制（海浪线条等）
+class RoleEffectPainter extends CustomPainter {
+  final List<RoleEffect> effects;
+  RoleEffectPainter(this.effects);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final now = DateTime.now();
+    for (final effect in effects) {
+      final elapsed = now.difference(effect.startTime).inMilliseconds;
+      final progress = (elapsed / 1500).clamp(0.0, 1.0);
+
+      switch (effect.role) {
+        case CharacterClass.langchao:
+          _drawWaveLines(canvas, size, effect.pos, progress);
+          break;
+        case CharacterClass.xueye:
+          _drawBloodPulse(canvas, size, effect.pos, progress);
+          break;
+        case CharacterClass.lin:
+          _drawLinShieldEffect(canvas, size, effect.pos, progress);
+          break;
+        case CharacterClass.jianren:
+          break;
+        case CharacterClass.yanxin:
+          _drawFireParticles(canvas, size, effect.pos, progress);
+          break;
+        case CharacterClass.yingshi:
+          _drawShadowFade(canvas, size, effect.pos, progress);
+          break;
+        case CharacterClass.jihe:
+          _drawHexGrid(canvas, size, effect.pos, progress);
+          break;
+        case CharacterClass.xuxing:
+          _drawGlitchSquares(canvas, size, effect.pos, progress);
+          break;
+      }
+    }
+  }
+
+  // 血液：扩张的红色生命脉冲
+  void _drawBloodPulse(Canvas canvas, Size size, Offset center, double progress) {
+    final paint = Paint()
+      ..color = const Color(0xFFFF3333).withValues(alpha: (1.0 - progress) * 0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0;
+
+    final maxRadius = size.width * 0.5;
+    canvas.drawCircle(center, maxRadius * progress, paint);
+    canvas.drawCircle(center, maxRadius * progress * 0.7, paint..strokeWidth = 1.5);
+  }
+
+  // 林：粉紫色光辉汇聚为护盾
+  void _drawLinShieldEffect(Canvas canvas, Size size, Offset center, double progress) {
+    final pink = const Color(0xFFC3A6FF);
+    final purple = const Color(0xFF9933FF);
+    
+    // 1. 两侧发出的光辉 (progress 0.0 - 0.7)
+    if (progress < 0.7) {
+      final sideProgress = (progress / 0.7).clamp(0.0, 1.0);
+      final alpha = (1.0 - sideProgress) * 0.6;
+      
+      // 左侧光辉
+      final leftPaint = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [purple.withValues(alpha: alpha), pink.withValues(alpha: 0.0)],
+        ).createShader(Rect.fromLTWH(0, 0, size.width * 0.4, size.height));
+      
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, size.width * 0.4 * (1.0 - sideProgress), size.height),
+        leftPaint,
+      );
+      
+      // 右侧光辉
+      final rightPaint = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.centerRight,
+          end: Alignment.centerLeft,
+          colors: [purple.withValues(alpha: alpha), pink.withValues(alpha: 0.0)],
+        ).createShader(Rect.fromLTWH(size.width * 0.6, 0, size.width * 0.4, size.height));
+      
+      canvas.drawRect(
+        Rect.fromLTWH(size.width - (size.width * 0.4 * (1.0 - sideProgress)), 0, size.width * 0.4, size.height),
+        rightPaint,
+      );
+    }
+    
+    // 2. 能量汇聚为护盾 (progress 0.3 - 1.0)
+    if (progress > 0.3) {
+      final shieldProgress = ((progress - 0.3) / 0.7).clamp(0.0, 1.0);
+      final alpha = (1.0 - shieldProgress) * 0.8;
+      
+      // 汇聚粒子
+      final random = Random(88);
+      for (int i = 0; i < 12; i++) {
+        final angle = random.nextDouble() * pi * 2;
+        final startDist = size.width * 0.3;
+        final currentDist = startDist * (1.0 - shieldProgress);
+        final x = center.dx + cos(angle) * currentDist;
+        final y = center.dy + sin(angle) * currentDist;
+        
+        canvas.drawCircle(
+          Offset(x, y), 
+          3, 
+          Paint()..color = pink.withValues(alpha: alpha)
+        );
+      }
+      
+      // 最终护盾圆环
+      if (shieldProgress > 0.5) {
+        final circleProgress = (shieldProgress - 0.5) * 2.0;
+        final paint = Paint()
+          ..color = pink.withValues(alpha: (1.0 - circleProgress) * 0.5)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0;
+        
+        canvas.drawCircle(center, 40 + 20 * circleProgress, paint);
+        canvas.drawCircle(center, 35 + 10 * circleProgress, paint..color = purple.withValues(alpha: (1.0 - circleProgress) * 0.3));
+      }
+    }
+  }
+
+
+  // 焰心：上升的火焰粒子
+  void _drawFireParticles(Canvas canvas, Size size, Offset center, double progress) {
+    final random = Random(123);
+    for (int i = 0; i < 20; i++) {
+      final paint = Paint()
+        ..color = Color.lerp(const Color(0xFFFFD700), const Color(0xFFFF4500), random.nextDouble())!
+            .withValues(alpha: (1.0 - progress) * 0.8);
+      
+      final x = center.dx + (random.nextDouble() - 0.5) * size.width * 0.6;
+      final y = center.dy + (random.nextDouble() - 0.5) * 50 - (progress * 200); // 向上升
+      
+      canvas.drawCircle(Offset(x, y), 2 + random.nextDouble() * 4, paint);
+    }
+  }
+
+  // 影蚀：深紫色阴影扩张
+  void _drawShadowFade(Canvas canvas, Size size, Offset center, double progress) {
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final paint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          const Color(0xFF1A0033).withValues(alpha: 0.0),
+          const Color(0xFF1A0033).withValues(alpha: (1.0 - progress) * 0.4),
+        ],
+        stops: [0.6, 1.0],
+      ).createShader(rect);
+
+    canvas.drawRect(rect, paint);
+  }
+
+  // 几何：青色六边形网格脉冲
+  void _drawHexGrid(Canvas canvas, Size size, Offset center, double progress) {
+    final paint = Paint()
+      ..color = const Color(0xFF00FFFF).withValues(alpha: (1.0 - progress) * 0.4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    final hexSize = 40.0;
+    final rows = (size.height / (hexSize * 1.5)).ceil();
+    final cols = (size.width / (hexSize * sqrt(3))).ceil();
+
+    for (int r = 0; r < rows; r++) {
+      for (int c = 0; c < cols; c++) {
+        final x = c * hexSize * sqrt(3) + (r % 2 == 0 ? 0 : hexSize * sqrt(3) / 2);
+        final y = r * hexSize * 1.5;
+        
+        final dist = (Offset(x, y) - center).distance;
+        if ((dist - progress * size.width).abs() < 50) {
+          _drawHex(canvas, Offset(x, y), hexSize, paint);
+        }
+      }
+    }
+  }
+
+  void _drawHex(Canvas canvas, Offset center, double size, Paint paint) {
+    final path = Path();
+    for (int i = 0; i < 6; i++) {
+      final angle = pi / 3 * i;
+      final x = center.dx + size * cos(angle);
+      final y = center.dy + size * sin(angle);
+      if (i == 0) path.moveTo(x, y);
+      else path.lineTo(x, y);
+    }
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  // 虚行：紫色数字故障方块
+  void _drawGlitchSquares(Canvas canvas, Size size, Offset center, double progress) {
+    final random = Random(777);
+    final paint = Paint()..style = PaintingStyle.fill;
+    
+    for (int i = 0; i < 12; i++) {
+      final color = random.nextBool() ? const Color(0xFF9933FF) : const Color(0xFF00CCFF);
+      paint.color = color.withValues(alpha: (1.0 - progress) * 0.6);
+      
+      final w = 10.0 + random.nextDouble() * 30;
+      final h = 2.0 + random.nextDouble() * 5;
+      final x = center.dx + (random.nextDouble() - 0.5) * size.width * 0.8 + (progress * 50 * (random.nextBool() ? 1 : -1));
+      final y = center.dy + (random.nextDouble() - 0.5) * size.height * 0.4;
+      
+      canvas.drawRect(Rect.fromLTWH(x, y, w, h), paint);
+    }
+  }
+
+  void _drawWaveLines(Canvas canvas, Size size, Offset center, double progress) {
+    final paint = Paint()
+      ..color = const Color(0xFF4DCCFF).withValues(alpha: (1.0 - progress) * 0.6)
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+
+    final path = Path();
+    final waveCount = 3;
+    final waveWidth = size.width * 0.8;
+    
+    for (int i = 0; i < waveCount; i++) {
+      final yOffset = center.dy + (i - 1) * 30 + sin(progress * pi * 2 + i) * 10;
+      final xStart = center.dx - waveWidth / 2;
+      
+      path.reset();
+      path.moveTo(xStart, yOffset);
+      
+      for (double x = 0; x <= waveWidth; x += 10) {
+        final dx = xStart + x;
+        final dy = yOffset + sin((x / waveWidth) * pi * 4 + progress * pi * 2 + i) * 15 * (1.0 - progress);
+        path.lineTo(dx, dy);
+      }
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(RoleEffectPainter oldDelegate) => true;
 }
 
 class _HpBarBackgroundPainter extends CustomPainter {
@@ -686,6 +984,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   Color? _statusTipColor;
 
   int energy = 3;
+  int heatProgress = 0;
 
   // 回合制游戏状态
   GamePhase gamePhase = GamePhase.syncPhase; // 当前游戏阶段
@@ -694,6 +993,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   bool hasDrawnCards = false; // 当前回合是否已抽牌
   bool isVictory = false; // 胜负标识
   bool _victoryRecorded = false; // 胜利记录一次
+  bool _playerTookDamageThisTurn = false; // 影蚀职业：记录本回合是否受到伤害
+  CardSuite? _lastUsedSuite; // 几何职业：记录上一张使用的牌类别
 
   // Buff 详情查看状态
   String? _activeBuffName;
@@ -704,7 +1005,122 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     "虚弱": "虚弱状态下，攻击造成的伤害减少 25%。",
     "脆弱": "脆弱状态下，受到攻击时受到的伤害增加 50%。",
     "恶意代码": "每层恶意代码使受到攻击时额外受到的伤害增加 2 点。",
+    "火焰": "怪兽回合结束后造成等于层数的伤害；护盾清零；每回合层数 -1。",
   };
+
+  bool _isDraggingOverJudgementArea = false; // 是否正在向判定区拖动
+
+  // 判定区组件
+  Widget _judgementArea() {
+    return DragTarget<CardInstance>(
+      onWillAccept: (instance) {
+        final card = instance?.data;
+        if (card == null) return false;
+        final accept = (card.target == CardTarget.self || card.target == CardTarget.all);
+        if (accept) {
+          setState(() => _isDraggingOverJudgementArea = true);
+        }
+        return accept;
+      },
+      onAcceptWithDetails: (details) {
+        final instance = details.data;
+        setState(() => _isDraggingOverJudgementArea = false);
+        
+        final pulsePos = details.offset; // 使用释放时的位置作为扩散起点
+        
+        // 播放背景网格扩散特效
+        anim.playGridPulse(pulsePos);
+        
+        // 使用卡牌
+        useCard(instance, player);
+        if (instance.data != null) {
+          _showCardUseEffect(instance.data!, player);
+        }
+      },
+      onLeave: (_) => setState(() => _isDraggingOverJudgementArea = false),
+      builder: (context, candidateData, rejectedData) {
+        final isHighlighted = _isDraggingOverJudgementArea;
+        final isDraggingAny = candidateData.isNotEmpty;
+        
+        return AnimatedOpacity(
+          duration: const Duration(milliseconds: 300),
+          opacity: (isDraggingAny || isHighlighted) ? 1.0 : 0.0,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            width: double.infinity,
+            height: 100,
+            margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 10),
+            decoration: BoxDecoration(
+              color: isHighlighted 
+                  ? const Color(0xFF6CE4FF).withValues(alpha: 0.15) 
+                  : const Color(0xFF6CE4FF).withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isHighlighted 
+                    ? const Color(0xFF6CE4FF) 
+                    : const Color(0xFF6CE4FF).withValues(alpha: 0.3),
+                width: isHighlighted ? 2 : 1,
+              ),
+              boxShadow: [
+                if (isHighlighted)
+                  BoxShadow(
+                    color: const Color(0xFF6CE4FF).withValues(alpha: 0.3),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                  ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(11),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: CyberCornerPainter(
+                        color: const Color(0xFF6CE4FF).withValues(alpha: 0.4),
+                      ),
+                    ),
+                  ),
+                  const Positioned.fill(
+                  child: Opacity(
+                    opacity: 0.1,
+                    child: CyberScanline(color: Color(0xFF6CE4FF)),
+                  ),
+                ),
+                Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.system_update_alt_rounded,
+                        color: isHighlighted 
+                            ? const Color(0xFF6CE4FF) 
+                            : const Color(0xFF6CE4FF).withValues(alpha: 0.6),
+                        size: 28,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        isHighlighted ? "EXECUTE_SEQUENCE" : "READY_TO_UPLOAD",
+                        style: TextStyle(
+                          color: isHighlighted 
+                              ? const Color(0xFF6CE4FF) 
+                              : const Color(0xFF6CE4FF).withValues(alpha: 0.6),
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 3,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -715,6 +1131,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     CardEffect.setExecutor(_executeCardEffect);
     // 获取当前角色数据
     characterData = characterDatabase[GameState.selectedCharacterId]!;
+    // 焰心：跨关卡持久热量进度同步到战斗页
+    heatProgress = GameState.heatProgress.clamp(0, 48);
     // 初始化抽牌堆
     drawPile.clear();
     for (final cardId in GameState.drawPile) {
@@ -927,6 +1345,10 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     }
 
     energy -= card.cost;
+    if (characterData.characterClass == CharacterClass.yanxin) {
+      heatProgress = (heatProgress + card.cost).clamp(0, 48);
+      GameState.heatProgress = heatProgress;
+    }
     final idx = hand.indexOf(instance);
     final hkey = idx >= 0 ? _cardKeys[idx] : null;
     final hctx = hkey?.currentContext;
@@ -943,28 +1365,116 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     // 使用后的卡牌进入弃牌堆
     discardPile.add(instance);
 
+    // 关键区域：血液职业被动【生命回收】
+    if (characterData.characterClass == CharacterClass.xueye) {
+      player.hp = (player.hp + 1).clamp(0, player.maxHp);
+      anim.showHeal(player, 1);
+      GameState.playerHp = player.hp;
+      
+      // 触发血液脉冲特效
+      final ctx = context;
+      final box = ctx.findRenderObject() as RenderBox?;
+      if (box != null) {
+        final center = box.size.center(Offset.zero);
+        anim.playRoleEffect(CharacterClass.xueye, center);
+      }
+    }
+
+    // 关键区域：浪潮职业被动【涌动】—— 手牌为空时恢复宽带并摸牌
+    if (characterData.characterClass == CharacterClass.langchao && hand.isEmpty) {
+      energy = (energy + 2).clamp(0, 99);
+      drawCards(2);
+      _showStatusTip("【涌动】宽带回收 +2，下行摸牌 +2", const Color(0xFF4DCCFF));
+      
+      // 触发海浪线条特效
+      final ctx = context;
+      final box = ctx.findRenderObject() as RenderBox?;
+      if (box != null) {
+        final center = box.size.center(Offset.zero);
+        anim.playRoleEffect(CharacterClass.langchao, center);
+      }
+    }
+
+    // 关键区域：几何职业被动【结构链路】—— 连续使用同类别卡牌获得宽带并摸牌
+    if (characterData.characterClass == CharacterClass.jihe) {
+      if (_lastUsedSuite != null && card.suite == _lastUsedSuite) {
+        energy = (energy + 1).clamp(0, 99);
+        drawCards(1);
+        _showStatusTip("【结构链路】带宽回收 +1，数据读取 +1", const Color(0xFF00FF00));
+        
+        // 触发几何六边形网格特效
+        final ctx = context;
+        final box = ctx.findRenderObject() as RenderBox?;
+        if (box != null) {
+          final center = box.size.center(Offset.zero);
+          anim.playRoleEffect(CharacterClass.jihe, center);
+        }
+      }
+      _lastUsedSuite = card.suite;
+    }
+
+    // 关键区域：虚行职业被动【虚空共鸣】—— 使用量子卡牌时施加诅咒
+    if (characterData.characterClass == CharacterClass.xuxing && card.suite == CardSuite.quantum) {
+      final targets = activePrograms.where((p) => p.hp > 0).toList();
+      if (targets.isNotEmpty) {
+        final randomTarget = targets[Random().nextInt(targets.length)];
+        randomTarget.curse += 1;
+        _showStatusTip("【虚空共鸣】注入恶意代码", const Color(0xFF9933FF));
+        
+        // 触发虚行故障方块特效
+        final ctx = context;
+        final box = ctx.findRenderObject() as RenderBox?;
+        if (box != null) {
+          final center = box.size.center(Offset.zero);
+          anim.playRoleEffect(CharacterClass.xuxing, center);
+        }
+      }
+    }
+
     // 触发玩家行动反馈动画（小弹跳）
     anim.showActionFeedback(player);
 
     // 使用DSL系统处理卡牌效果
-    if (card.effect != null) {
-      // 关键区域：攻击动画触发
-      if (target != null &&
-          (card.type == CardType.exploit || card.effect!.contains('damage'))) {
-        anim.playAttack(player, target);
-        // 添加攻击音效
-        _playAttackSound();
-        
-        // 优化玩家攻击流程：等待动画到达冲击点后再执行效果
-        Future.delayed(const Duration(milliseconds: 300), () {
-          CardEffect.execute(card.effect!, card, target, this);
-          checkBattleResult();
-          setState(() {});
-        });
-      } else {
-        CardEffect.execute(card.effect!, card, target, this);
-      }
-    }
+          if (card.effect != null) {
+            // 关键区域：根据卡牌属性选择攻击特效类型
+            AttackEffectType effectType = AttackEffectType.impact;
+            if (card.suite == CardSuite.quantum) {
+              effectType = AttackEffectType.laser;
+            } else if (card.suite == CardSuite.overload || card.id == 'bludgeon') {
+              effectType = AttackEffectType.explosion;
+            } else if (card.id == 'heavy_blade' || card.id == 'double_hit' || card.id == 'burning_slash' || card.id == 'jianren_strike') {
+              effectType = AttackEffectType.slash;
+            } else if (card.id == 'sneaky_strike' || card.id == 'curse_mark') {
+              effectType = AttackEffectType.inject;
+            }
+            // 剑刃：移除旧版斩击特效，改用刀痕切网格（由角色特效层渲染）
+            if (characterData.characterClass == CharacterClass.jianren && effectType == AttackEffectType.slash) {
+              effectType = AttackEffectType.impact;
+            }
+
+            // 关键区域：攻击动画触发
+            if (target != null) {
+              final shouldAttackAnim = (card.type == CardType.exploit && (
+                card.effect!.contains('damage') ||
+                card.effect!.contains('weak') ||
+                card.effect!.contains('vulnerable')
+              ));
+              if (shouldAttackAnim) {
+                anim.playAttack(player, target, type: effectType);
+              }
+              // 添加攻击音效
+              _playAttackSound();
+              
+              // 优化玩家攻击流程：等待动画到达冲击点后再执行效果
+              Future.delayed(const Duration(milliseconds: 300), () {
+                CardEffect.execute(card.effect!, card, target, this);
+                checkBattleResult();
+                setState(() {});
+              });
+            } else {
+              CardEffect.execute(card.effect!, card, target, this);
+            }
+          }
     // 增加使用卡牌统计
     GameStatistics.totalCardsUsed++;
 
@@ -1012,7 +1522,20 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
        // 关键区域：攻击者状态影响
        if (attacker != null) {
          // 算力加成：直接增加基础冲击力
-         finalDamage += attacker.strength;
+         int effectiveStrength = attacker.strength;
+         
+         // 关键区域：血液职业被动【血债血偿】
+         if (attacker == player && characterData.characterClass == CharacterClass.xueye) {
+           // 每损失 8 点生命值增加 1 点算力
+           final lostHp = attacker.maxHp - attacker.hp;
+           effectiveStrength += (lostHp ~/ 8);
+         }
+         
+         finalDamage += effectiveStrength;
+          if (attacker == player && characterData.characterClass == CharacterClass.jianren &&
+              activePrograms.any((e) => e.hp > 0 && e.block <= 0)) {
+            finalDamage *= 1.24;
+          }
          
          // 虚弱状态：输出降低 25%
          if (attacker.weak > 0) {
@@ -1051,6 +1574,12 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     
     if (remaining > 0) {
       target.hp = max(0, target.hp - remaining);
+      
+      // 关键区域：记录玩家受损状态（用于影蚀被动等）
+      if (identical(target, player)) {
+        _playerTookDamageThisTurn = true;
+      }
+
       anim.showDamage(target, remaining);
       _playHitSound();
       GameStatistics.totalDamageDealt += remaining;
@@ -1111,55 +1640,23 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   /// 结束同步
   /// =====================
 
-  void endTurn() {
-    final instances = List<CardInstance>.from(hand);
-    for (int idx = 0; idx < instances.length; idx++) {
-      final instance = instances[idx];
-      final key = _cardKeys[idx];
-      final ctx = key?.currentContext;
-      final box = ctx?.findRenderObject() as RenderBox?;
-      final start = box?.localToGlobal(const Offset(36, 48));
-      final dctx = _discardPileKey.currentContext;
-      final dbox = dctx?.findRenderObject() as RenderBox?;
-      final end = dbox?.localToGlobal(const Offset(50, 30));
-      if (start != null && end != null) {
-        _discardingCards.add(instance.instanceId);
-        // 创建动画控制器
-        _cardAnimationControllers[instance.instanceId] = AnimationController(
-          vsync: this,
-          duration: const Duration(milliseconds: 800),
-        );
-        // 启动动画
-        _cardAnimationControllers[instance.instanceId]?.forward();
-        setState(() {});
-        // 移除原有的弃牌动画，改为扫描带消失
-        Future.delayed(const Duration(milliseconds: 820), () {
-          _discardingCards.remove(instance.instanceId);
-          hand.remove(instance);
-          discardPile.add(instance);
-          // 释放动画控制器
-          _cardAnimationControllers[instance.instanceId]?.dispose();
-          _cardAnimationControllers.remove(instance.instanceId);
-          setState(() {});
-        });
-      }
+  /// 开始系统响应（原系统响应阶段）
+  void startSystemResponse() async {
+    gamePhase = GamePhase.systemResponse;
+    isDiscardPhase = false;
+
+    // 系统程序行动逻辑：改为异步轮流执行
+    await _systemActions();
+
+    // 若在系统响应结束后已产生胜负（例如火焰标记结算致胜），则不进入下一回合
+    if (gamePhase == GamePhase.gameOver) {
+      setState(() {});
+      return;
     }
-    Future.delayed(const Duration(milliseconds: 860), () {
-      energy = 3;
-      drawCards();
-      // 增加周期数统计
-      GameStatistics.totalTurns++;
-      
-      // 关键区域：玩家状态衰减
-      if (player.vulnerable > 0) player.vulnerable--;
-      if (player.weak > 0) player.weak--;
-      // 算力和诅咒通常不自动衰减，除非有特殊规则
-    
-    // 关键区域：重滚怪物意图，以反映状态变化（如玩家获得算力或怪物被虚弱）
-    _rollSystemIntents();
-    
-    setState(() {});
-  });
+
+    // 系统响应结束后进入下一同步周期
+    turnCount++;
+    startSyncPhase();
   }
 
   /// =====================
@@ -1172,12 +1669,32 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     isDiscardPhase = false;
     hasDrawnCards = false;
     player.block = 0; // 同步开始重置防火墙
+    _lastUsedSuite = null; // 重置几何职业的上一张牌类别
 
     // 每周期开始时重置带宽（能量）为固定值
     energy = 3;
 
+    // 关键区域：影蚀职业被动【隐匿打击】—— 未受损时下回合摸牌
+    int drawBonus = 0;
+    if (characterData.characterClass == CharacterClass.yingshi && !_playerTookDamageThisTurn) {
+      drawBonus = 1;
+      _showStatusTip("【隐匿打击】额外获取数据包 +1", const Color(0xFF9370DB));
+      
+      // 触发影蚀阴影特效
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final ctx = context;
+        final box = ctx.findRenderObject() as RenderBox?;
+        if (box != null) {
+          final center = box.size.center(Offset.zero);
+          anim.playRoleEffect(CharacterClass.yingshi, center);
+        }
+      });
+    }
+    _playerTookDamageThisTurn = false; // 重置受损记录
+
     // 同步阶段开始时自动抽牌：随机获取数据包
-    _randomDrawCards();
+    _randomDrawCards(bonus: drawBonus);
     hasDrawnCards = true;
     _rollSystemIntents(isTurnStart: true);
 
@@ -1185,7 +1702,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   }
 
   /// 随机抽牌逻辑：随机抽取随机张牌
-  void _randomDrawCards() {
+  void _randomDrawCards({int bonus = 0}) {
     if (drawPile.isEmpty) {
       drawPile.addAll(discardPile);
       discardPile.clear();
@@ -1195,9 +1712,10 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     final random = Random();
     final cardsToDraw =
         random.nextInt(
-          characterData.maxDrawPerTurn - characterData.minDrawPerTurn + 1,
-        ) +
-        characterData.minDrawPerTurn;
+              characterData.maxDrawPerTurn - characterData.minDrawPerTurn + 1,
+            ) +
+            characterData.minDrawPerTurn +
+            bonus;
     final actualDrawCount = cardsToDraw.clamp(1, drawPile.length);
 
     final newCards = <CardInstance>[];
@@ -1254,19 +1772,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     setState(() {});
   }
 
-  /// 开始系统响应（原系统响应阶段）
-  void startSystemResponse() async {
-    gamePhase = GamePhase.systemResponse;
-    isDiscardPhase = false;
-
-    // 系统程序行动逻辑：改为异步轮流执行
-    await _systemActions();
-
-    // 系统响应结束后进入下一同步周期
-    turnCount++;
-    startSyncPhase();
-  }
-
   /// 系统程序行动逻辑
   Future<void> _systemActions() async {
     for (final program in activePrograms) {
@@ -1304,6 +1809,19 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         
         // 检查玩家是否死亡
         if (player.hp <= 0) break;
+      }
+    }
+
+    if (characterData.characterClass == CharacterClass.yanxin) {
+      for (final program in activePrograms) {
+        if (program.hp > 0 && program.fire > 0) {
+          if (program.block > 0) {
+            program.block = 0;
+            anim.playShieldBreak(program);
+          }
+          _applyDamage(player, program, program.fire, isFinal: true);
+          program.fire = max(0, program.fire - 1);
+        }
       }
     }
 
@@ -1394,11 +1912,14 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   }
 
   /// 完成弃牌阶段
-  void completeDiscardPhase() {
+  /// 完成弃牌阶段并进入系统响应
+  Future<void> completeDiscardPhase({int discardedCount = 0}) async {
+    int totalDiscarded = discardedCount;
     if (hand.length > 1) {
       // 如果手牌超过1张，需要玩家手动选择保留哪张
       // 这里暂时自动保留第一张，弃掉其他
       final instanceToKeep = hand[0];
+      totalDiscarded += (hand.length - 1);
       for (int idx = 1; idx < hand.length; idx++) {
         final instance = hand[idx];
         final key = _cardKeys[idx];
@@ -1437,6 +1958,36 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       // 如果没有手牌，跳过弃牌阶段
     }
 
+    // 关键区域：林职业被动【冗余利用】—— 弃牌获得格挡
+    if (characterData.characterClass == CharacterClass.lin && totalDiscarded > 0) {
+      int bonusBlock = totalDiscarded * 2;
+      player.block += bonusBlock;
+      anim.showBlockGain(player, bonusBlock);
+      _showStatusTip("【冗余利用】处理 $totalDiscarded 条冗余数据，防火墙 +$bonusBlock", const Color(0xFFC3A6FF));
+      
+      // 触发林落叶特效
+      final ctx = context;
+      final box = ctx.findRenderObject() as RenderBox?;
+      if (box != null) {
+        final center = box.size.center(Offset.zero);
+        anim.playRoleEffect(CharacterClass.lin, center);
+      }
+      
+      // 等待特效展示
+      await Future.delayed(const Duration(milliseconds: 1000));
+    }
+
+    if (characterData.characterClass == CharacterClass.yanxin && energy > 0) {
+      final candidates = activePrograms.where((m) => m.hp > 0).toList();
+      if (candidates.isNotEmpty) {
+        final rng = Random();
+        for (int i = 0; i < energy; i++) {
+          final target = candidates[rng.nextInt(candidates.length)];
+          target.fire += 1;
+        }
+        setState(() {});
+      }
+    }
     // 弃牌阶段结束后进入系统响应周期
     startSystemResponse();
   }
@@ -1463,7 +2014,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   }
 
   /// 手动选择保留的牌（供UI调用）
-  void selectCardToKeep(CardInstance instance) {
+  void selectCardToKeep(CardInstance instance) async {
     if (gamePhase != GamePhase.discardPhase) return;
 
     // 将选中的牌保留，其他牌弃掉
@@ -1512,8 +2063,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     hand.clear();
     hand.add(instance);
 
-    // 完成弃牌阶段
-    completeDiscardPhase();
+    // 完成弃牌阶段，传入弃牌数量以触发被动
+    await completeDiscardPhase(discardedCount: discardInstances.length);
   }
 
   /// =====================
@@ -1552,8 +2103,22 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                 (context, _) => Stack(
                   children: [
                   // 关键区域：全域背景美化 - 动态扫描线与网格
-                  const Positioned.fill(
-                    child: _BattleBackground(),
+                  Positioned.fill(
+                    child: _BattleBackground(
+                      pulses: anim.gridPulses,
+                      gridColor: (characterData.characterClass == CharacterClass.jianren &&
+                                  activePrograms.any((e) => e.hp > 0 && e.block <= 0))
+                          ? const Color(0xFFFFD700)
+                          : const Color(0xFF6CE4FF),
+                    ),
+                  ),
+                  // 关键区域：角色专属特效绘制层（作用于背景之上，UI之下）
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: CustomPaint(
+                        painter: RoleEffectPainter(anim.roleEffects),
+                      ),
+                    ),
                   ),
                   // 根据屏幕方向选择不同布局
                   isLandscape ? _landscapeLayout() : _portraitLayout(),
@@ -1565,18 +2130,23 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       hasDrawnCards &&
                       !isDiscardPhase)
                     _bottomDiscardOverlay(),
-                  ...anim.attacks.map(_attackEffect),
+                  _attackGroup(AttackEffectType.laser),
+                  _attackGroup(AttackEffectType.slash),
+                  _attackGroup(AttackEffectType.explosion),
+                  _attackGroup(AttackEffectType.inject),
+                  _attackGroup(AttackEffectType.impact),
                   ...anim.motions.map(_cardMotionWidget),
                   ...anim.blockPopups.map(_blockDamagePopup),
                   ...anim.shieldBreaks.map(_shieldBreakEffect),
                   ...anim.popups.map(_damagePopup),
                   ...anim.blockGains.map(_blockGainPopup),
                   ...anim.healPopups.map(_healPopup),
+                  if (anim.isScreenOverloaded) _screenOverloadOverlay(),
                   if (gamePhase == GamePhase.gameOver) _resultOverlay(),
                   if (_statusTip != null) _statusTipWidget(),
                 ],
               ),
-          ),
+            ),
         ),
       ),
     );
@@ -1906,15 +2476,21 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             ],
           ),
           border: Border(
-            bottom: BorderSide(
-              color: const Color(0xFF6CE4FF).withValues(alpha: 0.3),
-              width: 1.5,
+              bottom: BorderSide(
+              color: ((characterData.characterClass == CharacterClass.jianren &&
+                      activePrograms.any((e) => e.hp > 0 && e.block <= 0))
+                  ? const Color(0xFFFFD700)
+                  : const Color(0xFF6CE4FF)).withValues(alpha: 0.4),
+              width: 1.6,
             ),
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF6CE4FF).withValues(alpha: 0.1),
-              blurRadius: 10,
+              color: ((characterData.characterClass == CharacterClass.jianren &&
+                      activePrograms.any((e) => e.hp > 0 && e.block <= 0))
+                  ? const Color(0xFFFFD700)
+                  : const Color(0xFF6CE4FF)).withValues(alpha: 0.18),
+              blurRadius: 12,
               offset: const Offset(0, 2),
             ),
           ],
@@ -1928,7 +2504,10 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                 Text(
                   "// SYSTEM_INTEGRITY_LINK",
                   style: TextStyle(
-                    color: const Color(0xFF6CE4FF).withValues(alpha: 0.5),
+                    color: ((characterData.characterClass == CharacterClass.jianren &&
+                            activePrograms.any((e) => e.hp > 0 && e.block <= 0))
+                        ? const Color(0xFFFFD700)
+                        : const Color(0xFF6CE4FF)).withValues(alpha: 0.6),
                     fontSize: 7,
                     letterSpacing: 1.5,
                     fontFamily: 'monospace',
@@ -1938,7 +2517,10 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                 Text(
                   "NODE: ${widget.levelId ?? 'UNKNOWN'}",
                   style: TextStyle(
-                    color: const Color(0xFF6CE4FF).withValues(alpha: 0.5),
+                    color: ((characterData.characterClass == CharacterClass.jianren &&
+                            activePrograms.any((e) => e.hp > 0 && e.block <= 0))
+                        ? const Color(0xFFFFD700)
+                        : const Color(0xFF6CE4FF)).withValues(alpha: 0.6),
                     fontSize: 7,
                     letterSpacing: 1,
                     fontFamily: 'monospace',
@@ -1971,16 +2553,29 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                           color: const Color(0xFF0A0F16),
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(
-                            color: const Color(0xFF6CE4FF).withValues(alpha: 0.6),
+                            color: ((characterData.characterClass == CharacterClass.jianren &&
+                                    activePrograms.any((e) => e.hp > 0 && e.block <= 0))
+                                ? const Color(0xFFFFD700)
+                                : const Color(0xFF6CE4FF)).withValues(alpha: 0.75),
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF6CE4FF).withValues(alpha: 0.2),
-                              blurRadius: 8,
+                              color: ((characterData.characterClass == CharacterClass.jianren &&
+                                      activePrograms.any((e) => e.hp > 0 && e.block <= 0))
+                                  ? const Color(0xFFFFD700)
+                                  : const Color(0xFF6CE4FF)).withValues(alpha: 0.25),
+                              blurRadius: 10,
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.map, size: 16, color: Color(0xFF6CE4FF)),
+                        child: Icon(
+                          Icons.map,
+                          size: 16,
+                          color: ((characterData.characterClass == CharacterClass.jianren &&
+                                  activePrograms.any((e) => e.hp > 0 && e.block <= 0))
+                              ? const Color(0xFFFFD700)
+                              : const Color(0xFF6CE4FF)),
+                        ),
                       ),
                     ),
                     // HP 区域
@@ -1990,6 +2585,10 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       width: 160,
                       height: 24,
                       label: "ITG",
+                      color: ((characterData.characterClass == CharacterClass.jianren &&
+                              activePrograms.any((e) => e.hp > 0 && e.block <= 0))
+                          ? const Color(0xFFFFD700)
+                          : const Color(0xFF6CE4FF)),
                     ),
                     const SizedBox(width: 8),
                     // 防火墙 FWL 容器
@@ -1999,7 +2598,11 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       tween: Tween(begin: 1.2, end: 1.0),
                       builder: (context, scale, child) {
                         final bool hasBlock = player.block > 0;
-                        final Color blockColor = hasBlock ? const Color(0xFF6CE4FF) : const Color(0xFF2A4158);
+                        final bool isGold = (characterData.characterClass == CharacterClass.jianren &&
+                          activePrograms.any((e) => e.hp > 0 && e.block <= 0));
+                        final Color blockColor = isGold
+                            ? const Color(0xFFFFD700)
+                            : (hasBlock ? const Color(0xFF6CE4FF) : const Color(0xFF2A4158));
                         
                         return Transform.scale(
                           scale: scale,
@@ -2066,12 +2669,19 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                 ),
                 // 右侧：设置按钮
                 IconButton(
-                  icon: const Icon(Icons.power_settings_new, size: 18, color: Color(0xFF8FA3C0)),
-                  onPressed: () async {
-                    final shouldExit = await _onWillPopConfirm();
-                    if (shouldExit && context.mounted) {
-                      // 返回到开始页面（根路由）
-                      Navigator.popUntil(context, (route) => route.isFirst);
+                icon: Icon(
+                  Icons.power_settings_new,
+                  size: 18,
+                  color: ((characterData.characterClass == CharacterClass.jianren &&
+                          activePrograms.any((e) => e.hp > 0 && e.block <= 0))
+                      ? const Color(0xFFFFD700)
+                      : const Color(0xFF8FA3C0)),
+                ),
+                onPressed: () async {
+                  final shouldExit = await _onWillPopConfirm();
+                  if (shouldExit && context.mounted) {
+                    // 返回到开始页面（根路由）
+                    Navigator.popUntil(context, (route) => route.isFirst);
                     }
                   },
                   padding: EdgeInsets.zero,
@@ -2138,41 +2748,10 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   }
 
   Widget _playerTarget() {
-    return DragTarget<CardInstance>(
-      onWillAccept: (instance) {
-        if (instance == null) return false;
-        final card = instance.data;
-        if (card == null) return false;
-        
-        // 根据卡牌定义的 target 来决定是否接受
-        final accept = card.target == CardTarget.self || card.target == CardTarget.all;
-        
-        if (accept) {
-          highlightedTarget = player;
-          setState(() {});
-        }
-        return accept;
-      },
-      onAccept: (instance) {
-        useCard(instance, player);
-        // 添加卡牌使用时的粒子效果
-        if (instance.data != null) {
-          _showCardUseEffect(instance.data!, player);
-        }
-      },
-      onLeave: (_) {
-        highlightedTarget = null;
-        setState(() {});
-      },
-      builder: (context, candidateData, rejectedData) {
-        final isHighlighted = highlightedTarget == player;
-        final isBeingDragged = candidateData.isNotEmpty;
-        return _playerWidget(player, isHighlighted: isHighlighted, isBeingDragged: isBeingDragged);
-      },
-    );
+    return _playerWidget(player);
   }
 
-  Widget _playerWidget(Entity e, {bool isHighlighted = false, bool isBeingDragged = false}) {
+  Widget _playerWidget(Entity e, {bool isHighlighted = false}) {
     final isGlitching = anim.glitching.contains(e);
     final isProtecting = anim.protecting.contains(e);
     final isBouncing = anim.bouncing.contains(e);
@@ -2326,7 +2905,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     // 将 GlobalKey 提升到最顶层容器，确保其唯一性
     return AnimatedOpacity(
       key: e.key,
-      opacity: (anim.isCharging(e) ? 0.0 : 1.0).clamp(0.0, 1.0),
+      opacity: 1.0,
       duration: const Duration(milliseconds: 100),
       child: box,
     );
@@ -2534,12 +3113,13 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                     if (isVictory) ...[
                                       _overlayButton(
                                         Icons.map,
-                                        "拓扑网络",
+                                        GameProgress.isCurrentNationFinished() ? "同步完成：查看拓扑图" : "拓扑网络",
                                         () {
                                           // 胜利后，标记当前关卡已击败
                                           if (widget.levelId != null) {
                                             GameProgress.markDefeated(widget.levelId!);
                                           }
+                                          
                                           Navigator.pushReplacement(
                                             context,
                                             createHoloRoute(
@@ -2585,6 +3165,30 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       ),
     );
   }
+
+  // 屏幕过载分层效果（颜色偏移与扫描线叠加）
+  Widget _screenOverloadOverlay() {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: 1),
+          duration: AnimDurations.screenOverload,
+          builder: (_, t, __) {
+            final alpha = (1.0 - t).clamp(0.0, 0.5);
+            return Stack(
+              children: [
+                Container(color: Colors.red.withValues(alpha: 0.03 * alpha)),
+                Positioned.fill(
+                  child: CustomPaint(painter: ScanlineJitterPainter(strength: 2.0 * (1.0 - t))),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
 
   Widget _overlayButton(
     IconData icon,
@@ -3112,7 +3716,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
         return AnimatedOpacity(
           key: program.key,
-          opacity: (isDead ? 0.4 : (anim.isCharging(program) ? 0.0 : 1.0)).clamp(0.0, 1.0),
+          opacity: (isDead ? 0.4 : 1.0).clamp(0.0, 1.0),
           duration: const Duration(milliseconds: 100),
           child: Stack(
             clipBehavior: Clip.none,
@@ -3464,6 +4068,20 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     return Stack(
       alignment: Alignment.bottomCenter,
       children: [
+        // 手牌上方的判定区
+        if (gamePhase != GamePhase.discardPhase)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 140, // 位于手牌上方
+            child: _judgementArea(),
+          ),
+        if (characterData.characterClass == CharacterClass.yanxin && gamePhase != GamePhase.gameOver)
+          Positioned(
+            right: 8,
+            bottom: 120,
+            child: _heatBarVertical(),
+          ),
         Container(
           padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
           child: gamePhase == GamePhase.discardPhase
@@ -3481,6 +4099,233 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     );
   }
 
+  Widget _heatBarVertical() {
+    final isCharged = heatProgress >= 8;
+    final pct = (heatProgress / 48.0).clamp(0.0, 1.0);
+    final base = const Color(0xFFFF9500);
+    final barW = 10.0;
+    final barH = 150.0;
+    final frameW = 28.0;
+    return Container(
+      width: frameW,
+      height: barH + 36,
+      padding: const EdgeInsets.fromLTRB(3, 4, 3, 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(
+          color: isCharged ? base.withValues(alpha: 0.7) : base.withValues(alpha: 0.35),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isCharged ? base.withValues(alpha: 0.25) : Colors.black.withValues(alpha: 0.45),
+            blurRadius: isCharged ? 8 : 5,
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: CyberCornerPainter(color: base.withValues(alpha: 0.1)),
+              ),
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: frameW - 6,
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      "$heatProgress",
+                      style: TextStyle(
+                        color: isCharged ? base : base.withValues(alpha: 0.8),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        fontFamily: 'monospace',
+                        shadows: [
+                          Shadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 3),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              SizedBox(
+                width: barW,
+                height: barH,
+                child: Stack(
+                  alignment: Alignment.bottomCenter,
+                  children: [
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: CyberScanline(color: base.withValues(alpha: isCharged ? 0.08 : 0.05)),
+                      ),
+                    ),
+                    Container(
+                      width: barW,
+                      height: barH,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF05060A),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: FractionallySizedBox(
+                        heightFactor: pct,
+                        child: Container(
+                          width: barW,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: [
+                                base.withValues(alpha: 0.35),
+                                base.withValues(alpha: 0.7),
+                                base,
+                              ],
+                              stops: const [0.0, 0.7, 1.0],
+                            ),
+                            borderRadius: BorderRadius.circular(4),
+                            boxShadow: [
+                              BoxShadow(color: base.withValues(alpha: 0.25), blurRadius: 5),
+                            ],
+                          ),
+                          child: CyberScanline(color: Colors.white.withValues(alpha: isCharged ? 0.1 : 0.06)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _triggerHeatBurst() {
+    if (characterData.characterClass != CharacterClass.yanxin) return;
+    if (heatProgress < 8) {
+      _showStatusTip("热量不足（≥8）才能爆发", Colors.orangeAccent);
+      return;
+    }
+    final targets = activePrograms.where((m) => m.hp > 0).toList();
+    if (targets.isEmpty) {
+      _showStatusTip("无目标，爆发取消", Colors.orangeAccent);
+      heatProgress = 0;
+      setState(() {});
+      return;
+    }
+    final rng = Random();
+    final int total = heatProgress;
+    int remaining = total;
+    while (remaining > 0 && targets.isNotEmpty) {
+      final t = targets[rng.nextInt(targets.length)];
+      _applyDamage(player, t, 1, isFinal: true);
+      if (t.hp <= 0) targets.remove(t);
+      remaining--;
+    }
+    heatProgress = 0;
+    GameState.heatProgress = 0;
+    if (total > 0) {
+      final healAmount = total;
+      player.hp = (player.hp + healAmount).clamp(0, player.maxHp);
+      anim.showHeal(player, healAmount);
+      GameState.playerHp = player.hp;
+    }
+    _playHeatBurnEffect();
+    checkBattleResult();
+    setState(() {});
+  }
+
+  void _playHeatBurnEffect() {
+    final ctx = context;
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final size = box.size;
+    final centers = [
+      size.center(Offset.zero),
+      Offset(size.width * 0.25, size.height * 0.4),
+      Offset(size.width * 0.75, size.height * 0.6),
+      Offset(size.width * 0.5, size.height * 0.2),
+      Offset(size.width * 0.5, size.height * 0.8),
+    ];
+    for (int i = 0; i < centers.length; i++) {
+      Future.delayed(Duration(milliseconds: i * 150), () {
+        anim.playGridPulse(centers[i]);
+      });
+    }
+  }
+
+  Widget _heatBurstButton() {
+    final base = const Color(0xFFFF9500);
+    final isCharged = heatProgress >= 8;
+    return GestureDetector(
+      onTap: isCharged ? () => _triggerHeatBurst() : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0A0E14).withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(4),
+          boxShadow: [
+            if (isCharged)
+              BoxShadow(color: base.withValues(alpha: 0.15), blurRadius: 12, spreadRadius: 1)
+            else
+              BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 8),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: CyberCornerPainter(color: base.withValues(alpha: 0.4)),
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CyberScanline(color: base.withValues(alpha: isCharged ? 0.12 : 0.06)),
+              ),
+            ),
+            ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 92, minHeight: 24),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.local_fire_department, color: isCharged ? base : base.withValues(alpha: 0.6), size: 13),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        "热量爆发",
+                        style: TextStyle(
+                          color: isCharged ? base : base.withValues(alpha: 0.8),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
   /// Buff 效果说明面板
   Widget _buffInfoPanel() {
     return TweenAnimationBuilder<double>(
@@ -3635,6 +4480,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           return Stack(
             children: [
               Positioned(left: 10, top: 10, child: _energyCoreWidget()),
+              if (characterData.characterClass == CharacterClass.yanxin)
+                Positioned(left: 78, top: 16, child: _heatBurstButton()),
               const Center(
                 child: Icon(Icons.inbox_outlined, size: 28, color: Colors.white38),
               ),
@@ -3661,6 +4508,15 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             child: _energyCoreWidget(),
           ),
         );
+        if (characterData.characterClass == CharacterClass.yanxin) {
+          children.add(
+            Positioned(
+              left: 78,
+              top: 16,
+              child: _heatBurstButton(),
+            ),
+          );
+        }
 
         // 2. 手牌计数：紧贴手牌上方居中
         children.add(
@@ -3742,6 +4598,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                 return Stack(
                   children: [
                     Positioned(left: 10, top: 10, child: _energyCoreWidget()),
+                    if (characterData.characterClass == CharacterClass.yanxin)
+                      Positioned(left: 78, top: 16, child: _heatBurstButton()),
                     const Center(
                       child: Icon(Icons.inbox_outlined, size: 28, color: Colors.white38),
                     ),
@@ -3768,6 +4626,15 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                   child: _energyCoreWidget(),
                 ),
               );
+              if (characterData.characterClass == CharacterClass.yanxin) {
+                children.add(
+                  Positioned(
+                    left: 78,
+                    top: 16,
+                    child: _heatBurstButton(),
+                  ),
+                );
+              }
 
               // 2. 手牌计数
               children.add(
@@ -3959,7 +4826,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                 switch (card.suite) {
                   case CardSuite.classic: return const Color(0xFF6CE4FF);
                   case CardSuite.overload: return const Color(0xFFFF4444);
-                  case CardSuite.secure: return const Color(0xFF44FF44);
+                  case CardSuite.secure: return const Color(0xFFC3A6FF);
                   case CardSuite.industrial: return const Color(0xFFFFB344);
                   case CardSuite.quantum: return const Color(0xFFE26CFF);
                 }
@@ -4052,7 +4919,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                 switch (card.suite) {
                   case CardSuite.classic: return const Color(0xFF6CE4FF);
                   case CardSuite.overload: return const Color(0xFFFF4444);
-                  case CardSuite.secure: return const Color(0xFF44FF44);
+                  case CardSuite.secure: return const Color(0xFFC3A6FF);
                   case CardSuite.industrial: return const Color(0xFFFFB344);
                   case CardSuite.quantum: return const Color(0xFFE26CFF);
                 }
@@ -4312,7 +5179,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       switch (c.suite) {
         case CardSuite.classic: return const Color(0xFF6CE4FF); // 经典霓虹青
         case CardSuite.overload: return const Color(0xFFFF4444); // 红色过载
-        case CardSuite.secure: return const Color(0xFF44FF44); // 矩阵终端绿
+        case CardSuite.secure: return const Color(0xFFC3A6FF); // 淡紫色
         case CardSuite.industrial: return const Color(0xFFFFB344); // 工业机械橙
         case CardSuite.quantum: return const Color(0xFFE26CFF); // 量子虚空紫
       }
@@ -4336,7 +5203,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     Color getCardBgColor() {
       switch (c.suite) {
         case CardSuite.overload: return const Color(0xFF1A0A0A);
-        case CardSuite.secure: return const Color(0xFF0A1A0A);
+        case CardSuite.secure: return const Color(0xFF1A0A1A);
         case CardSuite.industrial: return const Color(0xFF1A140A);
         case CardSuite.quantum: return const Color(0xFF140A1A);
         case CardSuite.classic: return const Color(0xFF101722);
@@ -4539,69 +5406,68 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     return Icon(icon, size: 10, color: color.withValues(alpha: 0.6));
   }
 
-  // 关键区域：攻击冲锋效果（前进-短暂超冲-停留-回退）
+  // 关键区域：攻击特效分发中心
   Widget _attackEffect(AttackEffect e) {
+    switch (e.type) {
+      case AttackEffectType.laser:
+        return LaserEffectWidget(e);
+      case AttackEffectType.slash:
+        return SlashEffectWidget(e);
+      case AttackEffectType.explosion:
+        return ExplosionEffectWidget(e);
+      case AttackEffectType.inject:
+        return InjectEffectWidget(e);
+      case AttackEffectType.impact:
+        return ImpactEffectWidget(e);
+    }
+  }
+
+  // 关键区域：特效分组渲染（分层减少全局重建）
+  Widget _attackGroup(AttackEffectType type) {
+    final items = anim.attacks.where((e) => e.type == type).toList();
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Positioned.fill(
+      child: RepaintBoundary(
+        child: Stack(children: items.map(_attackEffect).toList()),
+      ),
+    );
+  }
+
+  // 1. 物理冲击特效 (改为能量波视觉效果)
+  Widget _impactEffect(AttackEffect e) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 950), // 稍微增加总时长
-      curve: Curves.easeInOutQuart, // 更平滑的整体曲线
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
       builder: (_, t, __) {
-        Offset pos;
-        double stageProgress;
-        
-        if (t < 0.3) {
-          // 冲锋阶段：加速推进
-          stageProgress = Curves.easeInQuint.transform((t / 0.3).clamp(0.0, 1.0));
-          pos = Offset.lerp(e.start, e.end, stageProgress)!;
-        } else if (t < 0.38) {
-          // 撞击超冲阶段：极短的爆发
-          stageProgress = Curves.elasticOut.transform(((t - 0.3) / 0.08).clamp(0.0, 1.0));
-          final overshoot = e.end + (e.end - e.start) * 0.04;
-          pos = Offset.lerp(e.end, overshoot, stageProgress)!;
-        } else if (t < 0.75) {
-          // 停留阶段：在目标处稍微颤动
-          stageProgress = ((t - 0.38) / 0.37).clamp(0.0, 1.0);
-          final jitter = Offset(
-            sin(stageProgress * 20 * pi) * 0.5,
-            cos(stageProgress * 20 * pi) * 0.5,
-          );
-          pos = e.end + jitter;
-        } else {
-          // 回退阶段：平滑归位
-          stageProgress = Curves.easeOutCubic.transform(((t - 0.75) / 0.25).clamp(0.0, 1.0));
-          pos = Offset.lerp(e.end, e.start, stageProgress)!;
-        }
-
-        final scale =
-            t < 0.38
-                ? 1.0 + 0.12 * Curves.easeOut.transform((t / 0.38).clamp(0.0, 1.0))
-                : t < 0.75
-                ? 1.12
-                : 1.12 - 0.12 * Curves.easeIn.transform(((t - 0.75) / 0.25).clamp(0.0, 1.0));
-                
-        final rot =
-            (e.attacker == player ? 0.06 : -0.06) *
-            (t < 0.75 ? 1.0 : (1 - (t - 0.75) / 0.25));
-
+        final opacity = (1.0 - t).clamp(0.0, 1.0);
+        final scale = 0.5 + t * 2.0;
         return Stack(
           children: [
-            // 添加拖尾效果（可选，通过多个透明层模拟）
-            if (t > 0 && t < 0.3)
-              Positioned(
-                left: Offset.lerp(e.start, e.end, (t - 0.05).clamp(0, 1) / 0.3)!.dx,
-                top: Offset.lerp(e.start, e.end, (t - 0.05).clamp(0, 1) / 0.3)!.dy,
-                child: Opacity(
-                  opacity: 0.3,
-                  child: _entityGhostWidget(e.attacker, scale: 0.95),
-                ),
-              ),
+            // 目标位置的冲击波
             Positioned(
-              left: pos.dx,
-              top: pos.dy,
-              child: _entityGhostWidget(
-                e.attacker,
-                scale: scale,
-                rotation: rot,
+              left: e.end.dx + 50 - (40 * scale),
+              top: e.end.dy + 60 - (40 * scale),
+              child: Opacity(
+                opacity: opacity,
+                child: Container(
+                  width: 80 * scale,
+                  height: 80 * scale,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFF6CE4FF).withValues(alpha: opacity),
+                      width: 4 * (1 - t),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6CE4FF).withValues(alpha: opacity * 0.5),
+                        blurRadius: 20 * t,
+                        spreadRadius: 5 * t,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
@@ -4610,83 +5476,197 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     );
   }
 
-  // 关键区域：攻击者幽灵模型（用于冲锋）
-  Widget _entityGhostWidget(
-    Entity e, {
-    double scale = 1.0,
-    double rotation = 0.0,
-  }) {
-    final baseColor =
-        e == player ? const Color(0xFF152235) : const Color(0xFF1E2835);
-    final child = Container(
-      width: e == player ? 80 : 100,
-      height: e == player ? 96 : 120,
-      decoration: BoxDecoration(
-        color: baseColor,
-        borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: const Color(0xFF2A4158)),
-        boxShadow: const [
-          BoxShadow(color: Colors.black87, blurRadius: 10, spreadRadius: 2),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            e == player ? Icons.person : Icons.pest_control,
-            size: e == player ? 48 : 36,
-            color: Colors.white70,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            e.name,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+  // 2. 激光射线特效
+  Widget _laserEffect(AttackEffect e) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: AnimDurations.laser,
+      builder: (_, t, __) {
+        final opacity = t < 0.2 ? t / 0.2 : (t < 0.8 ? 1.0 : 1.0 - (t - 0.8) / 0.2);
+        final width = t < 0.3 ? t / 0.3 * 8.0 : (1.0 - (t - 0.3) / 0.7) * 8.0;
+        
+        return Stack(
+          children: [
+            CustomPaint(
+              painter: LaserPainter(
+                start: e.start + const Offset(40, 48),
+                end: e.end + const Offset(50, 60),
+                progress: t,
+                color: EffectColors.laserPrimary,
+                width: width,
+                opacity: opacity,
+              ),
             ),
-          ),
-        ],
-      ),
+            // 目标处的冲击光圈
+            if (t > 0.2 && t < 0.8)
+              Positioned(
+                left: e.end.dx + 50 - 30,
+                top: e.end.dy + 60 - 30,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: 1),
+                  duration: const Duration(milliseconds: 200),
+                  builder: (_, v, __) => Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFF6CE4FF).withValues(alpha: 1.0 - v), width: 2),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
-    return Opacity(
-      opacity: 0.95.clamp(0.0, 1.0),
-      child: Transform.rotate(
-        angle: rotation,
-        child: Transform.scale(scale: scale, child: child),
-      ),
+  }
+
+  // 3. 斩击特效
+  Widget _slashEffect(AttackEffect e) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: AnimDurations.slash,
+      builder: (_, t, __) {
+        return Stack(
+          children: [
+            // 斩击痕迹
+            CustomPaint(
+              painter: SlashPainter(
+                center: e.end + const Offset(50, 60),
+                progress: t,
+                color: EffectColors.slashPrimary,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 4. 爆炸特效
+  Widget _explosionEffect(AttackEffect e) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 1000),
+      builder: (_, t, __) {
+        return Stack(
+          children: [
+            // 投掷物轨迹
+            if (t < 0.4)
+              Positioned(
+                left: Offset.lerp(e.start, e.end, t / 0.4)!.dx + 40,
+                top: Offset.lerp(e.start, e.end, t / 0.4)!.dy + 40,
+                child: Transform.rotate(
+                  angle: t * 10,
+                  child: const Icon(Icons.brightness_high, color: Color(0xFFFF9500), size: 24),
+                ),
+              ),
+            // 爆炸火花
+            if (t >= 0.3)
+              ...List.generate(12, (i) {
+                final progress = ((t - 0.3) / 0.7).clamp(0.0, 1.0);
+                if (progress <= 0 || progress >= 1) return const SizedBox();
+                final angle = (i * 30) * pi / 180;
+                final dist = progress * 80;
+                return Positioned(
+                  left: e.end.dx + 50 + cos(angle) * dist,
+                  top: e.end.dy + 60 + sin(angle) * dist,
+                  child: Opacity(
+                    opacity: 1.0 - progress,
+                    child: Container(
+                      width: 8 * (1 - progress),
+                      height: 8 * (1 - progress),
+                      decoration: const BoxDecoration(color: Color(0xFFFF4444), shape: BoxShape.circle),
+                    ),
+                  ),
+                );
+              }),
+          ],
+        );
+      },
+    );
+  }
+
+  // 5. 注入特效
+  Widget _injectEffect(AttackEffect e) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 800),
+      builder: (_, t, __) {
+        return Stack(
+          children: [
+            // 注入流
+            if (t < 0.6)
+              ...List.generate(5, (i) {
+                final delay = i * 0.1;
+                final progress = ((t - delay) / 0.5).clamp(0.0, 1.0);
+                if (progress <= 0 || progress >= 1) return const SizedBox();
+                final pos = Offset.lerp(e.start + const Offset(40, 48), e.end + const Offset(50, 60), progress)!;
+                return Positioned(
+                  left: pos.dx,
+                  top: pos.dy,
+                  child: Container(
+                    width: 4,
+                    height: 4,
+                    decoration: const BoxDecoration(color: Color(0xFF00FFCC), shape: BoxShape.circle),
+                  ),
+                );
+              }),
+            // 目标处的数据流上升
+            if (t > 0.4)
+              ...List.generate(3, (i) {
+                final progress = ((t - 0.4) / 0.6).clamp(0.0, 1.0);
+                return Positioned(
+                  left: e.end.dx + 30 + (i * 20),
+                  top: e.end.dy + 80 - (progress * 60),
+                  child: Opacity(
+                    opacity: (1.0 - progress) * 0.7,
+                    child: Text(
+                      (i % 2 == 0 ? "101" : "011"),
+                      style: const TextStyle(color: Color(0xFF00FFCC), fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                );
+              }),
+          ],
+        );
+      },
     );
   }
 
   Widget _damagePopup(DamagePopup p) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 900),
-      curve: Curves.easeOutBack,
+      duration: AnimDurations.popup,
+      curve: AnimCurves.fastOut,
       builder: (_, t, __) {
-        final dy = -60 * Curves.easeOutQuart.transform(t.clamp(0.0, 1.0));
-        final dx = sin(t.clamp(0.0, 1.0) * pi * 4) * 4 * (1 - t.clamp(0.0, 1.0));
-        final scale = t < 0.2 ? 0.6 + t * 4 : 1.4 - (t - 0.2) * 0.5;
-        final opacity = t < 0.6 ? 1.0 : 1.0 - (t - 0.6) / 0.4;
+        final tt = t.clamp(0.0, 1.0);
+        final dy = -64 * AnimCurves.gentleOut.transform(tt);
+        final scale = tt < 0.15 ? 0.7 + tt * 2.2 : 1.15 - (tt - 0.15) * 0.2;
+        final rot = (tt < 0.2 ? (tt - 0.1) * 0.12 : 0.0);
+        final opacity = tt < 0.7 ? 1.0 : 1.0 - (tt - 0.7) / 0.3;
 
         return Positioned(
-          left: p.pos.dx + dx,
+          left: p.pos.dx,
           top: p.pos.dy + dy,
           child: Opacity(
             opacity: opacity.clamp(0.0, 1.0),
-            child: Transform.scale(
-              scale: scale.clamp(0.0, 1.8),
-              child: Text(
-                "-${p.value}",
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.redAccent,
-                  fontFamily: 'monospace',
-                  shadows: [
-                    Shadow(color: Colors.black, blurRadius: 4),
-                    Shadow(color: Colors.red, blurRadius: 15),
-                  ],
+            child: Transform.rotate(
+              angle: rot,
+              child: Transform.scale(
+                scale: scale.clamp(0.0, 1.6),
+                child: Text(
+                  "-${p.value}",
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.redAccent,
+                    fontFamily: 'monospace',
+                    shadows: [
+                      Shadow(color: Colors.black, blurRadius: 4),
+                      Shadow(color: Colors.redAccent, blurRadius: 16),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -4700,12 +5680,13 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   Widget _blockDamagePopup(BlockPopup p) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 800),
-      curve: Curves.easeOutCubic,
+      duration: AnimDurations.popup,
+      curve: AnimCurves.gentleOut,
       builder: (_, t, __) {
-        final dy = -40 * Curves.easeOutQuad.transform(t.clamp(0.0, 1.0));
-        final opacity = t < 0.6 ? 1.0 : 1.0 - (t - 0.6) / 0.4;
-        final scale = t < 0.2 ? 0.8 + t : 1.0;
+        final tt = t.clamp(0.0, 1.0);
+        final dy = -42 * AnimCurves.gentleOut.transform(tt);
+        final opacity = tt < 0.75 ? 1.0 : 1.0 - (tt - 0.75) / 0.25;
+        final scale = tt < 0.25 ? 0.85 + tt : 1.05 - (tt - 0.25) * 0.2;
 
         return Positioned(
           left: p.pos.dx,
@@ -4713,17 +5694,17 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           child: Opacity(
             opacity: opacity.clamp(0.0, 1.0),
             child: Transform.scale(
-              scale: scale.clamp(0.0, 2.0),
+              scale: scale.clamp(0.0, 1.4),
               child: Text(
                 "-${p.value}",
                 style: const TextStyle(
-                  fontSize: 22,
+                  fontSize: 24,
                   fontWeight: FontWeight.w900,
                   color: Colors.cyanAccent,
                   fontFamily: 'monospace',
                   shadows: [
                     Shadow(color: Colors.black, blurRadius: 4),
-                    Shadow(color: Colors.cyanAccent, blurRadius: 8),
+                    Shadow(color: Colors.cyanAccent, blurRadius: 12),
                   ],
                 ),
               ),
@@ -4737,12 +5718,13 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   Widget _blockGainPopup(BlockGainPopup p) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 900),
-      curve: Curves.elasticOut,
+      duration: AnimDurations.popup,
+      curve: AnimCurves.gentleOut,
       builder: (_, t, __) {
-        final dy = -35 * Curves.easeOutExpo.transform(t.clamp(0.0, 1.0));
-        final opacity = t < 0.7 ? 1.0 : 1.0 - (t - 0.7) / 0.3;
-        final scale = t < 0.3 ? 0.5 + t * 2 : 1.1 - (t - 0.3) * 0.1;
+        final tt = t.clamp(0.0, 1.0);
+        final dy = -38 * AnimCurves.gentleOut.transform(tt);
+        final opacity = tt < 0.8 ? 1.0 : 1.0 - (tt - 0.8) / 0.2;
+        final scale = tt < 0.25 ? 0.7 + tt * 1.5 : 1.08 - (tt - 0.25) * 0.1;
 
         return Positioned(
           left: p.pos.dx,
@@ -4751,24 +5733,18 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             opacity: opacity.clamp(0, 1),
             child: Transform.scale(
               scale: scale.clamp(0, 1.2),
-              child: Row(
-                children: [
-                  const Icon(Icons.shield, size: 20, color: Colors.cyanAccent),
-                  const SizedBox(width: 4),
-                  Text(
-                    "+${p.value}",
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.cyanAccent,
-                      fontFamily: 'monospace',
-                      shadows: [
-                        Shadow(color: Colors.black, blurRadius: 4),
-                        Shadow(color: Colors.cyanAccent, blurRadius: 10),
-                      ],
-                    ),
-                  ),
-                ],
+              child: Text(
+                "+${p.value}",
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.cyanAccent,
+                  fontFamily: 'monospace',
+                  shadows: [
+                    Shadow(color: Colors.black, blurRadius: 4),
+                    Shadow(color: Colors.cyanAccent, blurRadius: 10),
+                  ],
+                ),
               ),
             ),
           ),
@@ -4780,10 +5756,10 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   Widget _healPopup(HealPopup p) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 900),
-      curve: Curves.easeOutBack,
+      duration: AnimDurations.popup,
+      curve: AnimCurves.mediumOut,
       builder: (_, t, __) {
-        final dy = -45 * Curves.easeOutQuart.transform(t.clamp(0.0, 1.0));
+        final dy = -45 * AnimCurves.mediumOut.transform(t.clamp(0.0, 1.0));
         final opacity = t < 0.7 ? 1.0 : 1.0 - (t - 0.7) / 0.3;
         final scale = t < 0.3 ? 0.5 + t * 2 : 1.1;
 
@@ -4885,9 +5861,26 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   Widget _statusEffectsBar(Entity e) {
     final effects = <Widget>[];
 
-    if (e.strength > 0) {
+    int displayStrength = e.strength;
+    bool hasBonus = false;
+
+    // 关键区域：血液职业被动【血债血偿】状态显示
+    if (e == player && characterData.characterClass == CharacterClass.xueye) {
+      final bonus = (e.maxHp - e.hp) ~/ 8;
+      if (bonus > 0) {
+        displayStrength += bonus;
+        hasBonus = true;
+      }
+    }
+
+    if (displayStrength > 0) {
       effects.add(
-        _statusIcon(Icons.bolt, "${e.strength}", Colors.orangeAccent, "算力"),
+        _statusIcon(
+          Icons.bolt,
+          "$displayStrength",
+          hasBonus ? Colors.redAccent : Colors.orangeAccent,
+          hasBonus ? "算力 (包含血债血偿加成)" : "算力",
+        ),
       );
     }
     if (e.weak > 0) {
@@ -4910,6 +5903,11 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         _statusIcon(Icons.bug_report, "${e.curse}", Colors.purpleAccent, "恶意代码"),
       );
     }
+    if (e.fire > 0) {
+      effects.add(
+        _statusIcon(Icons.local_fire_department, "${e.fire}", const Color(0xFFFF9500), "火焰"),
+      );
+    }
 
     if (effects.isEmpty) return const SizedBox(height: 18);
 
@@ -4929,11 +5927,15 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
   // 显示卡牌使用时的粒子效果
   void _showCardUseEffect(CardData card, Entity target) {
+    // 增加玩家模型的小弹跳反馈
+    anim.showActionFeedback(player);
+    
     // 根据卡牌类型添加不同的粒子效果反馈
     final ctx = target.key.currentContext;
     if (ctx == null) return;
     
-    final box = ctx.findRenderObject() as RenderBox;
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null) return;
     final pos = box.localToGlobal(const Offset(50, 20));
     
     // 触发屏幕抖动或颜色反馈
@@ -5265,7 +6267,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 /// 弹窗扫描线动画
 /// 战斗全局背景
 class _BattleBackground extends StatelessWidget {
-  const _BattleBackground();
+  final List<GridPulse> pulses;
+  final Color gridColor;
+  const _BattleBackground({required this.pulses, required this.gridColor});
 
   @override
   Widget build(BuildContext context) {
@@ -5284,13 +6288,17 @@ class _BattleBackground extends StatelessWidget {
         // 网格层
         Positioned.fill(
           child: CustomPaint(
-            painter: _GridPainter(),
+            painter: _GridPainter(pulses: pulses, gridColor: gridColor),
           ),
         ),
         // 动态扫描线
-        const Positioned.fill(
+        Positioned.fill(
           child: IgnorePointer(
-            child: CyberScanline(color: Color(0xFF6CE4FF)),
+            child: CyberScanline(
+              color: gridColor.withValues(
+                alpha: (gridColor.value == const Color(0xFFFFD700).value) ? 0.18 : 0.1,
+              ),
+            ),
           ),
         ),
       ],
@@ -5300,24 +6308,90 @@ class _BattleBackground extends StatelessWidget {
 
 /// 背景网格绘制
 class _GridPainter extends CustomPainter {
+  final List<GridPulse> pulses;
+  final Color gridColor;
+  _GridPainter({required this.pulses, required this.gridColor});
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF6CE4FF).withValues(alpha: 0.03)
-      ..strokeWidth = 1;
-
+    final now = DateTime.now();
     const spacing = 40.0;
+    const maxRadius = 1000.0;
+    final pulseDurationMs = AnimDurations.gridPulse.inMilliseconds;
+    final isGold = gridColor.value == const Color(0xFFFFD700).value;
+    final baseAlpha = isGold ? 0.05 : 0.02;
+    final pulseAlpha = isGold ? 0.22 : 0.10;
+    final ringAlpha = isGold ? 0.30 : 0.15;
+    final baseStroke = isGold ? 1.4 : 1.0;
+    final pulseStroke = isGold ? 2.0 : 1.5;
+    final ringStroke = isGold ? 2.4 : 2.0;
+    final ringBlur = isGold ? 16.0 : 10.0;
+
+    // 绘制基础弱网格
+    final basePaint = Paint()
+      ..color = gridColor.withValues(alpha: baseAlpha)
+      ..strokeWidth = baseStroke;
 
     for (double i = 0; i < size.width; i += spacing) {
-      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
+      canvas.drawLine(Offset(i, 0), Offset(i, size.height), basePaint);
     }
     for (double i = 0; i < size.height; i += spacing) {
-      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
+      canvas.drawLine(Offset(0, i), Offset(size.width, i), basePaint);
+    }
+
+    // 绘制扩散脉冲效果
+    for (final pulse in pulses) {
+      final elapsed = now.difference(pulse.startTime).inMilliseconds;
+      if (elapsed > pulseDurationMs) continue;
+
+      final progress = elapsed / pulseDurationMs;
+      final currentRadius = maxRadius * progress;
+      final fadeOut = (1.0 - progress).clamp(0.0, 1.0);
+
+      // 仅在高亮范围内绘制增强网格
+      final pulsePaint = Paint()
+        ..color = gridColor.withValues(alpha: pulseAlpha * fadeOut)
+        ..strokeWidth = pulseStroke
+        ..maskFilter = isGold ? const MaskFilter.blur(BlurStyle.normal, 6) : null;
+
+      // 绘制受脉冲影响的横线
+      for (double y = 0; y <= size.height; y += spacing) {
+        final distToY = (y - pulse.center.dy).abs();
+        if (distToY < currentRadius) {
+          // 计算该行在圆内的范围
+          final halfWidth = sqrt(pow(currentRadius, 2) - pow(distToY, 2));
+          final startX = (pulse.center.dx - halfWidth).clamp(0.0, size.width);
+          final endX = (pulse.center.dx + halfWidth).clamp(0.0, size.width);
+          if (startX < endX) {
+            canvas.drawLine(Offset(startX, y), Offset(endX, y), pulsePaint);
+          }
+        }
+      }
+
+      // 绘制受脉冲影响的竖线
+      for (double x = 0; x <= size.width; x += spacing) {
+        final distToX = (x - pulse.center.dx).abs();
+        if (distToX < currentRadius) {
+          final halfHeight = sqrt(pow(currentRadius, 2) - pow(distToX, 2));
+          final startY = (pulse.center.dy - halfHeight).clamp(0.0, size.height);
+          final endY = (pulse.center.dy + halfHeight).clamp(0.0, size.height);
+          if (startY < endY) {
+            canvas.drawLine(Offset(x, startY), Offset(x, endY), pulsePaint);
+          }
+        }
+      }
+      
+      // 绘制一个淡淡的扩散圆环
+      final ringPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = ringStroke
+        ..color = gridColor.withValues(alpha: ringAlpha * fadeOut)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, ringBlur);
+      
+      canvas.drawCircle(pulse.center, currentRadius, ringPaint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _GridPainter oldDelegate) => pulses.isNotEmpty || oldDelegate.pulses.isNotEmpty;
 }
-
-

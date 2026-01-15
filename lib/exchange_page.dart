@@ -5,7 +5,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'game_state.dart';
 import 'card_data.dart';
-import 'level_data.dart';
 import 'main.dart';
 import 'start_screen.dart';
 import 'map_screen.dart';
@@ -109,20 +108,6 @@ class _ExchangePageState extends State<ExchangePage> {
                       ),
                     ),
                 ],
-              ),
-            ),
-            // 返回按钮
-            Positioned(
-              top: 50,
-              left: 20,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white70, size: 20),
-                onPressed: () async {
-                  final shouldExit = await _confirmExit(context);
-                  if (shouldExit && context.mounted) {
-                    Navigator.popUntil(context, (route) => route.isFirst);
-                  }
-                },
               ),
             ),
           ],
@@ -565,7 +550,7 @@ class _ExchangePageState extends State<ExchangePage> {
     switch (suite) {
       case CardSuite.classic: return const Color(0xFF6CE4FF);
       case CardSuite.overload: return const Color(0xFFFF4444);
-      case CardSuite.secure: return const Color(0xFF44FF44);
+      case CardSuite.secure: return const Color(0xFFC3A6FF);
       case CardSuite.industrial: return const Color(0xFFFFB344);
       case CardSuite.quantum: return const Color(0xFFE26CFF);
     }

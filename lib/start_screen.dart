@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'character_data.dart';
 import 'level_data.dart';
 import 'main.dart';
-import 'map_screen.dart';
+import 'nation_selection_screen.dart';
 import 'game_state.dart';
 
 /// 赛博朋克风格扫描线
@@ -710,6 +710,13 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
             const Positioned.fill(
               child: CyberBackground(),
             ),
+            // 职业背景动效
+            if (selectedCharacterId != null)
+              Positioned.fill(
+                child: _ClassSpecialEffect(
+                  characterClass: characterDatabase[selectedCharacterId!]!.characterClass,
+                ),
+              ),
             Column(
               children: [
                 // 自定义美化标题栏
@@ -750,19 +757,6 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                               letterSpacing: 1.5,
                               fontFamily: 'monospace',
                             ),
-                          ),
-                          CyberButton(
-                            width: 60,
-                            height: 20,
-                            label: "返回",
-                            fontSize: 9,
-                            color: const Color(0xFF6CE4FF),
-                            onPressed: () async {
-                              final shouldPop = await _confirmExit(context);
-                              if (shouldPop && context.mounted) {
-                                Navigator.pop(context);
-                              }
-                            },
                           ),
                         ],
                       ),
@@ -814,6 +808,7 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                   itemBuilder: (context, index) {
                     final character = characterDatabase.values.elementAt(index);
                     final isSelected = selectedCharacterId == character.id;
+                    final classColor = _getClassColor(character.characterClass);
 
                     return GestureDetector(
                       onTap: () {
@@ -826,19 +821,18 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                         duration: const Duration(milliseconds: 160),
                         scale: isSelected ? 1.02 : 1.0,
                         child: Container(
-                          height: 140,
                           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
                             color: const Color(0xFF0A0F16).withValues(alpha: isSelected ? 0.9 : 0.6),
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(
-                              color: (isSelected ? const Color(0xFF6CE4FF) : const Color(0xFF1E2C3C))
+                              color: (isSelected ? classColor : const Color(0xFF1E2C3C))
                                   .withValues(alpha: isSelected ? 0.8 : 0.4),
                               width: isSelected ? 1.5 : 1,
                             ),
                             boxShadow: isSelected ? [
                               BoxShadow(
-                                color: const Color(0xFF6CE4FF).withValues(alpha: 0.2),
+                                color: classColor.withValues(alpha: 0.2),
                                 blurRadius: 10,
                                 spreadRadius: 1,
                               )
@@ -851,14 +845,14 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                                 Positioned.fill(
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(3),
-                                    child: const CyberScanline(color: Color(0x336CE4FF)),
+                                    child: CyberScanline(color: classColor.withValues(alpha: 0.2)),
                                   ),
                                 ),
                               // 装饰边角
                               Positioned.fill(
                                 child: CustomPaint(
                                   painter: CyberCornerPainter(
-                                    color: (isSelected ? const Color(0xFF6CE4FF) : const Color(0xFF1E2C3C))
+                                    color: (isSelected ? classColor : const Color(0xFF1E2C3C))
                                         .withValues(alpha: 0.5),
                                     cornerSize: 15,
                                   ),
@@ -867,43 +861,70 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                               // 角色内容
                               Padding(
                                 padding: const EdgeInsets.all(16),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Expanded(
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            character.name,
-                                            style: const TextStyle(
-                                              color: Color(0xFFE1E9FF),
-                                              fontWeight: FontWeight.w500,
-                                              fontSize: 15,
-                                            ),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          _getClassIcon(character.characterClass),
+                                          color: isSelected ? classColor : const Color(0xFF8FA3C0),
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          character.name,
+                                          style: TextStyle(
+                                            color: isSelected ? classColor : const Color(0xFFE1E9FF),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            letterSpacing: 2,
                                           ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            'HP ${character.maxHp}  ·  DECK ${character.startingDeck.length}',
-                                            style: const TextStyle(
-                                              color: Color(0xFF8FA3C0),
-                                              fontSize: 11,
-                                            ),
+                                        ),
+                                        const Spacer(),
+                                        Text(
+                                          'ITG ${character.maxHp}',
+                                          style: TextStyle(
+                                            color: isSelected ? classColor.withValues(alpha: 0.8) : const Color(0xFF8FA3C0),
+                                            fontSize: 12,
+                                            fontFamily: 'monospace',
                                           ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            character.description,
-                                            style: const TextStyle(
-                                              color: Color(0xFF5D708A),
-                                              fontSize: 11,
-                                            ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      character.description,
+                                      style: const TextStyle(
+                                        color: Color(0xFFE1E9FF),
+                                        fontSize: 12,
                                       ),
                                     ),
+                                    if (isSelected && character.passives.isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: classColor.withValues(alpha: 0.05),
+                                          border: Border(left: BorderSide(color: classColor, width: 2)),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: character.passives.map((p) => Padding(
+                                            padding: const EdgeInsets.only(bottom: 4),
+                                            child: Text(
+                                              p,
+                                              style: TextStyle(
+                                                color: classColor.withValues(alpha: 0.9),
+                                                fontSize: 11,
+                                                fontStyle: FontStyle.italic,
+                                              ),
+                                            ),
+                                          )).toList(),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -956,10 +977,7 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                           Navigator.push(
                             context,
                             createHoloRoute(
-                              const MapScreen(
-                                canReturnToGame: true,
-                                canSelect: true, // 初始选择角色后，允许选择第一个节点
-                              ),
+                              const NationSelectionScreen(),
                             ),
                           );
                         }
@@ -1004,83 +1022,223 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                 ],
               ),
               child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: const CyberScanline(color: Color(0x11FF6A6A)),
+              children: [
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: const CyberScanline(color: Color(0x11FF6A6A)),
+                  ),
+                ),
+                // 装饰边角
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: CyberCornerPainter(
+                      color: const Color(0xFFFF6A6A).withValues(alpha: 0.4),
+                      cornerSize: 15,
                     ),
                   ),
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: CyberCornerPainter(color: const Color(0x66FF6A6A)),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "确认断开连接？",
+                      style: TextStyle(
+                        color: Color(0xFFFF6A6A),
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                      ),
                     ),
-                  ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons.warning_amber_rounded,
-                            color: Color(0xFFFF6A6A),
-                            size: 20,
-                          ),
-                          SizedBox(width: 10),
-                          Text(
-                            "EXIT_CONFIRMATION",
-                            style: TextStyle(
-                              color: Color(0xFFFF6A6A),
-                              fontSize: 10,
-                              fontFamily: 'monospace',
-                              letterSpacing: 2,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        '确认要退出角色选择并返回主菜单吗？',
-                        style: TextStyle(
-                          color: Color(0xFFE1E9FF),
-                          fontSize: 14,
-                          height: 1.6,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          CyberButton(
-                            width: 100,
-                            height: 36,
+                    const SizedBox(height: 16),
+                    const Text(
+                      "当前接入序列尚未同步完成，断开连接将丢失进度。",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Color(0xFF8FA3C0), fontSize: 13),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: CyberButton(
+                            label: "取消",
+                            height: 40,
                             fontSize: 12,
-                            label: '取消',
-                            color: const Color(0xFF6CE4FF),
+                            color: const Color(0xFF8FA3C0),
                             onPressed: () => Navigator.pop(ctx, false),
                           ),
-                          const SizedBox(width: 16),
-                          CyberButton(
-                            width: 100,
-                            height: 36,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: CyberButton(
+                            label: "断开",
+                            height: 40,
                             fontSize: 12,
-                            label: '确认',
                             color: const Color(0xFFFF6A6A),
                             onPressed: () => Navigator.pop(ctx, true),
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
             ),
           ),
         );
       },
     );
     return res ?? false;
+  }
+}
+
+/// 职业专属背景效果
+class _ClassSpecialEffect extends StatefulWidget {
+  final CharacterClass characterClass;
+  const _ClassSpecialEffect({required this.characterClass});
+
+  @override
+  State<_ClassSpecialEffect> createState() => _ClassSpecialEffectState();
+}
+
+class _ClassSpecialEffectState extends State<_ClassSpecialEffect> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _getClassColor(widget.characterClass);
+    
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: _ClassEffectPainter(
+            characterClass: widget.characterClass,
+            color: color,
+            progress: _controller.value,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ClassEffectPainter extends CustomPainter {
+  final CharacterClass characterClass;
+  final Color color;
+  final double progress;
+
+  _ClassEffectPainter({
+    required this.characterClass,
+    required this.color,
+    required this.progress,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final random = math.Random(42); // 固定种子保证效果一致
+
+    switch (characterClass) {
+      case CharacterClass.xueye:
+        // 红色脉冲效果
+        final paint = Paint()
+          ..color = color.withValues(alpha: 0.05)
+          ..style = PaintingStyle.fill;
+        
+        for (int i = 0; i < 3; i++) {
+          final p = (progress + i / 3) % 1.0;
+          final radius = size.shortestSide * p;
+          canvas.drawCircle(Offset(size.width / 2, size.height / 2), radius, paint..color = color.withValues(alpha: (1 - p) * 0.1));
+        }
+        break;
+
+      case CharacterClass.lin:
+        // 绿色数据流
+        final paint = Paint()
+          ..color = color.withValues(alpha: 0.1)
+          ..strokeWidth = 1;
+        
+        for (int i = 0; i < 20; i++) {
+          final x = random.nextDouble() * size.width;
+          final speed = 0.5 + random.nextDouble();
+          final y = (size.height * (progress * speed + random.nextDouble())) % size.height;
+          canvas.drawLine(Offset(x, y), Offset(x, y + 20), paint);
+        }
+        break;
+
+      case CharacterClass.langchao:
+        // 蓝色波动
+        final paint = Paint()
+          ..color = color.withValues(alpha: 0.05)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2;
+        
+        final path = Path();
+        for (int i = 0; i < 3; i++) {
+          path.reset();
+          final offset = i * 50.0;
+          for (double x = 0; x < size.width; x += 5) {
+            final y = size.height * 0.8 + math.sin((x / size.width * 2 * math.pi) + (progress * 2 * math.pi) + i) * 20;
+            if (x == 0) path.moveTo(x, y + offset);
+            else path.lineTo(x, y + offset);
+          }
+          canvas.drawPath(path, paint..color = color.withValues(alpha: 0.1 / (i + 1)));
+        }
+        break;
+
+      default:
+        // 默认淡淡的颜色晕染
+        final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+        final paint = Paint()
+          ..shader = RadialGradient(
+            colors: [color.withValues(alpha: 0.05), Colors.transparent],
+          ).createShader(rect);
+        canvas.drawRect(rect, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ClassEffectPainter oldDelegate) => true;
+}
+
+Color _getClassColor(CharacterClass characterClass) {
+  switch (characterClass) {
+    case CharacterClass.xueye: return const Color(0xFFFF4D4D);
+    case CharacterClass.lin: return const Color(0xFFC3A6FF);
+    case CharacterClass.langchao: return const Color(0xFF4DCCFF);
+    case CharacterClass.jianren: return const Color(0xFFFFD700);
+    case CharacterClass.yanxin: return const Color(0xFFFF8C00);
+    case CharacterClass.yingshi: return const Color(0xFF9370DB);
+    case CharacterClass.jihe: return const Color(0xFF00CED1);
+    case CharacterClass.xuxing: return const Color(0xFF708090);
+  }
+}
+
+IconData _getClassIcon(CharacterClass characterClass) {
+  switch (characterClass) {
+    case CharacterClass.xueye: return Icons.bloodtype;
+    case CharacterClass.lin: return Icons.security;
+    case CharacterClass.langchao: return Icons.tsunami;
+    case CharacterClass.jianren: return Icons.colorize;
+    case CharacterClass.yanxin: return Icons.local_fire_department;
+    case CharacterClass.yingshi: return Icons.security;
+    case CharacterClass.jihe: return Icons.architecture;
+    case CharacterClass.xuxing: return Icons.blur_on;
   }
 }

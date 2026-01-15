@@ -10,7 +10,7 @@ enum CardTarget { enemy, self, all }
 enum CardSuite { 
   classic,    // 经典霓虹
   overload,   // 红色过载/故障
-  secure,     // 矩阵绿/终端
+  secure,     // 淡紫终端/安全系统
   industrial, // 工业橙/机械
   quantum     // 量子紫/虚空
 }
@@ -61,6 +61,211 @@ class CardInstance {
 
 /// 卡牌数据库
 const Map<String, CardData> cardDatabase = {
+  // --- 职业基础卡牌 (重制版) ---
+  
+  // 血液 (xueye) - 自残/力量/吸血
+  'xueye_strike': CardData(
+    id: 'xueye_strike',
+    name: '鲜血冲击',
+    type: CardType.exploit,
+    target: CardTarget.enemy,
+    suite: CardSuite.overload,
+    cost: 1,
+    level: 1,
+    effect: 'damage 11; self_damage 2',
+    description: '造成 11 点伤害，自身受损 2 点。',
+  ),
+  'xueye_defend': CardData(
+    id: 'xueye_defend',
+    name: '血液护盾',
+    type: CardType.encryption,
+    target: CardTarget.self,
+    suite: CardSuite.overload,
+    cost: 1,
+    level: 1,
+    effect: 'block 10; self_damage 1',
+    description: '获得 10 点防御，自身受损 1 点。',
+  ),
+  'xueye_siphon': CardData(
+    id: 'xueye_siphon',
+    name: '生命虹吸',
+    type: CardType.exploit,
+    target: CardTarget.enemy,
+    suite: CardSuite.overload,
+    cost: 1,
+    level: 1,
+    effect: 'damage 6; heal 3',
+    description: '造成 6 点伤害并回收 3 点生命值。',
+  ),
+
+  // 林 (lin) - 抽牌/稳定
+  'lin_strike': CardData(
+    id: 'lin_strike',
+    name: '精准扫描',
+    type: CardType.exploit,
+    target: CardTarget.enemy,
+    suite: CardSuite.secure,
+    cost: 1,
+    level: 1,
+    effect: 'damage 5; draw 1',
+    description: '造成 5 点伤害，读取 1 个数据包。',
+  ),
+  'lin_defend': CardData(
+    id: 'lin_defend',
+    name: '冗余备份',
+    type: CardType.encryption,
+    target: CardTarget.self,
+    suite: CardSuite.secure,
+    cost: 1,
+    level: 1,
+    effect: 'block 5; draw 1',
+    description: '获得 5 点防御，读取 1 个数据包。',
+  ),
+
+  // 浪潮 (langchao) - 能量/多段
+  'langchao_strike': CardData(
+    id: 'langchao_strike',
+    name: '脉冲双击',
+    type: CardType.exploit,
+    target: CardTarget.enemy,
+    suite: CardSuite.quantum,
+    cost: 1,
+    level: 1,
+    effect: 'damage 4; damage 4',
+    description: '执行两次 4 点伤害的脉冲冲击。',
+  ),
+  'langchao_defend': CardData(
+    id: 'langchao_defend',
+    name: '波纹屏障',
+    type: CardType.encryption,
+    target: CardTarget.self,
+    suite: CardSuite.quantum,
+    cost: 1,
+    level: 1,
+    effect: 'block 4; energy 1',
+    description: '获得 4 点防御和 1 点带宽。',
+  ),
+
+  // 剑刃 (jianren) - 高额伤害
+  'jianren_strike': CardData(
+    id: 'jianren_strike',
+    name: '重型劈砍',
+    type: CardType.exploit,
+    target: CardTarget.enemy,
+    suite: CardSuite.industrial,
+    cost: 1,
+    level: 1,
+    effect: 'damage 9',
+    description: '造成 9 点沉重伤害。',
+  ),
+  'jianren_defend': CardData(
+    id: 'jianren_defend',
+    name: '装甲加固',
+    type: CardType.encryption,
+    target: CardTarget.self,
+    suite: CardSuite.industrial,
+    cost: 1,
+    level: 1,
+    effect: 'block 8',
+    description: '获得 8 点高强度防御。',
+  ),
+
+  // 焰心 (yanxin) - 极端过载
+  'yanxin_strike': CardData(
+    id: 'yanxin_strike',
+    name: '炽热注入',
+    type: CardType.exploit,
+    target: CardTarget.enemy,
+    suite: CardSuite.overload,
+    cost: 1,
+    level: 1,
+    effect: 'damage 14; self_damage 4',
+    description: '造成 14 点高额伤害，自身受损 4 点。',
+  ),
+  'yanxin_defend': CardData(
+    id: 'yanxin_defend',
+    name: '热能转化',
+    type: CardType.encryption,
+    target: CardTarget.self,
+    suite: CardSuite.overload,
+    cost: 1,
+    level: 1,
+    effect: 'block 6; strength 1',
+    description: '获得 6 点防御并提升 1 点算力。',
+  ),
+
+  // 影誓 (yingshi) - 控制/虚弱
+  'yingshi_strike': CardData(
+    id: 'yingshi_strike',
+    name: '暗影侵蚀',
+    type: CardType.exploit,
+    target: CardTarget.enemy,
+    suite: CardSuite.quantum,
+    cost: 1,
+    level: 1,
+    effect: 'damage 6; weak 1',
+    description: '造成 6 点伤害并施加 1 层虚弱。',
+  ),
+  'yingshi_defend': CardData(
+    id: 'yingshi_defend',
+    name: '幽影帷幕',
+    type: CardType.encryption,
+    target: CardTarget.enemy,
+    suite: CardSuite.quantum,
+    cost: 1,
+    level: 1,
+    effect: 'block 5; vulnerable 1',
+    description: '获得 5 点防御并使指定敌方暴露 1 层漏洞。',
+  ),
+
+  // 机核 (jihe) - 长期成长
+  'jihe_strike': CardData(
+    id: 'jihe_strike',
+    name: '迭代冲击',
+    type: CardType.exploit,
+    target: CardTarget.enemy,
+    suite: CardSuite.industrial,
+    cost: 1,
+    level: 1,
+    effect: 'damage 5; strength 1',
+    description: '造成 5 点伤害并永久提升 1 点算力。',
+  ),
+  'jihe_defend': CardData(
+    id: 'jihe_defend',
+    name: '模块加固',
+    type: CardType.encryption,
+    target: CardTarget.self,
+    suite: CardSuite.industrial,
+    cost: 1,
+    level: 1,
+    effect: 'block 7',
+    description: '获得 7 点防御。',
+  ),
+
+  // 虚行者 (xuxing) - 闪避/预读
+  'xuxing_strike': CardData(
+    id: 'xuxing_strike',
+    name: '幻影突袭',
+    type: CardType.exploit,
+    target: CardTarget.enemy,
+    suite: CardSuite.secure,
+    cost: 1,
+    level: 1,
+    effect: 'damage 6; draw 1',
+    description: '造成 6 点伤害并预读 1 个数据包。',
+  ),
+  'xuxing_defend': CardData(
+    id: 'xuxing_defend',
+    name: '虚空闪避',
+    type: CardType.encryption,
+    target: CardTarget.self,
+    suite: CardSuite.secure,
+    cost: 1,
+    level: 1,
+    effect: 'block 8',
+    description: '获得 8 点防御。',
+  ),
+
   'strike_1': CardData(
     id: 'strike_1',
     name: '数据冲击',
@@ -113,8 +318,8 @@ const Map<String, CardData> cardDatabase = {
     suite: CardSuite.secure,
     cost: 2,
     level: 2,
-    effect: 'block 12',
-    description: '获得 12 点防火墙加固。',
+    effect: 'block 15',
+    description: '获得 15 点防火墙加固。',
   ),
   'bash': CardData(
     id: 'bash',
@@ -557,5 +762,89 @@ const Map<String, CardData> cardDatabase = {
     level: 3,
     effect: 'damage 22; vulnerable 2',
     description: '执行全域格式化指令，对全体造成 22 点伤害并施加 2 层漏洞暴露。',
+  ),
+  
+  'block_wall': CardData(
+    id: 'block_wall',
+    name: '绝对零度冰墙',
+    type: CardType.encryption,
+    target: CardTarget.all,
+    suite: CardSuite.quantum,
+    cost: 0,  
+    level: 3,
+    effect: 'block 3; curse 1',
+    description: '部署绝对零度防御系统，并对所有敌人进行量子标记。',
+  ),
+
+  // --- 补全卡牌 (几何 & 虚行) ---
+
+  // 几何 (jihe) 扩展
+  'repair_module': CardData(
+    id: 'repair_module',
+    name: '修复模块',
+    type: CardType.routine,
+    target: CardTarget.self,
+    suite: CardSuite.industrial,
+    cost: 1,
+    level: 4,
+    effect: 'heal 4; block 4',
+    description: '运行底层修复协议，恢复 4 点完整性并获得 4 点防御。',
+  ),
+  'shield_boost': CardData(
+    id: 'shield_boost',
+    name: '护盾增压',
+    type: CardType.encryption,
+    target: CardTarget.self,
+    suite: CardSuite.industrial,
+    cost: 2,
+    level: 3,
+    effect: 'block 12; strength 1',
+    description: '对防御模块进行增压，获得 12 点防御并提升 1 点算力。',
+  ),
+
+  // 虚行 (xuxing) 扩展
+  'quantum_burst': CardData(
+    id: 'quantum_burst',
+    name: '量子爆发',
+    type: CardType.exploit,
+    target: CardTarget.all,
+    suite: CardSuite.quantum,
+    cost: 2,
+    level: 3,
+    effect: 'damage 7; curse 1',
+    description: '引发量子连锁反应，对全体造成 7 点伤害并施加 1 层恶意代码。',
+  ),
+  'chaos_logic': CardData(
+    id: 'chaos_logic',
+    name: '混沌逻辑',
+    type: CardType.routine,
+    target: CardTarget.enemy,
+    suite: CardSuite.quantum,
+    cost: 1,
+    level: 1,
+    effect: 'weak 1; vulnerable 1; curse 1',
+    description: '向目标注入混沌算法，施加 1 层虚弱、漏洞和恶意代码。',
+  ),
+  'glitch_step': CardData(
+    id: 'glitch_step',
+    name: '故障步进',
+    type: CardType.routine,
+    target: CardTarget.self,
+    suite: CardSuite.quantum,
+    cost: 0,
+    level: 1,
+    effect: 'block 4; draw 1',
+    description: '利用系统微小故障进行位移，获得 4 点防御并读取 1 个数据包。',
+  ),
+  'void_slash': CardData(
+    id: 'void_slash',
+    name: '虚空斩击',
+    type: CardType.exploit,
+    target: CardTarget.enemy,
+    suite: CardSuite.quantum,
+    cost: 1,
+    level: 1,
+    effect: 'damage 10',
+    description: '从虚空维度发动的斩击，造成 10 点伤害。',
   ),
 };
