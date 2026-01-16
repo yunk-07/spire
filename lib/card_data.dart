@@ -228,7 +228,7 @@ const Map<String, CardData> cardDatabase = {
     cost: 1,
     level: 1,
     effect: 'damage 5; strength 1',
-    description: '造成 5 点伤害并永久提升 1 点算力。',
+    description: '造成 5 点伤害并提升 1 点算力。',
   ),
   'jihe_defend': CardData(
     id: 'jihe_defend',
@@ -484,7 +484,7 @@ const Map<String, CardData> cardDatabase = {
     cost: 1,
     level: 1,
     effect: 'strength 1',
-    description: '加载底层内核模块，永久提升 1 点算力。',
+    description: '加载底层内核模块，提升 1 点算力。',
   ),
   'assemble': CardData(
     id: 'assemble',
@@ -717,7 +717,7 @@ const Map<String, CardData> cardDatabase = {
     cost: 3,
     level: 5,
     effect: 'strength 99; self_damage 60',
-    description: '强行开启无限循环模式，提升 99 点算力，但导致系统严重过热受损 60 点。',
+    description: '强行开启无限循环模式，提升99点算力，但导致系统严重过热受损60点。',
   ),
   'prevent_penetration': CardData(
     id: 'prevent_penetration',

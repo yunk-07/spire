@@ -218,18 +218,28 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                        child: Text(
-                          c.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white.withValues(alpha: 0.95),
-                            letterSpacing: 0.5,
-                            fontFamily: 'monospace',
-                            shadows: [Shadow(color: suiteColor.withValues(alpha: 0.5), blurRadius: 4)],
-                          ),
+                        child: Builder(
+                          builder: (_) {
+                            final name = c.name;
+                            final base = 10.0;
+                            final shrink = name.length > 4 ? (base - (name.length - 4) * 0.6) : base;
+                            final titleFont = shrink.clamp(7.0, base);
+                            return Text(
+                              name,
+                              softWrap: true,
+                              maxLines: 2,
+                              overflow: TextOverflow.visible,
+                              style: TextStyle(
+                                fontSize: titleFont,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white.withValues(alpha: 0.95),
+                                letterSpacing: 0.5,
+                                fontFamily: 'monospace',
+                                height: 1.1,
+                                shadows: [Shadow(color: suiteColor.withValues(alpha: 0.5), blurRadius: 4)],
+                              ),
+                            );
+                          },
                         ),
                       ),
                       Container(
@@ -903,4 +913,3 @@ class SuiteTechPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

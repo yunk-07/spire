@@ -58,8 +58,8 @@ flutter:
   uses-material-design: true
 
   assets:
-    - images/card_background.png
-    - images/ch_back.png
+    - images/s.png
+    - images/spire.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

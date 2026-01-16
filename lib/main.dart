@@ -531,10 +531,9 @@ class RoleEffectPainter extends CustomPainter {
 
       switch (effect.role) {
         case CharacterClass.langchao:
-          _drawWaveLines(canvas, size, effect.pos, progress);
+          _drawLangWave(canvas, size, effect.pos, progress);
           break;
         case CharacterClass.xueye:
-          _drawBloodPulse(canvas, size, effect.pos, progress);
           break;
         case CharacterClass.lin:
           _drawLinShieldEffect(canvas, size, effect.pos, progress);
@@ -557,88 +556,85 @@ class RoleEffectPainter extends CustomPainter {
     }
   }
 
-  // 血液：扩张的红色生命脉冲
-  void _drawBloodPulse(Canvas canvas, Size size, Offset center, double progress) {
-    final paint = Paint()
-      ..color = const Color(0xFFFF3333).withValues(alpha: (1.0 - progress) * 0.5)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0;
-
-    final maxRadius = size.width * 0.5;
-    canvas.drawCircle(center, maxRadius * progress, paint);
-    canvas.drawCircle(center, maxRadius * progress * 0.7, paint..strokeWidth = 1.5);
-  }
-
   // 林：粉紫色光辉汇聚为护盾
   void _drawLinShieldEffect(Canvas canvas, Size size, Offset center, double progress) {
     final pink = const Color(0xFFC3A6FF);
-    final purple = const Color(0xFF9933FF);
-    
-    // 1. 两侧发出的光辉 (progress 0.0 - 0.7)
-    if (progress < 0.7) {
-      final sideProgress = (progress / 0.7).clamp(0.0, 1.0);
-      final alpha = (1.0 - sideProgress) * 0.6;
-      
-      // 左侧光辉
-      final leftPaint = Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [purple.withValues(alpha: alpha), pink.withValues(alpha: 0.0)],
-        ).createShader(Rect.fromLTWH(0, 0, size.width * 0.4, size.height));
-      
-      canvas.drawRect(
-        Rect.fromLTWH(0, 0, size.width * 0.4 * (1.0 - sideProgress), size.height),
-        leftPaint,
-      );
-      
-      // 右侧光辉
-      final rightPaint = Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.centerRight,
-          end: Alignment.centerLeft,
-          colors: [purple.withValues(alpha: alpha), pink.withValues(alpha: 0.0)],
-        ).createShader(Rect.fromLTWH(size.width * 0.6, 0, size.width * 0.4, size.height));
-      
-      canvas.drawRect(
-        Rect.fromLTWH(size.width - (size.width * 0.4 * (1.0 - sideProgress)), 0, size.width * 0.4, size.height),
-        rightPaint,
-      );
+    final purple = const Color(0xFF7A3BFF);
+    final bgAlpha = (1.0 - progress).clamp(0.0, 1.0);
+    final beamAlpha = (0.8 - progress).clamp(0.0, 0.8);
+    final shieldAlpha = (1.0 - progress).clamp(0.0, 1.0);
+    final leftShader = LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: [purple.withValues(alpha: beamAlpha * 0.6), pink.withValues(alpha: 0.0)],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    final rightShader = LinearGradient(
+        begin: Alignment.centerRight,
+        end: Alignment.centerLeft,
+        colors: [purple.withValues(alpha: beamAlpha * 0.6), pink.withValues(alpha: 0.0)],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    final leftW = size.width * 0.35 * (1.0 - progress);
+    final rightW = size.width * 0.35 * (1.0 - progress);
+    canvas.drawRect(Rect.fromLTWH(0, 0, leftW, size.height), Paint()..shader = leftShader);
+    canvas.drawRect(Rect.fromLTWH(size.width - rightW, 0, rightW, size.height), Paint()..shader = rightShader);
+    final rand = Random(131);
+    for (int i = 0; i < 18; i++) {
+      final a = rand.nextDouble() * pi * 2;
+      final r = size.width * 0.28 * (1.0 - progress);
+      final x = center.dx + cos(a) * r;
+      final y = center.dy + sin(a) * r;
+      final p = Paint()..color = pink.withValues(alpha: bgAlpha * 0.6);
+      canvas.drawCircle(Offset(x, y), 2 + rand.nextDouble() * 3, p);
     }
-    
-    // 2. 能量汇聚为护盾 (progress 0.3 - 1.0)
-    if (progress > 0.3) {
-      final shieldProgress = ((progress - 0.3) / 0.7).clamp(0.0, 1.0);
-      final alpha = (1.0 - shieldProgress) * 0.8;
-      
-      // 汇聚粒子
-      final random = Random(88);
-      for (int i = 0; i < 12; i++) {
-        final angle = random.nextDouble() * pi * 2;
-        final startDist = size.width * 0.3;
-        final currentDist = startDist * (1.0 - shieldProgress);
-        final x = center.dx + cos(angle) * currentDist;
-        final y = center.dy + sin(angle) * currentDist;
-        
-        canvas.drawCircle(
-          Offset(x, y), 
-          3, 
-          Paint()..color = pink.withValues(alpha: alpha)
-        );
-      }
-      
-      // 最终护盾圆环
-      if (shieldProgress > 0.5) {
-        final circleProgress = (shieldProgress - 0.5) * 2.0;
-        final paint = Paint()
-          ..color = pink.withValues(alpha: (1.0 - circleProgress) * 0.5)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.0;
-        
-        canvas.drawCircle(center, 40 + 20 * circleProgress, paint);
-        canvas.drawCircle(center, 35 + 10 * circleProgress, paint..color = purple.withValues(alpha: (1.0 - circleProgress) * 0.3));
-      }
+    final ringOuter = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.6
+      ..color = pink.withValues(alpha: shieldAlpha * 0.6);
+    final ringInner = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..color = purple.withValues(alpha: shieldAlpha * 0.4);
+    final rBase = 42.0 + 16.0 * progress;
+    canvas.drawCircle(center, rBase, ringOuter);
+    canvas.drawCircle(center, rBase - 6, ringInner);
+    final hex = Path();
+    final hexR = 26.0 + 10.0 * progress;
+    for (int i = 0; i < 6; i++) {
+      final a = (pi / 3) * i;
+      final vx = center.dx + cos(a) * hexR;
+      final vy = center.dy + sin(a) * hexR;
+      if (i == 0) hex.moveTo(vx, vy); else hex.lineTo(vx, vy);
     }
+    hex.close();
+    canvas.drawPath(hex, Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..color = purple.withValues(alpha: shieldAlpha * 0.5));
+  }
+  void _drawLangWave(Canvas canvas, Size size, Offset center, double progress) {
+    final base = const Color(0xFF4DCCFF);
+    final alpha = (1.0 - progress).clamp(0.0, 1.0);
+    for (int i = 0; i < 3; i++) {
+      final amp = 12.0 - i * 3.0;
+      final freq = 0.012 + i * 0.004;
+      final phase = progress * (i + 1) * 8.0;
+      final paint = Paint()
+        ..color = base.withValues(alpha: 0.25 * alpha)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0 - i * 0.3;
+      final path = Path();
+      path.moveTo(0, center.dy + amp * sin(phase));
+      for (double x = 0; x <= size.width; x += 6) {
+        final y = center.dy + amp * sin(x * freq + phase);
+        path.lineTo(x, y);
+      }
+      canvas.drawPath(path, paint);
+    }
+    final glow = Paint()
+      ..color = base.withValues(alpha: 0.15 * alpha)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6.0;
+    canvas.drawLine(Offset(0, center.dy), Offset(size.width, center.dy), glow);
   }
 
 
@@ -2106,10 +2102,13 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                   Positioned.fill(
                     child: _BattleBackground(
                       pulses: anim.gridPulses,
-                      gridColor: (characterData.characterClass == CharacterClass.jianren &&
-                                  activePrograms.any((e) => e.hp > 0 && e.block <= 0))
-                          ? const Color(0xFFFFD700)
-                          : const Color(0xFF6CE4FF),
+                      gridColor: (() {
+                        final hasBloodGlow = anim.roleEffects.any((e) => e.role == CharacterClass.xueye);
+                        if (hasBloodGlow) return const Color(0xFFFF4D4D);
+                        final isJianrenBoost = (characterData.characterClass == CharacterClass.jianren &&
+                          activePrograms.any((e) => e.hp > 0 && e.block <= 0));
+                        return isJianrenBoost ? const Color(0xFFFFD700) : const Color(0xFF6CE4FF);
+                      })(),
                     ),
                   ),
                   // 关键区域：角色专属特效绘制层（作用于背景之上，UI之下）
@@ -2427,30 +2426,42 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         // 数值和标签
         Positioned.fill(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: isLowHp ? Colors.red : color.withValues(alpha: 0.9),
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'monospace',
-                    letterSpacing: 1,
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: isLowHp ? Colors.red : color.withValues(alpha: 0.9),
+                        fontSize: 8,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'monospace',
+                        letterSpacing: 1,
+                      ),
+                    ),
                   ),
                 ),
-                Text(
-                  "$current/$maxHp",
-                  style: TextStyle(
-                    color: isLowHp ? Colors.red : Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'monospace',
-                    shadows: [
-                      Shadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 4),
-                    ],
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      "$current/$maxHp",
+                      style: TextStyle(
+                        color: isLowHp ? Colors.red : Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'monospace',
+                        shadows: [
+                          Shadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 4),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -3488,6 +3499,31 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   }
 
   Widget _securityProgramWidget(Entity program) {
+    double _monsterScale() {
+      final n = activePrograms.length;
+      double countScale;
+      if (n >= 5) countScale = 0.75;
+      else if (n >= 4) countScale = 0.82;
+      else if (n >= 3) countScale = 0.9;
+      else countScale = 1.0;
+      double typeScale = 1.0;
+      final data = program.id != null ? systemDatabase[program.id!] : null;
+      if (data != null) {
+        switch (data.type) {
+          case SystemType.normal:
+            typeScale = 0.92;
+            break;
+          case SystemType.elite:
+            typeScale = 0.86;
+            break;
+          case SystemType.boss:
+            typeScale = 1.0;
+            break;
+        }
+      }
+      return (countScale * typeScale).clamp(0.7, 1.0);
+    }
+    final s = _monsterScale().clamp(0.7, 1.0);
     return DragTarget<CardInstance>(
       onWillAccept: (instance) {
         final card = instance?.data;
@@ -3529,8 +3565,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
               : (isHighlighted ? const Color(0xFF6CE4FF) : const Color(0xFF2A4158));
 
           return Container(
-            width: 90, 
-            height: 110,
+            width: 90 * s, 
+            height: 110 * s,
             decoration: BoxDecoration(
               color:
                   isDead
@@ -3598,7 +3634,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                         scale: val,
                         child: Icon(
                           isDead ? Icons.dangerous : Icons.pest_control,
-                          size: 42,
+                          size: 42 * s,
                           color:
                               isDead
                                   ? Colors.white24
@@ -3607,7 +3643,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                             if (!isDead)
                               Shadow(
                                 color: coreColor.withValues(alpha: 0.5),
-                                blurRadius: isHighlighted ? 15 : 10,
+                                blurRadius: (isHighlighted ? 15 : 10) * s,
                               ),
                           ],
                         ),
@@ -3724,27 +3760,33 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             children: [
               box,
               Positioned(
-                top: 10,
-                child: Text(
-                  program.name,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFFE1E9FF), // 改为浅蓝色，提高对比度
-                    shadows: [
-                      Shadow(
-                        color: Colors.black.withValues(alpha: 0.5),
-                        blurRadius: 4,
+                top: 10 * s,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: 90 * s),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      program.name,
+                      style: TextStyle(
+                        fontSize: (12 * s).clamp(9, 12),
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFFE1E9FF),
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withValues(alpha: 0.5),
+                            blurRadius: 4 * s,
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
               if (intentIcon != null)
                 Positioned(
-                  top: -65,
+                  top: -65 * s,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 4 * s),
                     decoration: BoxDecoration(
                       color: const Color(0xFF0A0F16).withValues(alpha: 0.8),
                       borderRadius: BorderRadius.circular(4),
@@ -3758,7 +3800,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       children: [
                         Icon(
                           intentIcon,
-                          size: 16,
+                          size: 16 * s,
                           color: intentColor,
                         ),
                         if (intentValueText != null) ...[
@@ -3766,7 +3808,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                           Text(
                             intentValueText,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: (14 * s).clamp(10, 14),
                               fontWeight: FontWeight.w900,
                               color: intentColor,
                               fontFamily: 'monospace',
@@ -3778,14 +3820,14 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                   ),
                 ),
               Positioned(
-                top: -42, // 稍微调高一点以容纳血条
+                top: (-42 * s), // 稍微调高一点以容纳血条
                 child: Column(
                   children: [
                     _cyberHpBar(
                       current: program.hp,
                       maxHp: program.maxHp,
-                      width: 100, // 敌方血条稍窄
-                      height: 18,
+                      width: (100 * s).clamp(70, 100), // 敌方血条稍窄
+                      height: (18 * s).clamp(12, 18),
                       label: "SYS",
                       color: const Color(0xFFE1E9FF), // 敌方使用银白色
                     ),
@@ -3800,7 +3842,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                           return Transform.scale(
                             scale: val,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 3 * s),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
                                 borderRadius: const BorderRadius.only(
@@ -3811,30 +3853,30 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                 boxShadow: [
                                   BoxShadow(
                                     color: blockColor.withValues(alpha: 0.3),
-                                    blurRadius: 6,
+                                    blurRadius: 6 * s,
                                   ),
                                 ],
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.shield_outlined, size: 10, color: blockColor),
-                                  const SizedBox(width: 4),
-                                  const Text(
+                                  Icon(Icons.shield_outlined, size: 10 * s, color: blockColor),
+                                  SizedBox(width: 4 * s),
+                                  Text(
                                     "FWL",
                                     style: TextStyle(
-                                      color: Color(0xFF6CE4FF),
-                                      fontSize: 8,
+                                      color: const Color(0xFF6CE4FF),
+                                      fontSize: (8 * s).clamp(6, 8),
                                       fontWeight: FontWeight.bold,
                                       fontFamily: 'monospace',
                                     ),
                                   ),
-                                  const SizedBox(width: 3),
+                                  SizedBox(width: 3 * s),
                                   Text(
                                     "${program.block}",
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: 11,
+                                      fontSize: (11 * s).clamp(8, 11),
                                       fontWeight: FontWeight.w900,
                                       fontFamily: 'monospace',
                                     ),
@@ -3847,7 +3889,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       ),
                     ],
                     const SizedBox(height: 4),
-                    _statusEffectsBar(program),
+                    Transform.scale(scale: s, child: _statusEffectsBar(program)),
                   ],
                 ),
               ),
@@ -4073,7 +4115,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           Positioned(
             left: 0,
             right: 0,
-            bottom: 140, // 位于手牌上方
+            bottom: 140 + (hand.length <= 6 ? 0 : (hand.length > 10 ? 140 : 70)),
             child: _judgementArea(),
           ),
         if (characterData.characterClass == CharacterClass.yanxin && gamePhase != GamePhase.gameOver)
@@ -4518,63 +4560,111 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           );
         }
 
-        // 2. 手牌计数：紧贴手牌上方居中
+        // 2. 手牌计数：根据行数贴近最上方一行上侧
+        int rowsPreview = n <= 6 ? 1 : (n > 10 ? 3 : 2);
+        final rowGapPreview = cardHS + 12;
+        final anchorTopY = (baseY - rowGapPreview * (rowsPreview - 1)).clamp(0.0, h - cardHS - margin);
         children.add(
           Positioned(
             left: 0,
             right: 0,
-            top: max(0.0, baseY - 28), // 24高度 + 4间距
+            top: max(0.0, anchorTopY - 32),
             child: Center(child: _handCountWidget()),
           ),
         );
 
-        // 3. 手牌列表
-        for (int i = 0; i < n; i++) {
-          final t = n == 1 ? 0.5 : i / (n - 1);
-          final rot = (t - 0.5) * 2 * maxRot;
-          var dx = margin + i * slot + (slot - cardWS) / 2;
-          dx = dx.clamp(0.0, w - cardWS);
-
-          final instance = hand[i];
-          final card = instance.data;
-          if (card == null) continue;
-          
-          // 使用 AnimatedPositioned 实现平滑的手牌位移
-          children.add(
-            AnimatedPositioned(
-              key: ValueKey("hand_card_${instance.instanceId}"),
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeOutCubic,
-              left: dx,
-              top: baseY,
-              child: TweenAnimationBuilder<double>(
-                // 仅用于初次进入时的缩放/淡入效果
-                tween: Tween(begin: 0.0, end: 1.0),
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOutBack,
-                builder: (context, entryScale, child) {
-                  return Transform.scale(
-                    scale: entryScale,
-                    child: Opacity(
-                      opacity: entryScale.clamp(0.0, 1.0),
-                      child: child,
-                    ),
-                  );
-                },
-                child: AnimatedRotation(
-                  duration: const Duration(milliseconds: 400),
-                  curve: Curves.easeOutCubic,
-                  turns: rot / (2 * pi),
-                  child: AnimatedScale(
+        if (n <= 6) {
+          for (int i = 0; i < n; i++) {
+            final t = n == 1 ? 0.5 : i / (n - 1);
+            final rot = (t - 0.5) * 2 * maxRot;
+            var dx = margin + i * slot + (slot - cardWS) / 2;
+            dx = dx.clamp(0.0, w - cardWS);
+            final instance = hand[i];
+            final card = instance.data;
+            if (card == null) continue;
+            children.add(
+              AnimatedPositioned(
+                key: ValueKey("hand_card_${instance.instanceId}"),
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeOutCubic,
+                left: dx,
+                top: baseY,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutBack,
+                  builder: (context, entryScale, child) {
+                    return Transform.scale(
+                      scale: entryScale,
+                      child: Opacity(
+                        opacity: entryScale.clamp(0.0, 1.0),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: AnimatedRotation(
                     duration: const Duration(milliseconds: 400),
                     curve: Curves.easeOutCubic,
-                    scale: scale,
-                    child: _cardView(i, instance),
+                    turns: rot / (2 * pi),
+                    child: AnimatedScale(
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOutCubic,
+                      scale: scale,
+                      child: _cardView(i, instance),
+                    ),
                   ),
                 ),
               ),
-            ),
-          );
+            );
+          }
+        } else {
+          final rows = n > 10 ? 3 : 2;
+          final baseCount = n ~/ rows;
+          final remainder = n % rows;
+          final counts = List<int>.generate(rows, (i) => baseCount + (i < remainder ? 1 : 0));
+          final rowGap = cardHS + 12;
+          final rowYs = List<double>.generate(rows, (i) {
+            final y = baseY - (rowGap * (rows - 1 - i));
+            return y.clamp(0.0, h - cardHS - margin);
+          });
+          int cursor = 0;
+          for (int r = 0; r < rows; r++) {
+            final cnt = counts[r];
+            if (cnt <= 0) continue;
+            final slotR = availableW / cnt;
+            final scaleR = slotR >= cardW ? 1.0 : max(0.6, slotR / cardW);
+            final wsR = cardW * scaleR;
+            final rotFactor = r == rows - 1 ? (maxRot * 0.6) : (r == rows - 2 ? (maxRot * 0.7) : (maxRot * 0.8));
+            for (int i = 0; i < cnt; i++) {
+              final idx = cursor + i;
+              final t = cnt == 1 ? 0.5 : i / (cnt - 1);
+              final rot = (t - 0.5) * 2 * rotFactor;
+              var dx = margin + i * slotR + (slotR - wsR) / 2;
+              dx = dx.clamp(0.0, w - wsR);
+              final instance = hand[idx];
+              final card = instance.data;
+              if (card == null) continue;
+              children.add(
+                AnimatedPositioned(
+                  key: ValueKey("hand_card_${instance.instanceId}"),
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutCubic,
+                  left: dx,
+                  top: rowYs[r],
+                  child: AnimatedScale(
+                    duration: const Duration(milliseconds: 300),
+                    scale: scaleR,
+                    child: AnimatedRotation(
+                      duration: const Duration(milliseconds: 300),
+                      turns: rot / (2 * pi),
+                      child: _cardView(idx, instance),
+                    ),
+                  ),
+                ),
+              );
+            }
+            cursor += cnt;
+          }
         }
 
         return Stack(children: children);
@@ -5074,7 +5164,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
   /// 构建卡牌描述文本，智能识别正面/负面效果并着色
   Widget _buildCardDescription(CardData c, Color highlightColor) {
-    final text = c.description ?? "";
+    final String text = c.description ?? "";
     if (text.isEmpty) return const SizedBox.shrink();
 
     // 关键词分类
@@ -5086,13 +5176,14 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     final regex = RegExp(r'(\d+)|(冲击|防火墙加固|数据包|算力|虚弱|脆弱|恶意代码|自损|系统修复|能量|能量点|漏洞暴露|受损|带宽)');
     final List<TextSpan> spans = [];
     int lastMatchEnd = 0;
+    final double fontScale = text.length > 28 ? (28.0 / text.length).clamp(0.7, 1.0) : 1.0;
 
     for (final match in regex.allMatches(text)) {
       // 1. 添加普通文本（淡化）
       if (match.start > lastMatchEnd) {
         spans.add(TextSpan(
           text: text.substring(lastMatchEnd, match.start),
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 8),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 8 * fontScale),
         ));
       }
 
@@ -5145,7 +5236,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         style: TextStyle(
           color: displayColor,
           fontWeight: (isNumber || isBadEffect) ? FontWeight.w900 : FontWeight.bold,
-          fontSize: isNumber ? 10 : 9,
+          fontSize: (isNumber ? 10 : 9) * fontScale,
           shadows: [
             Shadow(color: displayColor.withValues(alpha: 0.6), blurRadius: 4),
           ],
@@ -5158,7 +5249,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     if (lastMatchEnd < text.length) {
       spans.add(TextSpan(
         text: text.substring(lastMatchEnd),
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 8),
+        style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 8 * fontScale),
       ));
     }
 
@@ -5277,20 +5368,30 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Expanded(
-                            child: Text(
-                              c.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white.withValues(alpha: 0.95),
-                                letterSpacing: 0.5,
-                                fontFamily: 'monospace',
-                                shadows: [
-                                  Shadow(color: suiteColor.withValues(alpha: 0.5), blurRadius: 4),
-                                ],
-                              ),
+                            child: Builder(
+                              builder: (_) {
+                                final name = c.name;
+                                final base = 9.0;
+                                final shrink = name.length > 4 ? (base - (name.length - 4) * 0.5) : base;
+                                final titleFont = shrink.clamp(6.5, base);
+                                return Text(
+                                  name,
+                                  softWrap: true,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.visible,
+                                  style: TextStyle(
+                                    fontSize: titleFont,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white.withValues(alpha: 0.95),
+                                    letterSpacing: 0.5,
+                                    fontFamily: 'monospace',
+                                    height: 1.1,
+                                    shadows: [
+                                      Shadow(color: suiteColor.withValues(alpha: 0.5), blurRadius: 4),
+                                    ],
+                                  ),
+                                );
+                              },
                             ),
                           ),
                           Container(

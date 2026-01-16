@@ -340,20 +340,30 @@ class _ExchangePageState extends State<ExchangePage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                        child: Text(
-                          c.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white.withValues(alpha: 0.95),
-                            letterSpacing: 1,
-                            fontFamily: 'monospace',
-                            shadows: [
-                              Shadow(color: suiteColor.withValues(alpha: 0.5), blurRadius: 4),
-                            ],
-                          ),
+                        child: Builder(
+                          builder: (_) {
+                            final name = c.name;
+                            final base = 16.0;
+                            final shrink = name.length > 4 ? (base - (name.length - 4) * 0.8) : base;
+                            final titleFont = shrink.clamp(10.0, base);
+                            return Text(
+                              name,
+                              softWrap: true,
+                              maxLines: 2,
+                              overflow: TextOverflow.visible,
+                              style: TextStyle(
+                                fontSize: titleFont,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white.withValues(alpha: 0.95),
+                                letterSpacing: 1,
+                                fontFamily: 'monospace',
+                                height: 1.1,
+                                shadows: [
+                                  Shadow(color: suiteColor.withValues(alpha: 0.5), blurRadius: 4),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                       ),
                       Container(

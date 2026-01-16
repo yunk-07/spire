@@ -99,19 +99,28 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
                                           color: const Color(0xFF6CE4FF).withValues(alpha: 0.6),
                                           size: 20 * nation.areaScale + 4,
                                         ),
-                                      Text(
-                                        nation.title,
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: GameProgress.completedNationIds.contains(nation.id) 
-                                            ? const Color(0xFF6CE4FF).withValues(alpha: 0.6) 
-                                            : Colors.white.withValues(alpha: 0.8),
-                                          fontSize: 10 * nation.areaScale + 2,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 1,
-                                          shadows: const [
-                                            Shadow(color: Colors.black, blurRadius: 4),
-                                          ],
+                                      ConstrainedBox(
+                                        constraints: BoxConstraints(maxWidth: size),
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            nation.title,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              color: GameProgress.completedNationIds.contains(nation.id) 
+                                                ? const Color(0xFF6CE4FF).withValues(alpha: 0.6) 
+                                                : Colors.white.withValues(alpha: 0.8),
+                                              fontSize: 10 * nation.areaScale + 2,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 1,
+                                              shadows: const [
+                                                Shadow(color: Colors.black, blurRadius: 4),
+                                              ],
+                                            ),
+                                          ),
                                         ),
                                       ),
                                       if (GameProgress.completedNationIds.contains(nation.id))
