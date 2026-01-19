@@ -10,6 +10,7 @@ enum CharacterClass {
   yingshi,
   jihe,
   xuxing,
+  fa,
 }
 
 /// 角色数据模型
@@ -193,7 +194,7 @@ const Map<String, CharacterData> characterDatabase = {
   /// =========================
   "yingshi": CharacterData(
     id: "yingshi",
-    name: "影蚀",
+    name: "影逐",
     characterClass: CharacterClass.yingshi,
     maxHp: 68,
     startingDeck: [
@@ -211,9 +212,12 @@ const Map<String, CharacterData> characterDatabase = {
     ],
     minDrawPerTurn: 4,
     maxDrawPerTurn: 7,
-    description: "潜行侦察型，擅长在数据流中隐藏行踪并进行精准打击。",
+    description: "以“临时算力”驱动的追踪者，可将受损与终结转化为短时爆发资源。",
     passives: [
-      "【隐匿打击】如果本回合未受到生命值损伤，下回合开始时额外摸 1 张牌。",
+      "【隐匿追击】受到生命值伤害后，按 5:1 转化为临时算力；回合开始临时算力 -5；护盾被破当下获得 16 临时算力。",
+      "【影】击杀敌人时，获得其最大生命值 1:1 的临时算力。",
+      "【孤影】若只有一个敌人，开局获得 24 临时算力并得到 1 层脆弱（仅一次）。",
+      "临时算力与算力同效，提升造成的伤害，但会快速衰减。",
     ],
   ),
 
@@ -272,6 +276,36 @@ const Map<String, CharacterData> characterDatabase = {
     description: "虚空行者，能够操纵不稳定的数据碎片进行攻击。",
     passives: [
       "【虚空共鸣】每使用一张“量子”卡牌，随机使一名敌人获得 1 层恶意代码（诅咒）。",
+    ],
+  ),
+  /// =========================
+  /// 法 —— 规则扩散 / 群体化
+  /// =========================
+  "fa": CharacterData(
+    id: "fa",
+    name: "法",
+    characterClass: CharacterClass.fa,
+    maxHp: 72,
+    startingDeck: [
+      "strike_1",
+      "strike_2",
+      "defend_1",
+      "defend_2",
+      "double_hit",
+      "data_broadcast",
+      "matrix_sweep",
+      "overclock",
+      "defensive_stance",
+      "peek_future",
+      "fa_weaken",
+      "fa_cascade",
+    ],
+    minDrawPerTurn: 3,
+    maxDrawPerTurn: 6,
+    description: "将单体规则扩散为群体，并强化既有范围指令的效能。",
+    passives: [
+      "【群体化规约】所有单体伤害牌改为群体伤害；群体伤害牌伤害 +25%。",
+      "【初始调谐】开局获得按敌人数量计算的虚弱：每个敌人 +1 层。",
     ],
   ),
 };

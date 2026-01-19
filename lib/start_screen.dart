@@ -1227,6 +1227,7 @@ Color _getClassColor(CharacterClass characterClass) {
     case CharacterClass.yingshi: return const Color(0xFF9370DB);
     case CharacterClass.jihe: return const Color(0xFF00CED1);
     case CharacterClass.xuxing: return const Color(0xFF708090);
+    case CharacterClass.fa: return const Color(0xFF66BB6A);
   }
 }
 
@@ -1240,5 +1241,6 @@ IconData _getClassIcon(CharacterClass characterClass) {
     case CharacterClass.yingshi: return Icons.security;
     case CharacterClass.jihe: return Icons.architecture;
     case CharacterClass.xuxing: return Icons.blur_on;
+     case CharacterClass.fa: return Icons.edit;
   }
 }

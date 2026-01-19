@@ -123,6 +123,22 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
                                           ),
                                         ),
                                       ),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: List.generate(nation.difficulty.clamp(1, 5), (i) {
+                                          return Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 1),
+                                            child: Icon(
+                                              Icons.star,
+                                              size: 8 * nation.areaScale + 2,
+                                              color: GameProgress.completedNationIds.contains(nation.id)
+                                                  ? Colors.white.withValues(alpha: 0.3)
+                                                  : nation.themeColor.withValues(alpha: 0.9),
+                                            ),
+                                          );
+                                        }),
+                                      ),
                                       if (GameProgress.completedNationIds.contains(nation.id))
                                         Text(
                                           'SYNCED',

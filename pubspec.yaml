@@ -60,6 +60,13 @@ flutter:
   assets:
     - images/s.png
     - images/spire.png
+  fonts:
+    - family: SpireE
+      fonts:
+        - asset: font/spire-e.ttf
+    - family: SpireC
+      fonts:
+        - asset: font/spire-c.ttf
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

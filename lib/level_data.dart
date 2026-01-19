@@ -2,6 +2,7 @@
 // 作用：定义地图关卡数据，支持动态生成的国度、不规则形状、以及节点间的走线连接
 import 'dart:math';
 import 'package:flutter/painting.dart';
+import 'program_data.dart';
 
 enum LevelType {
   infiltration, // 打怪/渗透
@@ -50,19 +51,19 @@ const List<NationTemplate> nationTemplates = [
   NationTemplate(
     namePrefix: '霓虹',
     descriptionBase: '尖塔高处的霓虹塔段，旧网路核心在此汇聚，不稳定的逻辑碎片游离其间。',
-    possibleMonsters: ['slime', 'goblin'],
+    possibleMonsters: ['slime', 'goblin', 'echo_bug', 'spark_ball'],
     themeColor: Color(0xFF6CE4FF),
   ),
   NationTemplate(
     namePrefix: '荒原',
     descriptionBase: '尖塔下的荒原带，荒废的数据垃圾场中隐藏被遗忘的重型协议。',
-    possibleMonsters: ['skeleton', 'orc_warrior'],
+    possibleMonsters: ['skeleton', 'orc_warrior', 'iron_dummy', 'scythe_hand'],
     themeColor: Color(0xFFFFA726),
   ),
   NationTemplate(
     namePrefix: '深渊',
     descriptionBase: '尖塔阴影下的深渊域，不确定性极高的深层网络，逻辑在此发生扭曲。',
-    possibleMonsters: ['dark_mage', 'dragon'],
+    possibleMonsters: ['dark_mage', 'dragon', 'shadow_hunter', 'grand_manager'],
     themeColor: Color(0xFFAB47BC),
   ),
 ];
@@ -193,14 +194,33 @@ class GameProgress {
           }
         }
 
+        // 生成更友好的关卡标题
+        final title = _getLevelTitle(type, template.namePrefix, difficulty);
+        // 生成怪物组合：偏向多人关卡
+        List<String> programs = [];
+        if (type == LevelType.boss) {
+          // 从模板中挑选 Boss 类型的怪兽
+          final bosses = template.possibleMonsters.where((id) => 
+            systemDatabase[id]?.type == SystemType.boss
+          ).toList();
+          if (bosses.isNotEmpty) {
+            programs = [bosses[random.nextInt(bosses.length)]];
+          } else {
+            programs = ['dragon']; // 兜底
+          }
+        } else if (type == LevelType.infiltration || type == LevelType.elite) {
+          final baseCount = type == LevelType.elite ? 3 : 2;
+          final extra = random.nextDouble() < 0.5 ? 1 : 0; // 50%概率增加一个
+          final count = (baseCount + extra).clamp(2, 4);   // 2-4个怪
+          for (int k = 0; k < count; k++) {
+            programs.add(template.possibleMonsters[random.nextInt(template.possibleMonsters.length)]);
+          }
+        }
+
         return LevelInfo(
           id: id,
-          title: _getLevelTitle(type, template.namePrefix, difficulty),
-          programIds: type == LevelType.boss 
-              ? ['dragon'] 
-              : (type == LevelType.infiltration || type == LevelType.elite 
-                  ? [template.possibleMonsters[random.nextInt(template.possibleMonsters.length)]] 
-                  : []),
+          title: title,
+          programIds: programs,
           type: type,
           difficulty: type == LevelType.elite ? difficulty + 1 : difficulty,
           nextLevelIndices: [], // 先初始化为空，后面统一生成连线
@@ -258,7 +278,7 @@ class GameProgress {
 
     return Nation(
       id: 'nation_$index',
-      title: '尖塔·${template.namePrefix}扇区-$index',
+      title: _getNationFriendlyTitle(template, index),
       description: '${template.descriptionBase}（尖塔网络）',
       difficulty: difficulty,
       shapeVertices: vertices,
@@ -268,15 +288,58 @@ class GameProgress {
   }
 
   static String _getLevelTitle(LevelType type, String prefix, int diff) {
+    // 更友好的、主题化的名称，不使用专业术语
+    final infiltrationNames = [
+      '薄雾街口', '灯塔小径', '风鸣断桥', '银灯巷', '低语庭院', '回声广场'
+    ];
+    final eliteNames = [
+      '裂影堡', '霜夜塔', '星落庭', '破晓门', '铁潮岗'
+    ];
+    final cacheNames = ['补给点', '器械站', '补给仓', '休整处'];
+    final exchangeNames = ['小摊位', '货栈', '商铺', '交易点'];
+    final mysteryNames = ['奇遇点', '偶发事件', '未知之所'];
+    final restNames = ['篝火处', '歇脚点', '修复站'];
+    final bossNames = ['守望者', '终幕者', '领域主宰'];
+    final r = Random();
     switch (type) {
-      case LevelType.infiltration: return '$prefix渗透·级${diff}';
-      case LevelType.elite: return '$prefix高危·级${diff + 1}';
-      case LevelType.cache: return '数据缓存站';
-      case LevelType.exchange: return '数据交易所';
-      case LevelType.mystery: return '未知扰动点';
-      case LevelType.rest: return '逻辑修复站';
-      case LevelType.boss: return '$prefix核心·守护程序';
+      case LevelType.infiltration:
+        return infiltrationNames[r.nextInt(infiltrationNames.length)];
+      case LevelType.elite:
+        return eliteNames[r.nextInt(eliteNames.length)];
+      case LevelType.cache:
+        return cacheNames[r.nextInt(cacheNames.length)];
+      case LevelType.exchange:
+        return exchangeNames[r.nextInt(exchangeNames.length)];
+      case LevelType.mystery:
+        return mysteryNames[r.nextInt(mysteryNames.length)];
+      case LevelType.rest:
+        return restNames[r.nextInt(restNames.length)];
+      case LevelType.boss:
+        return '${prefix}${bossNames[r.nextInt(bossNames.length)]}';
     }
+  }
+
+  static String _getNationFriendlyTitle(NationTemplate template, int index) {
+    final r = Random(index * 997);
+    final neon = ['霓虹庭', '银灯街', '极光港', '光塔巷', '星辉城'];
+    final wasteland = ['荒原谷', '风砂坍', '铁锈地', '残壁坡', '灰迹河'];
+    final abyss = ['深渊岭', '影语原', '回声野', '裂幕境', '夜幕湾'];
+    List<String> pool;
+    switch (template.namePrefix) {
+      case '霓虹':
+        pool = neon;
+        break;
+      case '荒原':
+        pool = wasteland;
+        break;
+      case '深渊':
+        pool = abyss;
+        break;
+      default:
+        pool = ['星幕域', '晓光域', '长夜城', '晨雾港'];
+    }
+    final name = pool[r.nextInt(pool.length)];
+    return name;
   }
 
   /// 进入新国度

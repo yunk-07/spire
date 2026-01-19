@@ -646,6 +646,22 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                               letterSpacing: 0.5,
                             ),
                           ),
+                          const SizedBox(height: 2),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(node.difficulty.clamp(1, 5), (i) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 1),
+                                child: Icon(
+                                  Icons.star,
+                                  size: 8,
+                                  color: defeated
+                                      ? Colors.white.withValues(alpha: 0.25)
+                                      : glowColor.withValues(alpha: 0.9 * alpha),
+                                ),
+                              );
+                            }),
+                          ),
                         ],
                       ),
                     ),
