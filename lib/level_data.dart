@@ -51,19 +51,19 @@ const List<NationTemplate> nationTemplates = [
   NationTemplate(
     namePrefix: '霓虹',
     descriptionBase: '尖塔高处的霓虹塔段，旧网路核心在此汇聚，不稳定的逻辑碎片游离其间。',
-    possibleMonsters: ['slime', 'goblin', 'echo_bug', 'spark_ball'],
+    possibleMonsters: ['slime', 'goblin', 'echo_bug', 'spark_ball', 'byte_imp', 'pulse_rider', 'sentinel', 'arc_knight'],
     themeColor: Color(0xFF6CE4FF),
   ),
   NationTemplate(
     namePrefix: '荒原',
     descriptionBase: '尖塔下的荒原带，荒废的数据垃圾场中隐藏被遗忘的重型协议。',
-    possibleMonsters: ['skeleton', 'orc_warrior', 'iron_dummy', 'scythe_hand'],
+    possibleMonsters: ['skeleton', 'orc_warrior', 'iron_dummy', 'scythe_hand', 'crawler', 'sentinel', 'arc_knight'],
     themeColor: Color(0xFFFFA726),
   ),
   NationTemplate(
     namePrefix: '深渊',
     descriptionBase: '尖塔阴影下的深渊域，不确定性极高的深层网络，逻辑在此发生扭曲。',
-    possibleMonsters: ['dark_mage', 'dragon', 'shadow_hunter', 'grand_manager'],
+    possibleMonsters: ['dark_mage', 'dragon', 'shadow_hunter', 'grand_manager', 'storm_core', 'arc_knight'],
     themeColor: Color(0xFFAB47BC),
   ),
 ];
@@ -210,19 +210,83 @@ class GameProgress {
           }
         } else if (type == LevelType.infiltration || type == LevelType.elite) {
           final baseCount = type == LevelType.elite ? 3 : 2;
-          final extra = random.nextDouble() < 0.5 ? 1 : 0; // 50%概率增加一个
-          final count = (baseCount + extra).clamp(2, 4);   // 2-4个怪
+          final extra = random.nextDouble() < 0.5 ? 1 : 0;
+          final count = (baseCount + extra).clamp(2, 4);
+          final desiredType = type == LevelType.elite ? SystemType.elite : SystemType.normal;
+          int minLevel, maxLevel;
+          switch (difficulty) {
+            case 1: minLevel = 1; maxLevel = 2; break;
+            case 2: minLevel = 1; maxLevel = 3; break;
+            case 3: minLevel = 2; maxLevel = 4; break;
+            case 4: minLevel = 3; maxLevel = 4; break;
+            default: minLevel = 4; maxLevel = 4; break;
+          }
+          final pool = template.possibleMonsters.where((id) {
+            final data = systemDatabase[id];
+            if (data == null) return false;
+            return data.type == desiredType && data.level >= minLevel && data.level <= maxLevel;
+          }).toList();
+          List<String> fallbackPool = systemDatabase.entries
+              .where((e) => e.value.type == desiredType && e.value.level >= minLevel && e.value.level <= maxLevel)
+              .map((e) => e.key)
+              .toList();
+          if (pool.isEmpty && fallbackPool.isEmpty) {
+            // 放宽等级限制：允许任何等级的同类型怪
+            fallbackPool = systemDatabase.entries
+                .where((e) => e.value.type == desiredType)
+                .map((e) => e.key)
+                .toList();
+          }
+          // 如果仍为空，作为兜底：使用模板里任何怪（不按类型）
+          List<String> usePool = pool.isNotEmpty ? pool : (fallbackPool.isNotEmpty ? fallbackPool : template.possibleMonsters);
+          if (usePool.isEmpty) {
+            usePool = (desiredType == SystemType.elite)
+                ? ['orc_warrior', 'shadow_hunter', 'dark_mage', 'scythe_hand']
+                : ['slime', 'goblin', 'skeleton', 'iron_dummy', 'echo_bug', 'spark_ball'];
+          }
           for (int k = 0; k < count; k++) {
-            programs.add(template.possibleMonsters[random.nextInt(template.possibleMonsters.length)]);
+            programs.add(usePool[random.nextInt(usePool.length)]);
           }
         }
+
+        // 计算更丰富的难度分布（1-5）
+        int _depthBonus() {
+          if (isFirstLayer) return -1;
+          if (isLastLayer) return 2;
+          final p = l / (layerCount - 1);
+          if (p < 0.25) return -1;
+          if (p < 0.5) return 0;
+          if (p < 0.75) return 1;
+          return 2;
+        }
+        int _typeBonus() {
+          switch (type) {
+            case LevelType.elite:
+              return 1;
+            case LevelType.exchange:
+            case LevelType.rest:
+              return -1;
+            case LevelType.mystery:
+              return random.nextBool() ? 1 : 0;
+            case LevelType.cache:
+              return 0;
+            case LevelType.infiltration:
+              return 0;
+            case LevelType.boss:
+              return 3;
+          }
+        }
+        final jitter = [-1, 0, 0, 1][random.nextInt(4)];
+        int nodeDiff = difficulty + _depthBonus() + _typeBonus() + jitter;
+        if (type == LevelType.boss) nodeDiff = 5;
+        nodeDiff = nodeDiff.clamp(1, 5);
 
         return LevelInfo(
           id: id,
           title: title,
           programIds: programs,
           type: type,
-          difficulty: type == LevelType.elite ? difficulty + 1 : difficulty,
+          difficulty: nodeDiff,
           nextLevelIndices: [], // 先初始化为空，后面统一生成连线
         );
       });
@@ -288,18 +352,19 @@ class GameProgress {
   }
 
   static String _getLevelTitle(LevelType type, String prefix, int diff) {
-    // 更友好的、主题化的名称，不使用专业术语
     final infiltrationNames = [
-      '薄雾街口', '灯塔小径', '风鸣断桥', '银灯巷', '低语庭院', '回声广场'
+      '薄雾街口','灯塔小径','风鸣断桥','银灯巷','低语庭院','回声广场',
+      '雾港栈桥','星辉坂道','霓虹长廊','回声甬道','光塔边缘','潮汐平台'
     ];
     final eliteNames = [
-      '裂影堡', '霜夜塔', '星落庭', '破晓门', '铁潮岗'
+      '裂影堡','霜夜塔','星落庭','破晓门','铁潮岗',
+      '磁涡城','玄霜壁','光弧庭','量子门','裂隙枢'
     ];
-    final cacheNames = ['补给点', '器械站', '补给仓', '休整处'];
-    final exchangeNames = ['小摊位', '货栈', '商铺', '交易点'];
-    final mysteryNames = ['奇遇点', '偶发事件', '未知之所'];
-    final restNames = ['篝火处', '歇脚点', '修复站'];
-    final bossNames = ['守望者', '终幕者', '领域主宰'];
+    final cacheNames = ['补给点','器械站','补给仓','休整处','维修舱','后勤点'];
+    final exchangeNames = ['小摊位','货栈','商铺','交易点','数据柜','交换站'];
+    final mysteryNames = ['奇遇点','偶发事件','未知之所','扭曲之门','随机扰动'];
+    final restNames = ['篝火处','歇脚点','修复站','维保处','冷却间'];
+    final bossNames = ['守望者','终幕者','领域主宰','审判者','序列枢纽'];
     final r = Random();
     switch (type) {
       case LevelType.infiltration:
@@ -424,5 +489,15 @@ class GameProgress {
     if (currentLayer < 0 || currentLayer >= levelLayers.length) return [];
     final currentLevel = levelLayers[currentLayer][currentIndex];
     return currentLevel.nextLevelIndices;
+  }
+
+  static void resetRunData() {
+    currentLayer = -1;
+    currentLevelId = null;
+    currentIndex = -1;
+    defeatedIds.clear();
+    currentNationId = null;
+    completedNationIds.clear();
+    generatedNations = [];
   }
 }

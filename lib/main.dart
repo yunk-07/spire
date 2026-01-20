@@ -149,18 +149,19 @@ void main() {
 /// 实体
 /// =====================
 
-class Entity {
-  final String name;
-  int hp;
-  final int maxHp;
-  int block = 0;
-  int fire = 0;
-  final GlobalKey key = GlobalKey();
-  String? id;
-  int baseDamage = 8;
-  SystemIntent? intent;
-  int intentValue = 0;
-  int tempStrength = 0;
+  class Entity {
+    final String name;
+    int hp;
+    int maxHp;
+    int block = 0;
+    int fire = 0;
+    final GlobalKey key = GlobalKey();
+    String? id;
+    int baseDamage = 8;
+    SystemIntent? intent;
+    int intentValue = 0;
+    int tempStrength = 0;
+    int sturdy = 0;
 
   // 状态效果
   int vulnerable = 0; // 脆弱：受到额外冲击
@@ -1096,10 +1097,12 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   static const Map<String, String> _buffExplanations = {
     "算力": "每层算力使攻击造成的伤害增加 1 点。",
     "临时算力": "每层临时算力使攻击造成的伤害增加 1 点，回合开始时 -5。",
+    "血液算力": "血液被动的额外算力，基于损失生命值计算。",
     "虚弱": "每层使攻击伤害递减 25%（逐层依次计算）。",
     "脆弱": "脆弱状态下，受到攻击时受到的伤害增加 10%/层。",
     "恶意代码": "每层恶意代码使受到攻击时额外受到的伤害增加 2 点。",
     "火焰": "怪兽回合结束后造成等于层数的伤害；护盾清零；每回合层数 -1。",
+    "坚固": "拥有该状态时回合结束护盾不清零，每回合 -1。",
   };
 
   bool _isDraggingOverJudgementArea = false; // 是否正在向判定区拖动
@@ -1257,38 +1260,65 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
   // 根据怪物ID构建怪物实体
   List<Entity> _buildProgramsFromIds(List<String>? ids) {
+    int _resolveLevelDifficulty() {
+      final id = widget.levelId;
+      if (id == null) return 1;
+      for (final layer in GameProgress.levelLayers) {
+        for (final level in layer) {
+          if (level.id == id) {
+            return level.difficulty.clamp(1, 5);
+          }
+        }
+      }
+      return 1;
+    }
+    final diff = _resolveLevelDifficulty();
+    const hpFactors = [1.0, 1.2, 1.4, 1.6, 1.8];
+    const dmgBonus = [0, 2, 4, 6, 8];
+    final hpFactor = hpFactors[(diff - 1).clamp(0, hpFactors.length - 1)];
+    final baseDmgBonus = dmgBonus[(diff - 1).clamp(0, dmgBonus.length - 1)];
+    Entity _fromProgram(SecurityProgram data) {
+      double typeHpFactor = 1.0;
+      int typeDmgBonus = 0;
+      switch (data.type) {
+        case SystemType.elite:
+          typeHpFactor = 1.15;
+          typeDmgBonus = 2;
+          break;
+        case SystemType.boss:
+          typeHpFactor = 1.25;
+          typeDmgBonus = 4;
+          break;
+        case SystemType.normal:
+          break;
+      }
+      final hp = (data.maxHp * hpFactor * typeHpFactor).ceil();
+      final dmg = data.baseDamage + baseDmgBonus + typeDmgBonus;
+      final e = Entity(data.name, hp, maxHp: hp);
+      e.id = data.id;
+      e.baseDamage = dmg;
+      return e;
+    }
     if (ids == null || ids.isEmpty) {
       final s = systemDatabase['slime'];
       final g = systemDatabase['goblin'];
       final k = systemDatabase['skeleton'];
       final ms = <Entity>[];
       if (s != null) {
-        final e = Entity(s.name, s.maxHp);
-        e.id = s.id;
-        e.baseDamage = s.baseDamage;
-        ms.add(e);
+        ms.add(_fromProgram(s));
       }
       if (g != null) {
-        final e = Entity(g.name, g.maxHp);
-        e.id = g.id;
-        e.baseDamage = g.baseDamage;
-        ms.add(e);
+        ms.add(_fromProgram(g));
       }
       if (k != null) {
-        final e = Entity(k.name, k.maxHp);
-        e.id = k.id;
-        e.baseDamage = k.baseDamage;
-        ms.add(e);
+        ms.add(_fromProgram(k));
       }
       return ms;
     }
     return ids.map((id) {
       final data = systemDatabase[id];
       if (data != null) {
-        final e = Entity(data.name, data.maxHp);
-        e.id = data.id;
-        e.baseDamage = data.baseDamage;
-        return e;
+        return _fromProgram(data);
       }
       return Entity(id, 30);
     }).toList();
@@ -1411,6 +1441,26 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             player.strength += value * repeatCount;
           }
           break;
+        case 'temp_strength':
+          if (parts.length > 1) {
+            final value = int.tryParse(parts[1]) ?? 1;
+            player.tempStrength += value * repeatCount;
+          }
+          break;
+        case 'sturdy':
+          if (parts.length > 1) {
+            final turns = int.tryParse(parts[1]) ?? 1;
+            if (isAllTarget || faToAll) {
+              for (final enemy in enemyTargets) {
+                enemy.sturdy += turns;
+              }
+            } else if (target != null) {
+              (target as Entity).sturdy += turns;
+            } else {
+              player.sturdy += turns;
+            }
+          }
+          break;
 
         case 'self_damage':
           if (parts.length > 1) {
@@ -1430,6 +1480,28 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             final total = value * repeatCount;
             player.hp = (player.hp + total).clamp(0, player.maxHp);
             anim.showHeal(player, total);
+          }
+          break;
+        case 'max_hp_up':
+          if (parts.length > 1) {
+            final value = int.tryParse(parts[1]) ?? 0;
+            final delta = value * repeatCount;
+            if (delta != 0) {
+              GameState.playerMaxHp = max(1, GameState.playerMaxHp + delta);
+              player.maxHp = max(1, player.maxHp + delta);
+              player.hp = min(player.hp, player.maxHp);
+            }
+          }
+          break;
+        case 'max_hp_down':
+          if (parts.length > 1) {
+            final value = int.tryParse(parts[1]) ?? 0;
+            final delta = value * repeatCount;
+            if (delta != 0) {
+              GameState.playerMaxHp = max(1, GameState.playerMaxHp - delta);
+              player.maxHp = max(1, player.maxHp - delta);
+              player.hp = min(player.hp, player.maxHp);
+            }
           }
           break;
       }
@@ -1532,6 +1604,18 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         }
       }
       _lastUsedSuite = card.suite;
+    }
+
+    // 关键区域：林职业被动【稳态增压】—— 每使用一张牌获得 5 点临时算力
+    if (characterData.characterClass == CharacterClass.lin) {
+      player.tempStrength += 5;
+      _showStatusTip("【稳态增压】临时算力 +5", const Color(0xFF6CE4FF));
+      final ctx = context;
+      final box = ctx.findRenderObject() as RenderBox?;
+      if (box != null) {
+        final center = box.size.center(Offset.zero);
+        anim.playRoleEffect(CharacterClass.lin, center);
+      }
     }
 
     // 关键区域：虚行职业被动【虚空共鸣】—— 使用量子卡牌时施加诅咒
@@ -1722,6 +1806,11 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     if (attacker == player && characterData.characterClass == CharacterClass.yingshi && target.hp == 0) {
       player.tempStrength += target.maxHp;
     }
+    if (attacker == player && characterData.characterClass == CharacterClass.jianren && target.hp == 0) {
+      player.hp = min(player.maxHp, player.hp + 50);
+      anim.showHeal(player, 50);
+      GameState.playerHp = player.hp;
+    }
   }
 
   // 播放受击音效
@@ -1802,7 +1891,14 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     gamePhase = GamePhase.syncPhase;
     isDiscardPhase = false;
     hasDrawnCards = false;
-    player.block = 0; // 同步开始重置防火墙
+    if (player.sturdy > 0) {
+      player.sturdy = max(0, player.sturdy - 1);
+    } else {
+      player.block = 0;
+    }
+    if (characterData.characterClass == CharacterClass.jianren) {
+      player.sturdy += 1;
+    }
     _lastUsedSuite = null; // 重置几何职业的上一张牌类别
 
     // 每周期开始时重置带宽（能量）为固定值
@@ -1936,6 +2032,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         // 关键区域：怪物状态衰减
         if (program.vulnerable > 0) program.vulnerable--;
         if (program.weak > 0) program.weak--;
+        if (program.sturdy > 0) program.sturdy--;
         
         // 关键区域：每个怪物行动完后更新UI
         setState(() {});
@@ -3361,6 +3458,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                         Icons.refresh,
                                         "重载系统",
                                         () {
+                                          GameProgress.resetRunData();
+                                          GameState.reset();
+                                          GameStatistics.reset();
                                           Navigator.pushAndRemoveUntil(
                                             context,
                                             createHoloRoute(const StartScreen()),
@@ -6222,25 +6322,30 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   Widget _statusEffectsBar(Entity e) {
     final effects = <Widget>[];
 
-    int displayStrength = e.strength;
-    bool hasBonus = false;
+    final int normalStrength = e.strength;
+    int bloodBonus = 0;
 
-    // 关键区域：血液职业被动【血债血偿】状态显示
     if (e == player && characterData.characterClass == CharacterClass.xueye) {
-      final bonus = (e.maxHp - e.hp) ~/ 8;
-      if (bonus > 0) {
-        displayStrength += bonus;
-        hasBonus = true;
-      }
+      bloodBonus = (e.maxHp - e.hp) ~/ 8;
     }
 
-    if (displayStrength > 0) {
+    if (normalStrength > 0) {
       effects.add(
         _statusIcon(
           Icons.bolt,
-          "$displayStrength",
-          hasBonus ? Colors.redAccent : Colors.orangeAccent,
+          "$normalStrength",
+          Colors.orangeAccent,
           "算力",
+        ),
+      );
+    }
+    if (bloodBonus > 0) {
+      effects.add(
+        _statusIcon(
+          Icons.bolt,
+          "$bloodBonus",
+          Colors.redAccent,
+          "血液算力",
         ),
       );
     }
@@ -6272,6 +6377,11 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     if (e.curse > 0) {
       effects.add(
         _statusIcon(Icons.bug_report, "${e.curse}", Colors.purpleAccent, "恶意代码"),
+      );
+    }
+    if (e.sturdy > 0) {
+      effects.add(
+        _statusIcon(Icons.shield, "${e.sturdy}", Colors.cyanAccent, "坚固"),
       );
     }
     if (e.fire > 0) {

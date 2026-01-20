@@ -64,8 +64,6 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
 
   void _onTimeJump() async {
     if (_isProcessing) return;
-    
-    // 核心区域备注：时空跳跃逻辑 - 进入地图页面选择节点
     Navigator.push(
       context,
       createHoloRoute(const MapScreen(canSelect: true, isJumpMode: true)),
@@ -97,41 +95,23 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
         backgroundColor: const Color(0xFF05060A),
         body: Stack(
           children: [
-            // 动态背景
-            Positioned.fill(child: _buildBackground()),
-            
+            Positioned.fill(child: CustomPaint(painter: _GridPainter())),
             SafeArea(
               child: Column(
                 children: [
-                  _buildHeader(themeColor),
-                  const Spacer(),
-                  _buildVisualCenter(themeColor),
-                  const Spacer(),
-                  _buildOptions(themeColor),
                   const SizedBox(height: 40),
-                  _buildStatusFooter(themeColor),
-                  const SizedBox(height: 20),
+                  _styledHeader(),
+                  const SizedBox(height: 12),
+                  _metaRow(themeColor),
+                  const SizedBox(height: 24),
+                  _logicPanel(themeColor, _buildVisualCenter(themeColor)),
+                  const SizedBox(height: 24),
+                  _logicPanel(themeColor, _buildOptions(themeColor)),
+                  const SizedBox(height: 24),
+                  _logicPanel(themeColor, _buildStatusFooter(themeColor)),
                 ],
               ),
             ),
-
-            // 返回按钮 (左上角)
-            Positioned(
-              top: 16,
-              left: 16,
-              child: SafeArea(
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white54, size: 20),
-                  onPressed: () async {
-                    final shouldExit = await _confirmExit(context);
-                    if (shouldExit && context.mounted) {
-                      Navigator.popUntil(context, (route) => route.isFirst);
-                    }
-                  },
-                ),
-              ),
-            ),
-
             if (_isProcessing) _buildProcessingOverlay(themeColor),
           ],
         ),
@@ -191,61 +171,51 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
                           Icon(
                             Icons.warning_amber_rounded,
                             color: Color(0xFFFF6A6A),
-                            size: 28,
+                            size: 20,
                           ),
-                          SizedBox(width: 12),
+                          SizedBox(width: 10),
                           Text(
-                            "确认断开连接?",
+                            "DISCONNECT_REQUEST",
                             style: TextStyle(
                               color: Color(0xFFFF6A6A),
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
+                              fontFamily: 'monospace',
                               letterSpacing: 2,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
                       const Text(
-                        "检测到活跃的神经连接。强制断开将导致当前的渗透进度丢失，并可能造成数据碎片化。",
+                        '即将终止当前的尖塔渗透任务，未同步的数据流将会丢失。是否确认断开物理接入？',
                         style: TextStyle(
-                          color: Color(0xFF8FA3C0),
-                          fontSize: 13,
+                          color: Color(0xFFE1E9FF),
+                          fontSize: 14,
                           height: 1.6,
-                          letterSpacing: 0.5,
+                          fontFamily: 'monospace',
                         ),
                       ),
                       const SizedBox(height: 32),
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Colors.white24),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                              child: const Text(
-                                "保持连接",
-                                style: TextStyle(color: Colors.white70, fontSize: 13),
-                              ),
-                            ),
+                          CyberButton(
+                            width: 100,
+                            height: 36,
+                            fontSize: 12,
+                            label: '维持接入',
+                            color: const Color(0xFF6CE4FF),
+                            onPressed: () => Navigator.pop(ctx, false),
                           ),
                           const SizedBox(width: 16),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () => Navigator.pop(ctx, true),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFFF6A6A).withValues(alpha: 0.2),
-                                foregroundColor: const Color(0xFFFF6A6A),
-                                side: const BorderSide(color: Color(0xFFFF6A6A)),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                              child: const Text(
-                                "确认断开",
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                              ),
-                            ),
+                          CyberButton(
+                            width: 100,
+                            height: 36,
+                            fontSize: 12,
+                            label: '确认断开',
+                            color: const Color(0xFFFF6A6A),
+                            onPressed: () => Navigator.pop(ctx, true),
                           ),
                         ],
                       ),
@@ -260,19 +230,10 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
     );
     return res ?? false;
   }
+  
 
   Widget _buildBackground() {
-    return AnimatedBuilder(
-      animation: _glitchController,
-      builder: (context, child) {
-        return CustomPaint(
-          painter: _CyberBackgroundPainter(
-            glitchValue: _glitchController.value,
-            random: _random,
-          ),
-        );
-      },
-    );
+    return const SizedBox.shrink();
   }
 
   Widget _buildHeader(Color color) {
@@ -360,7 +321,7 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          "LOGIC_REPAIR_STATION",
+                          "修复站",
                           style: TextStyle(
                             color: color,
                             fontSize: 22,
@@ -377,7 +338,7 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
                       Row(
                         children: [
                           Text(
-                            "SECTOR: ${widget.levelId}",
+                            "LOGIC_REPAIR STATION // ${widget.levelId}",
                             style: TextStyle(color: color.withValues(alpha: 0.6), fontSize: 9, fontFamily: 'Courier'),
                           ),
                           const SizedBox(width: 12),
@@ -583,6 +544,64 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
       ),
     );
   }
+}
+
+Widget _styledHeader() {
+  return Column(
+    children: const [
+      Text('修复站', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: Color(0xFF6CE4FF), blurRadius: 20)])),
+      SizedBox(height: 12),
+      Text('LOGIC REPAIR v3.4', style: TextStyle(fontSize: 10, color: Color(0x666CE4FF), letterSpacing: 2, fontFamily: 'monospace')),
+    ],
+  );
+}
+
+Widget _metaRow(Color color) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 24),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFF0A0F16), borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.4)), boxShadow: [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 10)]), child: Row(children: [Icon(Icons.qr_code_scanner, size: 14, color: color), const SizedBox(width: 6), const Text("OPTIONS: 2", style: TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2))])),
+        const SizedBox(width: 12),
+        Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFF0A0F16), borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.4))), child: Row(children: [Icon(Icons.memory, size: 14, color: color), const SizedBox(width: 6), const Text("NODE", style: TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))])),
+      ],
+    ),
+  );
+}
+
+Widget _logicPanel(Color color, Widget child) {
+  return Container(
+    width: 720,
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+    decoration: BoxDecoration(color: const Color(0xFF0A0F16).withValues(alpha: 0.9), borderRadius: BorderRadius.circular(8), border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5), boxShadow: [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 24, spreadRadius: 2), const BoxShadow(color: Colors.black, blurRadius: 10, offset: Offset(0, 4))]),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(7),
+      child: Stack(
+        children: [
+          Positioned.fill(child: CyberScanline(color: color.withValues(alpha: 0.08))),
+          Positioned.fill(child: CustomPaint(painter: CyberCornerPainter(color: color.withValues(alpha: 0.5)))),
+          Column(mainAxisSize: MainAxisSize.min, children: [Row(children: [Icon(Icons.qr_code_scanner, size: 16, color: color), const SizedBox(width: 8), Text("// REPAIR_CHANNEL", style: TextStyle(color: color.withValues(alpha: 0.6), fontSize: 10, fontFamily: 'monospace', letterSpacing: 2)), const Spacer(), Text("SESSION", style: TextStyle(color: color.withValues(alpha: 0.6), fontSize: 10, fontFamily: 'monospace', letterSpacing: 2))]), const SizedBox(height: 12), Container(width: double.infinity, height: 1, decoration: BoxDecoration(gradient: LinearGradient(colors: [color.withValues(alpha: 0.8), color.withValues(alpha: 0.2), Colors.transparent]))), const SizedBox(height: 16), child]),
+        ],
+      ),
+    ),
+  );
+}
+
+class _GridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = const Color(0xFF6CE4FF).withValues(alpha: 0.05)..strokeWidth = 1;
+    const spacing = 30.0;
+    for (double x = 0; x < size.width; x += spacing) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (double y = 0; y < size.height; y += spacing) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
 
 class _CyberBackgroundPainter extends CustomPainter {

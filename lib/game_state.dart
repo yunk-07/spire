@@ -20,6 +20,13 @@ class GameState {
   static void heal(int amount) {
     playerHp = min(playerMaxHp, playerHp + max(0, amount));
   }
+
+  static void reset() {
+    playerBlock = 0;
+    playerStrength = 0;
+    heatProgress = 0;
+    drawPile.clear();
+  }
 }
 
 // 游戏统计信息

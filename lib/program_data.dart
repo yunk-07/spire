@@ -2,7 +2,7 @@
 
 enum SystemType { normal, elite, boss }
 
-enum BuffKind { weak, vulnerable, curse }
+enum BuffKind { weak, vulnerable, curse, sturdy }
 
 class MonsterSkill {
   final String id;
@@ -23,6 +23,7 @@ class SecurityProgram {
   final String id;
   final String name;
   final SystemType type;
+  final int level;
   final int maxHp;
   final int baseDamage;
   final int damageMin;
@@ -33,6 +34,7 @@ class SecurityProgram {
     required this.id,
     required this.name,
     required this.type,
+    required this.level,
     required this.maxHp,
     required this.baseDamage,
     required this.damageMin,
@@ -48,6 +50,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     id: "slime",
     name: "粘滞碎片",
     type: SystemType.normal,
+    level: 1,
     maxHp: 40,
     baseDamage: 8,
     damageMin: 6,
@@ -61,6 +64,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     id: "goblin",
     name: "窥探程序",
     type: SystemType.normal,
+    level: 1,
     maxHp: 30,
     baseDamage: 10,
     damageMin: 8,
@@ -75,6 +79,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     id: "skeleton",
     name: "废弃指令",
     type: SystemType.normal,
+    level: 2,
     maxHp: 25,
     baseDamage: 12,
     damageMin: 10,
@@ -88,6 +93,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     id: "orc_warrior",
     name: "重装守卫",
     type: SystemType.elite,
+    level: 3,
     maxHp: 60,
     baseDamage: 15,
     damageMin: 13,
@@ -102,6 +108,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     id: "dark_mage",
     name: "幽暗影",
     type: SystemType.elite,
+    level: 4,
     maxHp: 45,
     baseDamage: 18,
     damageMin: 16,
@@ -115,6 +122,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     id: "dragon",
     name: "裁决者",
     type: SystemType.boss,
+    level: 5,
     maxHp: 150,
     baseDamage: 25,
     damageMin: 22,
@@ -131,6 +139,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     id: "echo_bug",
     name: "回响单元",
     type: SystemType.normal,
+    level: 2,
     maxHp: 35,
     baseDamage: 8,
     damageMin: 6,
@@ -144,6 +153,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     id: "spark_ball",
     name: "电脉冲",
     type: SystemType.normal,
+    level: 2,
     maxHp: 30,
     baseDamage: 12,
     damageMin: 10,
@@ -157,6 +167,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     id: "iron_dummy",
     name: "铁甲模块",
     type: SystemType.normal,
+    level: 1,
     maxHp: 55,
     baseDamage: 6,
     damageMin: 4,
@@ -170,6 +181,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     id: "shadow_hunter",
     name: "潜行猎手",
     type: SystemType.elite,
+    level: 3,
     maxHp: 75,
     baseDamage: 18,
     damageMin: 15,
@@ -184,6 +196,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     id: "scythe_hand",
     name: "收割指令",
     type: SystemType.elite,
+    level: 4,
     maxHp: 85,
     baseDamage: 20,
     damageMin: 18,
@@ -197,6 +210,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     id: "grand_manager",
     name: "主控核心",
     type: SystemType.boss,
+    level: 5,
     maxHp: 200,
     baseDamage: 30,
     damageMin: 25,

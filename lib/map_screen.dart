@@ -11,6 +11,16 @@ import 'main.dart';
 import 'rest_page.dart';
 import 'rest_screen.dart';
 import 'exchange_page.dart';
+import 'huozhan_page.dart';
+import 'xiaotanwei_page.dart';
+import 'shangpu_page.dart';
+import 'jiaoyidian_page.dart';
+import 'shujugui_page.dart';
+import 'jiaohuan_zhan_page.dart';
+import 'campfire_screen.dart';
+import 'rest_stop_screen.dart';
+import 'maintenance_bay_screen.dart';
+import 'cooling_chamber_screen.dart';
 
 /// 树状地图页面 - 科幻风格重设计
 class MapScreen extends StatefulWidget {
@@ -431,6 +441,25 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         break;
     }
 
+    final int difficulty = node.difficulty.clamp(1, 5);
+    late final Color diffColor;
+    switch (difficulty) {
+      case 1:
+        diffColor = const Color(0xFF44FF44);
+        break;
+      case 2:
+        diffColor = const Color(0xFF6CE4FF);
+        break;
+      case 3:
+        diffColor = const Color(0xFFE26CFF);
+        break;
+      case 4:
+        diffColor = const Color(0xFFFFD700);
+        break;
+      default:
+        diffColor = const Color(0xFFFF4444);
+        break;
+    }
     final isAccessible = isAllowed || isCurrent || (widget.isJumpMode && !defeated);
     final alpha = defeated ? 0.4 : (isAccessible ? 1.0 : 0.3);
 
@@ -484,10 +513,36 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               targetPage = RestPage(levelId: node.id);
               break;
             case LevelType.rest:
-              targetPage = RestScreen(levelId: node.id);
+              if (node.title.contains('篝火处')) {
+                targetPage = CampfireScreen(levelId: node.id);
+              } else if (node.title.contains('歇脚点')) {
+                targetPage = RestStopScreen(levelId: node.id);
+              } else if (node.title.contains('修复站')) {
+                targetPage = RestScreen(levelId: node.id);
+              } else if (node.title.contains('维保处')) {
+                targetPage = MaintenanceBayScreen(levelId: node.id);
+              } else if (node.title.contains('冷却间')) {
+                targetPage = CoolingChamberScreen(levelId: node.id);
+              } else {
+                targetPage = RestScreen(levelId: node.id);
+              }
               break;
             case LevelType.exchange:
-              targetPage = ExchangePage(levelId: node.id);
+              if (node.title.contains('货栈')) {
+                targetPage = HuozhanPage(levelId: node.id);
+              } else if (node.title.contains('小摊位')) {
+                targetPage = XiaotanweiPage(levelId: node.id);
+              } else if (node.title.contains('商铺')) {
+                targetPage = ShangpuPage(levelId: node.id);
+              } else if (node.title.contains('交易点')) {
+                targetPage = JiaoyidianPage(levelId: node.id);
+              } else if (node.title.contains('数据柜')) {
+                targetPage = ShujuguiPage(levelId: node.id);
+              } else if (node.title.contains('交换站')) {
+                targetPage = JiaohuanZhanPage(levelId: node.id);
+              } else {
+                targetPage = ExchangePage(levelId: node.id);
+              }
               break;
             case LevelType.mystery:
               // 随机进入战斗、休息或商店
@@ -529,8 +584,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               // 1. 玩家位置的大光晕
               if (isCurrent)
                 Container(
-                  width: 110,
-                  height: 110,
+                  width: 140,
+                  height: 140,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
@@ -544,23 +599,22 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
               // 2. 节点主体
               Container(
-                width: 90,
-                height: 70,
+                width: 110,
+                height: 80,
                 decoration: BoxDecoration(
                   color: const Color(0xFF0A0F16).withValues(alpha: 0.8 * alpha),
                   borderRadius: BorderRadius.circular(4),
                   border: Border.all(
-                    color:
-                        isCurrent
-                            ? glowColor
-                            : glowColor.withValues(alpha: 0.3 * alpha),
+                    color: isCurrent
+                        ? Color.lerp(glowColor, diffColor, 0.5)!
+                        : Color.lerp(glowColor.withValues(alpha: 0.3 * alpha), diffColor.withValues(alpha: 0.6 * alpha), 0.5)!,
                     width: isCurrent ? 1.5 : 1.0,
                   ),
                   boxShadow:
                       isCurrent
                           ? [
                             BoxShadow(
-                              color: glowColor.withValues(alpha: 0.3),
+                              color: Color.lerp(glowColor, diffColor, 0.4)!.withValues(alpha: 0.4),
                               blurRadius: 15,
                               spreadRadius: 1,
                             ),
@@ -586,8 +640,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     Positioned.fill(
                       child: CustomPaint(
                         painter: CyberCornerPainter(
-                          color: glowColor.withValues(alpha: 0.6 * alpha),
-                          cornerSize: 12,
+                          color: Color.lerp(glowColor, diffColor, 0.5)!.withValues(alpha: 0.6 * alpha),
+                          cornerSize: 10 + difficulty * 2,
                         ),
                       ),
                     ),
@@ -599,7 +653,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         "ID: ${node.id.substring(0, 4).toUpperCase()}",
                         style: TextStyle(
                           color: glowColor.withValues(alpha: 0.5 * alpha),
-                          fontSize: 6,
+                          fontSize: 9,
                           fontFamily: 'monospace',
                         ),
                       ),
@@ -611,7 +665,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         "L:${layerIndex} N:${nodeIndex}",
                         style: TextStyle(
                           color: glowColor.withValues(alpha: 0.5 * alpha),
-                          fontSize: 6,
+                          fontSize: 9,
                           fontFamily: 'monospace',
                         ),
                       ),
@@ -640,7 +694,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                       : Colors.white.withValues(
                                         alpha: 0.9 * alpha,
                                       ),
-                              fontSize: 9,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
                               fontFamily: 'monospace',
                               letterSpacing: 0.5,
@@ -657,7 +711,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                   size: 8,
                                   color: defeated
                                       ? Colors.white.withValues(alpha: 0.25)
-                                      : glowColor.withValues(alpha: 0.9 * alpha),
+                                      : diffColor.withValues(alpha: 0.95 * alpha),
                                 ),
                               );
                             }),
@@ -674,7 +728,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                           "LINKED",
                           style: TextStyle(
                             color: glowColor,
-                            fontSize: 7,
+                            fontSize: 9,
                             fontWeight: FontWeight.w900,
                             fontFamily: 'monospace',
                             letterSpacing: 1,
@@ -712,7 +766,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         child: const Text(
                           "ACTIVE",
                           style: TextStyle(
-                            fontSize: 8,
+                            fontSize: 10,
                             fontWeight: FontWeight.w900,
                             color: Colors.black,
                             fontFamily: 'monospace',
