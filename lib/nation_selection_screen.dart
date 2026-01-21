@@ -239,61 +239,29 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
       right: 0,
       child: Center(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
+            color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: color.withValues(alpha: 0.8), width: 2),
+            border: Border.all(color: color.withValues(alpha: 0.6), width: 1),
             boxShadow: [
               BoxShadow(
-                color: color.withValues(alpha: 0.3),
-                blurRadius: 20,
-                spreadRadius: 2,
+                color: color.withValues(alpha: 0.2),
+                blurRadius: 8,
+                spreadRadius: 1,
               ),
             ],
           ),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // 内部扫描线
-              Positioned.fill(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(2),
-                  child: CyberScanline(color: color.withValues(alpha: 0.1)),
-                ),
-              ),
-              // 装饰边角
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: CyberCornerPainter(color: color.withValues(alpha: 0.5)),
-                ),
-              ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    "SYSTEM_ALERT",
-                    style: TextStyle(
-                      color: color.withValues(alpha: 0.5),
-                      fontSize: 9,
-                      fontFamily: 'monospace',
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _statusTip!,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      fontFamily: 'monospace',
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+          child: Text(
+            _statusTip!,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: color,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'monospace',
+              letterSpacing: 1,
+            ),
           ),
         ),
       ),

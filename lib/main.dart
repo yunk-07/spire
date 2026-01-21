@@ -1042,6 +1042,52 @@ class _HoloGridPainter extends CustomPainter {
   }
 }
 
+class _ScreenGlowPainter extends CustomPainter {
+  final double alpha;
+  _ScreenGlowPainter({required this.alpha});
+  @override
+  void paint(Canvas canvas, Size size) {
+    final red = const Color(0xFFFF4D4D).withValues(alpha: alpha);
+    // Top glow
+    Rect top = Rect.fromLTWH(0, 0, size.width, size.height * 0.08);
+    Paint pt = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFFFF4D4D), Color(0x00FF4D4D)],
+      ).createShader(top);
+    canvas.drawRect(top, pt..colorFilter = ColorFilter.mode(red, BlendMode.srcIn));
+    // Bottom glow
+    Rect bottom = Rect.fromLTWH(0, size.height * 0.92, size.width, size.height * 0.08);
+    Paint pb = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.bottomCenter,
+        end: Alignment.topCenter,
+        colors: [Color(0xFFFF4D4D), Color(0x00FF4D4D)],
+      ).createShader(bottom);
+    canvas.drawRect(bottom, pb..colorFilter = ColorFilter.mode(red, BlendMode.srcIn));
+    // Left glow
+    Rect left = Rect.fromLTWH(0, 0, size.width * 0.06, size.height);
+    Paint pl = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: [Color(0xFFFF4D4D), Color(0x00FF4D4D)],
+      ).createShader(left);
+    canvas.drawRect(left, pl..colorFilter = ColorFilter.mode(red, BlendMode.srcIn));
+    // Right glow
+    Rect right = Rect.fromLTWH(size.width * 0.94, 0, size.width * 0.06, size.height);
+    Paint pr = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.centerRight,
+        end: Alignment.centerLeft,
+        colors: [Color(0xFFFF4D4D), Color(0x00FF4D4D)],
+      ).createShader(right);
+    canvas.drawRect(right, pr..colorFilter = ColorFilter.mode(red, BlendMode.srcIn));
+  }
+  @override
+  bool shouldRepaint(covariant _ScreenGlowPainter oldDelegate) => oldDelegate.alpha != alpha;
+}
 /// =====================
 /// 战斗页面
 /// =====================
@@ -1059,6 +1105,7 @@ class BattlePage extends StatefulWidget {
 
 class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   final anim = AnimationService();
+  late AnimationController _hpPulseCtrl;
   final GlobalKey _drawPileKey = GlobalKey();
   final GlobalKey _discardPileKey = GlobalKey();
   final Map<int, GlobalKey> _cardKeys = {};
@@ -1232,6 +1279,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _hpPulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat(reverse: true);
     // 关键区域：根据地图节点构建系统程序
     activePrograms = _buildProgramsFromIds(widget.programIds);
     // 设置DSL效果执行器
@@ -1253,6 +1301,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   @override
   void dispose() {
     // 释放所有动画控制器
+    _hpPulseCtrl.dispose();
     for (final controller in _cardAnimationControllers.values) {
       controller.dispose();
     }
@@ -2334,7 +2383,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                   children: [
                   // 关键区域：全域背景美化 - 动态扫描线与网格
                   Positioned.fill(
-                    child: _BattleBackground(
+                    child: RepaintBoundary(
+                      child: _BattleBackground(
                       pulses: anim.gridPulses,
                       gridColor: (() {
                         final hasBloodGlow = anim.roleEffects.any((e) => e.role == CharacterClass.xueye);
@@ -2343,34 +2393,54 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                           activePrograms.any((e) => e.hp > 0 && e.block <= 0));
                         return isJianrenBoost ? const Color(0xFFFFD700) : const Color(0xFF6CE4FF);
                       })(),
-                    ),
+                    )),
                   ),
                   if (characterData.characterClass == CharacterClass.langchao)
                     Positioned.fill(
                       child: IgnorePointer(
-                        child: CustomPaint(
-                          painter: _WaveIdlePainter(),
+                        child: RepaintBoundary(
+                          child: CustomPaint(
+                            painter: _WaveIdlePainter(),
+                          ),
                         ),
                       ),
                     ),
                   if (anim.fireOverlayActive)
                     Positioned.fill(
                       child: IgnorePointer(
-                        child: CustomPaint(
-                          painter: _FireOverlayPainter(anim.fireOverlayStart!),
+                        child: RepaintBoundary(
+                          child: CustomPaint(
+                            painter: _FireOverlayPainter(anim.fireOverlayStart!),
+                          ),
                         ),
                       ),
                     ),
                   // 关键区域：角色专属特效绘制层（作用于背景之上，UI之下）
                   Positioned.fill(
                     child: IgnorePointer(
-                      child: CustomPaint(
-                        painter: RoleEffectPainter(anim.roleEffects),
+                      child: RepaintBoundary(
+                        child: CustomPaint(
+                          painter: RoleEffectPainter(anim.roleEffects),
+                        ),
                       ),
                     ),
                   ),
-                  // 根据屏幕方向选择不同布局
-                  isLandscape ? _landscapeLayout() : _portraitLayout(),
+              // 根据屏幕方向选择不同布局
+              isLandscape ? _landscapeLayout() : _portraitLayout(),
+              // 低生命值屏幕红光
+              if ((player.hp / player.maxHp.clamp(1, 999999)) < 0.3)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: AnimatedBuilder(
+                      animation: _hpPulseCtrl,
+                      builder: (context, _) {
+                        final v = _hpPulseCtrl.value;
+                        final a = (0.35 * (0.25 + 0.75 * sin(v * pi))).clamp(0.0, 0.6);
+                        return CustomPaint(painter: _ScreenGlowPainter(alpha: a));
+                      },
+                    ),
+                  ),
+                ),
                   // 弃牌阶段：显示卡牌选择覆盖层
                   if (gamePhase == GamePhase.discardPhase && isDiscardPhase)
                     _bottomDiscardOverlay(),
@@ -2524,61 +2594,29 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       right: 0,
       child: Center(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
+            color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: color.withValues(alpha: 0.8), width: 2),
+            border: Border.all(color: color.withValues(alpha: 0.6), width: 1),
             boxShadow: [
               BoxShadow(
-                color: color.withValues(alpha: 0.3),
-                blurRadius: 20,
-                spreadRadius: 2,
+                color: color.withValues(alpha: 0.2),
+                blurRadius: 8,
+                spreadRadius: 1,
               ),
             ],
           ),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // 内部扫描线
-              Positioned.fill(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(2),
-                  child: CyberScanline(color: color.withValues(alpha: 0.1)),
-                ),
-              ),
-              // 装饰边角
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: CyberCornerPainter(color: color.withValues(alpha: 0.5)),
-                ),
-              ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    "SYSTEM_ALERT",
-                    style: TextStyle(
-                      color: color.withValues(alpha: 0.5),
-                      fontSize: 9,
-                      fontFamily: 'monospace',
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _statusTip!,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      fontFamily: 'monospace',
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+          child: Text(
+            _statusTip!,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: color,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'monospace',
+              letterSpacing: 1,
+            ),
           ),
         ),
       ),
@@ -2622,11 +2660,10 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                     painter: _HpBarBackgroundPainter(color: color.withValues(alpha: 0.08)),
                   ),
                 ),
-                // 进度条主体
                 TweenAnimationBuilder<double>(
                   duration: const Duration(milliseconds: 600),
                   curve: Curves.easeOutCubic,
-                  tween: Tween(begin: percent, end: percent),
+                  tween: Tween(begin: 0, end: percent),
                   builder: (context, value, child) {
                     if (value <= 0) return const SizedBox.shrink();
                     return FractionallySizedBox(
@@ -2677,17 +2714,17 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         ),
         // 低生命值警告呼吸效果
         if (isLowHp)
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: 1.0),
-            duration: const Duration(milliseconds: 1200),
-            curve: Curves.easeInOut,
-            builder: (context, val, child) {
+          AnimatedBuilder(
+            animation: _hpPulseCtrl,
+            builder: (context, _) {
+              final val = _hpPulseCtrl.value;
+              final a = (0.4 * (0.3 + 0.7 * sin(val * pi))).clamp(0.0, 1.0);
               return Container(
                 width: width,
                 height: height,
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: Colors.red.withValues(alpha: (0.4 * (0.3 + 0.7 * sin(val * pi))).clamp(0.0, 1.0)),
+                    color: Colors.red.withValues(alpha: a),
                     width: 1.5,
                   ),
                 ),
