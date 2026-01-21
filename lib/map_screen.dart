@@ -18,6 +18,7 @@ import 'jiaoyidian_page.dart';
 import 'shujugui_page.dart';
 import 'jiaohuan_zhan_page.dart';
 import 'pages/battle_page.dart';
+import 'program_data.dart';
 import 'campfire_screen.dart';
 import 'rest_stop_screen.dart';
 import 'maintenance_bay_screen.dart';
@@ -87,12 +88,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       nodeIndex = _layers[0].length ~/ 2;
     }
 
-    // 计算目标坐标
-    // 逻辑与 _buildNodesLayer 中的 spaceEvenly 保持一致
+    // 计算目标坐标（自下而上布局）
     const double mapWidth = 1000.0;
-    const double mapHeight = 2400.0; // 增加高度以适应更多层级
-    
-    final double y = mapHeight * (layerIndex + 1) / (_layers.length + 1);
+    const double mapHeight = 2400.0;
+    final double layerHeight = mapHeight / (_layers.length + 1);
+    final double y = mapHeight - layerHeight * (layerIndex + 1);
     final double x = mapWidth * (nodeIndex + 1) / (_layers[layerIndex].length + 1);
 
     // 获取视口大小以进行居中计算
@@ -273,7 +273,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 maxScale: 2.0,
                 child: SizedBox(
                   width: 1000,
-                  height: 2400, // 增加高度
+                  height: 2400,
                   child: Stack(
                     children: [
                       // 连接线层
@@ -393,13 +393,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          for (int i = 0; i < _layers.length; i++)
+          for (int i = _layers.length - 1; i >= 0; i--)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children:
-                  _layers[i]
-                      .map((node) => _nodeWidget(context, node, i))
-                      .toList(),
+              children: _layers[i]
+                  .map((node) => _nodeWidget(context, node, i))
+                  .toList(),
             ),
         ],
       ),
@@ -500,70 +499,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         final bool canJump = widget.isJumpMode && !defeated && !isCurrent;
         
         if (isAllowed || canJump) {
-           // 如果是跳跃模式，标记当前节点（发起跳跃的节点）为已完成
-           if (widget.isJumpMode && GameProgress.currentLevelId != null) {
-             GameProgress.markDefeated(GameProgress.currentLevelId!);
-           }
-           
-           // 处理进入新节点
-           GameProgress.setCurrentLevel(node);
-          
-          Widget targetPage;
-          switch (node.type) {
-            case LevelType.cache:
-              targetPage = RestPage(levelId: node.id);
-              break;
-            case LevelType.rest:
-              if (node.title.contains('篝火处')) {
-                targetPage = CampfireScreen(levelId: node.id);
-              } else if (node.title.contains('歇脚点')) {
-                targetPage = RestStopScreen(levelId: node.id);
-              } else if (node.title.contains('修复站')) {
-                targetPage = RestScreen(levelId: node.id);
-              } else if (node.title.contains('维保处')) {
-                targetPage = MaintenanceBayScreen(levelId: node.id);
-              } else if (node.title.contains('冷却间')) {
-                targetPage = CoolingChamberScreen(levelId: node.id);
-              } else {
-                targetPage = RestScreen(levelId: node.id);
-              }
-              break;
-            case LevelType.exchange:
-              if (node.title.contains('货栈')) {
-                targetPage = HuozhanPage(levelId: node.id);
-              } else if (node.title.contains('小摊位')) {
-                targetPage = XiaotanweiPage(levelId: node.id);
-              } else if (node.title.contains('商铺')) {
-                targetPage = ShangpuPage(levelId: node.id);
-              } else if (node.title.contains('交易点')) {
-                targetPage = JiaoyidianPage(levelId: node.id);
-              } else if (node.title.contains('数据柜')) {
-                targetPage = ShujuguiPage(levelId: node.id);
-              } else if (node.title.contains('交换站')) {
-                targetPage = JiaohuanZhanPage(levelId: node.id);
-              } else {
-                targetPage = ExchangePage(levelId: node.id);
-              }
-              break;
-            case LevelType.mystery:
-              // 随机进入战斗、休息或商店
-              final r = Random().nextDouble();
-              if (r < 0.4) {
-                targetPage = BattlePage(programIds: node.programIds, levelId: node.id);
-              } else if (r < 0.7) {
-                targetPage = RestScreen(levelId: node.id);
-              } else {
-                targetPage = ExchangePage(levelId: node.id);
-              }
-              break;
-            default:
-              targetPage = BattlePage(programIds: node.programIds, levelId: node.id);
-          }
-
-          Navigator.pushReplacement(
-            context,
-            createHoloRoute(targetPage),
-          );
+          _showLevelPreview(context, node, layerIndex);
         } else if (isCurrent) {
           CyberToast.show(context, '当前正处于此渗透节点');
         } else if (defeated) {
@@ -806,6 +742,175 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       ),
     );
   }
+
+  void _showLevelPreview(BuildContext context, LevelInfo node, int layerIndex) {
+    final color = const Color(0xFF6CE4FF);
+    final nextLayer = layerIndex + 1 < _layers.length ? _layers[layerIndex + 1] : const <LevelInfo>[];
+    final nextTitles = nextLayer.where((lvl) => node.nextLevelIndices.contains(nextLayer.indexOf(lvl))).map((e) => e.title).toList();
+    final monsterNames = node.programIds.map((id) => systemDatabase[id]?.name ?? id).toList();
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "LEVEL_PREVIEW",
+      barrierColor: Colors.black.withValues(alpha: 0.8),
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (ctx, a1, a2) {
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Stack(
+              children: [
+                Container(
+                  width: 380,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: color.withValues(alpha: 0.5)),
+                    boxShadow: [BoxShadow(color: color.withValues(alpha: 0.2), blurRadius: 16)],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.map_outlined, color: color, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(node.title, softWrap: true, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'monospace', letterSpacing: 1))),
+                          _difficultyStars(node.difficulty),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text("// NODE_INFO", style: TextStyle(color: color.withValues(alpha: 0.5), fontSize: 9, fontFamily: 'monospace', letterSpacing: 2)),
+                      const SizedBox(height: 8),
+                      if (monsterNames.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.05),
+                            border: Border(left: BorderSide(color: color.withValues(alpha: 0.4), width: 2)),
+                          ),
+                          child: Text("可能出现的怪兽：\n${monsterNames.join('、')}", softWrap: true, style: const TextStyle(color: Color(0xFFE1E9FF), fontSize: 12)),
+                        ),
+                      const SizedBox(height: 8),
+                      if (nextTitles.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6CE4FF).withValues(alpha: 0.05),
+                            border: Border(left: BorderSide(color: const Color(0xFF6CE4FF).withValues(alpha: 0.4), width: 2)),
+                          ),
+                          child: Text("可能出现的下一节点：\n${nextTitles.join('、')}", softWrap: true, style: const TextStyle(color: Color(0xFFE1E9FF), fontSize: 12)),
+                        ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: CyberButton(
+                              label: '进入',
+                              height: 42,
+                              fontSize: 12,
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                _enterLevel(node);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: const CyberScanline(color: Color(0x116CE4FF)),
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      painter: CyberCornerPainter(color: color.withValues(alpha: 0.4), cornerSize: 10),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _difficultyStars(int difficulty) {
+    return Row(
+      children: List.generate(5, (i) {
+        final active = i < difficulty;
+        return Icon(active ? Icons.star : Icons.star_border, size: 14, color: active ? const Color(0xFFFFD700) : const Color(0xFF3A3F4C));
+      }),
+    );
+  }
+
+  void _enterLevel(LevelInfo node) {
+    if (widget.isJumpMode && GameProgress.currentLevelId != null) {
+      GameProgress.markDefeated(GameProgress.currentLevelId!);
+    }
+    GameProgress.setCurrentLevel(node);
+    Widget targetPage;
+    switch (node.type) {
+      case LevelType.cache:
+        targetPage = RestPage(levelId: node.id);
+        break;
+      case LevelType.rest:
+        if (node.title.contains('篝火处')) {
+          targetPage = CampfireScreen(levelId: node.id);
+        } else if (node.title.contains('歇脚点')) {
+          targetPage = RestStopScreen(levelId: node.id);
+        } else if (node.title.contains('修复站')) {
+          targetPage = RestScreen(levelId: node.id);
+        } else if (node.title.contains('维保处')) {
+          targetPage = MaintenanceBayScreen(levelId: node.id);
+        } else if (node.title.contains('冷却间')) {
+          targetPage = CoolingChamberScreen(levelId: node.id);
+        } else {
+          targetPage = RestScreen(levelId: node.id);
+        }
+        break;
+      case LevelType.exchange:
+        if (node.title.contains('货栈')) {
+          targetPage = HuozhanPage(levelId: node.id);
+        } else if (node.title.contains('小摊位')) {
+          targetPage = XiaotanweiPage(levelId: node.id);
+        } else if (node.title.contains('商铺')) {
+          targetPage = ShangpuPage(levelId: node.id);
+        } else if (node.title.contains('交易点')) {
+          targetPage = JiaoyidianPage(levelId: node.id);
+        } else if (node.title.contains('数据柜')) {
+          targetPage = ShujuguiPage(levelId: node.id);
+        } else if (node.title.contains('交换站')) {
+          targetPage = JiaohuanZhanPage(levelId: node.id);
+        } else {
+          targetPage = ExchangePage(levelId: node.id);
+        }
+        break;
+      case LevelType.mystery:
+        final r = Random().nextDouble();
+        if (r < 0.4) {
+          targetPage = BattlePage(programIds: node.programIds, levelId: node.id);
+        } else if (r < 0.7) {
+          targetPage = RestScreen(levelId: node.id);
+        } else {
+          targetPage = ExchangePage(levelId: node.id);
+        }
+        break;
+      default:
+        targetPage = BattlePage(programIds: node.programIds, levelId: node.id);
+    }
+    Navigator.pushReplacement(context, createHoloRoute(targetPage));
+  }
 }
 
 Future<bool> _confirmExit(BuildContext context) async {
@@ -964,11 +1069,11 @@ class _MapPathPainter extends CustomPainter {
             opacity = 0.3;
           }
 
-          // 计算精确位置 (匹配 Row.spaceEvenly)
+          // 计算精确位置：从下往上的纵向层
+          final currentY = size.height - layerHeight * (i + 1);
+          final nextY = size.height - layerHeight * (i + 2);
           final currentX = size.width * (j + 1) / (currentLayer.length + 1);
-          final currentY = layerHeight * (i + 1);
           final nextX = size.width * (nextIdx + 1) / (nextLayer.length + 1);
-          final nextY = layerHeight * (i + 2);
 
           final pathPaint = Paint()
             ..color = pathColor.withValues(alpha: opacity)

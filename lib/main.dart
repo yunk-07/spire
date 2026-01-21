@@ -1150,7 +1150,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     "虚弱": "每层使攻击伤害递减 25%（逐层依次计算）。",
     "脆弱": "脆弱状态下，受到攻击时受到的伤害增加 10%/层。",
     "恶意代码": "每层恶意代码使受到攻击时额外受到的伤害增加 2 点。",
-    "火焰": "怪兽回合结束后造成等于层数的伤害；护盾清零；每回合层数 -1。",
+    "火焰": "回合结束后造成等于层数的伤害；护盾清零；每回合层数 -1。",
     "坚固": "拥有该状态时回合结束护盾不清零，每回合 -1。",
   };
 
@@ -1288,6 +1288,14 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     characterData = characterDatabase[GameState.selectedCharacterId]!;
     // 焰心：跨关卡持久热量进度同步到战斗页
     heatProgress = GameState.heatProgress.clamp(0, 48);
+    _applyStarFiveModifiers();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_starFiveToast != null) {
+        anim.refresh();
+        CyberToast.show(context, _starFiveToast!);
+        _starFiveToast = null;
+      }
+    });
     // 初始化抽牌堆
     drawPile.clear();
     for (final cardId in GameState.drawPile) {
@@ -1307,6 +1315,41 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     }
     _cardAnimationControllers.clear();
     super.dispose();
+  }
+
+  String? _starFiveToast;
+  int _currentDifficulty() {
+    final id = widget.levelId;
+    if (id == null) return 1;
+    for (final layer in GameProgress.levelLayers) {
+      for (final level in layer) {
+        if (level.id == id) {
+          return level.difficulty.clamp(1, 5);
+        }
+      }
+    }
+    return 1;
+  }
+
+  void _applyStarFiveModifiers() {
+    final diff = _currentDifficulty();
+    if (diff != 5) return;
+    final mods = <Map<String, dynamic>>[
+      {"do": () { player.weak += 2; }, "desc": "玩家：虚弱×2"},
+      {"do": () { for (final p in activePrograms) { p.strength += 3; } }, "desc": "敌方：算力+3"},
+      {"do": () { player.curse += 1; }, "desc": "玩家：恶意代码×1"},
+      {"do": () { player.vulnerable += 1; player.fire += 1; anim.triggerFireOverlay(); }, "desc": "敌方：算力+3"},
+      {"do": () { for (final p in activePrograms) { p.block += 20; } }, "desc": "敌方：护盾+20"},
+    ];
+    final r = Random();
+    final applied = <String>[];
+    for (int i = 0; i < 2 && mods.isNotEmpty; i++) {
+      final idx = r.nextInt(mods.length);
+      final m = mods.removeAt(idx);
+      (m["do"] as void Function())();
+      applied.add(m["desc"] as String);
+    }
+    _starFiveToast = "☆5 扇区开局修正\n已应用：${applied.join(" · ")}";
   }
 
   // 根据怪物ID构建怪物实体
@@ -2610,6 +2653,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           child: Text(
             _statusTip!,
             textAlign: TextAlign.center,
+            softWrap: true,
             style: TextStyle(
               color: color,
               fontSize: 13,
@@ -2816,6 +2860,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 元数据标签
             Row(
@@ -3048,6 +3093,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+            _statusEffectsBar(player),
           ],
         ),
       ),
@@ -3188,7 +3235,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                     },
                   ),
                   const SizedBox(height: 4),
-                  _statusEffectsBar(e),
+                  const SizedBox.shrink(),
                 ],
               ),
             ),
@@ -6430,16 +6477,19 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     }
 
     if (effects.isEmpty) return const SizedBox.shrink();
-    return SizedBox(
-      height: 24,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: effects
-              .map((w) => Padding(padding: const EdgeInsets.only(right: 6), child: w))
-              .toList(),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: SizedBox(
+        height: 24,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: effects
+                .map((w) => Padding(padding: const EdgeInsets.only(right: 6), child: w))
+                .toList(),
+          ),
         ),
       ),
     );
@@ -6577,16 +6627,18 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
               child: Stack(
                 children: [
                   // 1. 背景层：模糊与网格
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(15),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0A0F16).withValues(alpha: 0.8),
-                          border: Border.all(
-                            color: color.withValues(alpha: 0.3),
-                            width: 1,
+                  RepaintBoundary(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(15),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0A0F16).withValues(alpha: 0.8),
+                            border: Border.all(
+                              color: color.withValues(alpha: 0.3),
+                              width: 1,
+                            ),
                           ),
                         ),
                       ),
@@ -6596,15 +6648,17 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                   // 2. 动态扫描线
                   Positioned.fill(
                     child: IgnorePointer(
-                      child: CyberScanline(color: color),
+                      child: RepaintBoundary(child: CyberScanline(color: color)),
                     ),
                   ),
                   
                   // 3. 装饰性边角
                   Positioned.fill(
                     child: IgnorePointer(
-                      child: CustomPaint(
-                        painter: CyberCornerPainter(color: color),
+                      child: RepaintBoundary(
+                        child: CustomPaint(
+                          painter: CyberCornerPainter(color: color),
+                        ),
                       ),
                     ),
                   ),
@@ -6719,11 +6773,14 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                       crossAxisSpacing: 20,
                                       mainAxisSpacing: 20,
                                     ),
+                                    cacheExtent: 600,
+                                    addAutomaticKeepAlives: true,
+                                    addRepaintBoundaries: true,
                                     itemCount: cards.length,
                                     itemBuilder: (context, index) {
                                       final card = cards[index].data;
                                       if (card == null) return const SizedBox.shrink();
-                                      return _cardWidget(card);
+                                      return RepaintBoundary(child: _cardWidget(card));
                                     },
                                   ),
                                 ),

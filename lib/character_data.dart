@@ -47,7 +47,7 @@ const Map<String, CharacterData> characterDatabase = {
     id: "xueye",
     name: "血液",
     characterClass: CharacterClass.xueye,
-    maxHp: 85,
+    maxHp: 100,
     startingDeck: [
       "xueye_strike",
       "xueye_strike",
@@ -78,7 +78,7 @@ const Map<String, CharacterData> characterDatabase = {
     id: "lin",
     name: "林",
     characterClass: CharacterClass.lin,
-    maxHp: 70,
+    maxHp: 120,
     startingDeck: [
       "lin_strike",
       "lin_strike",
@@ -108,7 +108,7 @@ const Map<String, CharacterData> characterDatabase = {
     id: "langchao",
     name: "浪潮",
     characterClass: CharacterClass.langchao,
-    maxHp: 75,
+    maxHp: 95,
     startingDeck: [
       "langchao_strike",
       "langchao_strike",
@@ -137,7 +137,7 @@ const Map<String, CharacterData> characterDatabase = {
     id: "jianren",
     name: "剑刃",
     characterClass: CharacterClass.jianren,
-    maxHp: 72,
+    maxHp: 166,
     startingDeck: [
       "jianren_strike",
       "jianren_strike",
@@ -169,7 +169,7 @@ const Map<String, CharacterData> characterDatabase = {
     id: "yanxin",
     name: "焰心",
     characterClass: CharacterClass.yanxin,
-    maxHp: 70,
+    maxHp: 82,
     startingDeck: [
       "yanxin_strike",
       "yanxin_strike",
@@ -200,7 +200,7 @@ const Map<String, CharacterData> characterDatabase = {
     id: "yingshi",
     name: "影逐",
     characterClass: CharacterClass.yingshi,
-    maxHp: 68,
+    maxHp: 80,
     startingDeck: [
       "yingshi_strike",
       "yingshi_strike",
@@ -232,7 +232,7 @@ const Map<String, CharacterData> characterDatabase = {
     id: "jihe",
     name: "几何",
     characterClass: CharacterClass.jihe,
-    maxHp: 80,
+    maxHp: 90,
     startingDeck: [
       "jihe_strike",
       "jihe_strike",
@@ -262,7 +262,7 @@ const Map<String, CharacterData> characterDatabase = {
     id: "xuxing",
     name: "虚行",
     characterClass: CharacterClass.xuxing,
-    maxHp: 74,
+    maxHp: 94,
     startingDeck: [
       "xuxing_strike",
       "xuxing_strike",
@@ -291,7 +291,7 @@ const Map<String, CharacterData> characterDatabase = {
     id: "fa",
     name: "法",
     characterClass: CharacterClass.fa,
-    maxHp: 72,
+    maxHp: 95,
     startingDeck: [
       "data_broadcast",
       "matrix_sweep",
