@@ -44,7 +44,9 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
           Navigator.popUntil(context, (route) => route.isFirst);
         }
       },
-      child: Scaffold(
+      child: TickerMode(
+        enabled: ModalRoute.of(context)?.isCurrent ?? true,
+        child: Scaffold(
         backgroundColor: const Color(0xFF05060A),
         body: Stack(
           children: [
@@ -66,6 +68,7 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
             if (_isProcessing) _processingOverlay(color),
           ],
         ),
+      ),
       ),
     );
   }

@@ -4,7 +4,8 @@
 import 'package:flutter/material.dart';
 import 'game_state.dart';
 import 'card_data.dart';
-import 'main.dart';
+import 'main.dart' hide createHoloRoute;
+import 'core/route.dart' show createHoloRoute;
 import 'start_screen.dart';
 import 'map_screen.dart';
 
@@ -81,8 +82,10 @@ class _ExchangePageState extends State<ExchangePage> {
           children: [
             // 背景装饰
             Positioned.fill(
-              child: CustomPaint(
-                painter: _GridPainter(),
+              child: RepaintBoundary(
+                child: CustomPaint(
+                  painter: _GridPainter(),
+                ),
               ),
             ),
             
@@ -93,6 +96,8 @@ class _ExchangePageState extends State<ExchangePage> {
                   _buildHeader(),
                   const SizedBox(height: 12),
                   _metaRow(),
+                  const SizedBox(height: 8),
+                  _hpRow(),
                   const SizedBox(height: 48),
                   Expanded(
                     child: Center(
@@ -179,6 +184,33 @@ class _ExchangePageState extends State<ExchangePage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _hpRow() {
+    final color = const Color(0xFF6CE4FF);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Container(
+        width: 200,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0A0F16),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: color.withValues(alpha: 0.4)),
+          boxShadow: [BoxShadow(color: color.withValues(alpha: 0.1), blurRadius: 8)],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(width: 6),
+            Text(
+              "ITG: ${GameState.playerHp}/${GameState.playerMaxHp}",
+              style: TextStyle(color: color, fontSize: 12, fontFamily: 'monospace', letterSpacing: 2),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -352,7 +384,8 @@ class _ExchangePageState extends State<ExchangePage> {
 
   Widget _logicPanel(Widget child) {
     final color = const Color(0xFF6CE4FF);
-    return Container(
+    return RepaintBoundary(
+      child: Container(
       width: 620,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       decoration: BoxDecoration(
@@ -413,6 +446,7 @@ class _ExchangePageState extends State<ExchangePage> {
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -615,7 +649,8 @@ class _ExchangePageState extends State<ExchangePage> {
     final suiteColor = getSuiteColor(c.suite);
     final rarityColor = getRarityColor(c.level);
     final cardBgColor = getCardBgColor(c.suite).withValues(alpha: 0.9);
-    final content = Container(
+    final content = RepaintBoundary(
+      child: Container(
       width: 160,
       height: 240,
       decoration: BoxDecoration(
@@ -697,6 +732,7 @@ class _ExchangePageState extends State<ExchangePage> {
             ),
           ],
         ),
+      ),
       ),
     );
     return onTap != null ? GestureDetector(onTap: onTap, child: content) : content;
@@ -970,9 +1006,21 @@ Color getCardBgColor(CardSuite suite) {
   }
 }
 
+final Map<String, List<InlineSpan>> _descCache = {};
+
 Widget buildCardDescription(CardData c, Color highlightColor) {
   final text = c.description ?? "";
   if (text.isEmpty) return const SizedBox.shrink();
+  final key = '${c.id}|$text';
+  final cached = _descCache[key];
+  if (cached != null) {
+    return Text.rich(
+      TextSpan(children: cached, style: const TextStyle(fontFamily: 'monospace', height: 1.4)),
+      maxLines: 5,
+      overflow: TextOverflow.ellipsis,
+      softWrap: true,
+    );
+  }
   const buffKeywords = {'防火墙加固', '算力', '系统修复', '能量', '能量点', '数据包', '带宽'};
   const debuffKeywords = {'虚弱', '脆弱', '漏洞暴露', '恶意代码'};
   const damageKeywords = {'冲击', '自损', '受损'};
@@ -1015,6 +1063,7 @@ Widget buildCardDescription(CardData c, Color highlightColor) {
   if (lastMatchEnd < text.length) {
     spans.add(TextSpan(text: text.substring(lastMatchEnd), style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 9)));
   }
+  _descCache[key] = spans;
   return Text.rich(
     TextSpan(children: spans, style: const TextStyle(fontFamily: 'monospace', height: 1.4)),
     maxLines: 5,

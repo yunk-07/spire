@@ -91,30 +91,44 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
           Navigator.popUntil(context, (route) => route.isFirst);
         }
       },
-      child: Scaffold(
+      child: TickerMode(
+        enabled: ModalRoute.of(context)?.isCurrent ?? true,
+        child: Scaffold(
         backgroundColor: const Color(0xFF05060A),
         body: Stack(
           children: [
             Positioned.fill(child: CustomPaint(painter: _GridPainter())),
             SafeArea(
-              child: Column(
-                children: [
-                  const SizedBox(height: 40),
-                  _styledHeader(),
-                  const SizedBox(height: 12),
-                  _metaRow(themeColor),
-                  const SizedBox(height: 24),
-                  _logicPanel(themeColor, _buildVisualCenter(themeColor)),
-                  const SizedBox(height: 24),
-                  _logicPanel(themeColor, _buildOptions(themeColor)),
-                  const SizedBox(height: 24),
-                  _logicPanel(themeColor, _buildStatusFooter(themeColor)),
-                ],
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.only(bottom: 40),
+                    physics: const ClampingScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 40),
+                          _styledHeader(),
+                          const SizedBox(height: 12),
+                          _metaRow(themeColor),
+                          const SizedBox(height: 24),
+                          _logicPanel(themeColor, _buildVisualCenter(themeColor)),
+                          const SizedBox(height: 24),
+                          _logicPanel(themeColor, _buildOptions(themeColor)),
+                          const SizedBox(height: 24),
+                          _logicPanel(themeColor, _buildStatusFooter(themeColor)),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
             if (_isProcessing) _buildProcessingOverlay(themeColor),
           ],
         ),
+      ),
       ),
     );
   }
@@ -414,7 +428,7 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
 
   Widget _buildOptions(Color color) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 30),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         children: [
           _buildCyberOption(

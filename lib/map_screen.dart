@@ -17,6 +17,7 @@ import 'shangpu_page.dart';
 import 'jiaoyidian_page.dart';
 import 'shujugui_page.dart';
 import 'jiaohuan_zhan_page.dart';
+import 'pages/battle_page.dart';
 import 'campfire_screen.dart';
 import 'rest_stop_screen.dart';
 import 'maintenance_bay_screen.dart';

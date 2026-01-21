@@ -9,7 +9,7 @@ import 'card_data.dart';
 import 'game_state.dart';
 import 'level_data.dart';
 // import 'rest_page.dart';
-import 'main.dart' show createHoloRoute;
+import 'core/route.dart' show createHoloRoute;
 import 'exchange_page.dart';
 
 class HuozhanPage extends StatefulWidget {
@@ -59,7 +59,7 @@ class _HuozhanPageState extends State<HuozhanPage> {
         body: Stack(
           children: [
             // 背景采用与逻辑交易所一致的网格绘制
-            Positioned.fill(child: CustomPaint(painter: _DepotGridPainter())),
+            Positioned.fill(child: RepaintBoundary(child: CustomPaint(painter: _DepotGridPainter()))),
             SafeArea(
               child: Column(
                 children: [
@@ -187,7 +187,8 @@ class _HuozhanPageState extends State<HuozhanPage> {
 
   // 逻辑面板：沿用交易所页面的框体与装饰
   Widget _logicPanel(Color color, Widget child) {
-    return Container(
+    return RepaintBoundary(
+      child: Container(
       width: 720,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       decoration: BoxDecoration(
@@ -248,16 +249,19 @@ class _HuozhanPageState extends State<HuozhanPage> {
           ],
         ),
       ),
+    ),
     );
   }
 
   // 货栈内容：在逻辑面板中展示横向卡牌列表
   Widget _buildDepotContent() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Row(
-        children: _cards.map((c) => _cardTile(c)).toList(),
+    return SizedBox(
+      height: 260,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        itemCount: _cards.length,
+        itemBuilder: (_, i) => _cardTile(_cards[i]),
       ),
     );
   }

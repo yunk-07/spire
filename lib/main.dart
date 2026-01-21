@@ -963,9 +963,11 @@ class _HoloGridOverlay extends StatelessWidget {
             ),
             if (t > 0 && t < 1)
               IgnorePointer(
-                child: CustomPaint(
-                  painter: _HoloGridPainter(progress: t),
-                  child: const SizedBox.expand(),
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    painter: _HoloGridPainter(progress: t),
+                    child: const SizedBox.expand(),
+                  ),
                 ),
               ),
           ],

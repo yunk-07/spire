@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'character_data.dart';
+import 'card_data.dart';
 import 'level_data.dart';
 import 'main.dart';
 import 'nation_selection_screen.dart';
+import 'core/tower_painter.dart';
 import 'game_state.dart';
 
 /// 赛博朋克风格扫描线
@@ -53,6 +55,142 @@ class _CyberScanlineState extends State<CyberScanline>
   }
 }
 
+List<double> _buildRadarData(CharacterData c) {
+  double gain = 0; // strength/temp_strength/sturdy/max_hp_up
+  double drawEaseSum = 0; // ease-of-trigger weighted count of draw cards
+  double tempo = 0; // energy/heal
+  double survival = 0; // block/heal
+  double deckLvAvg = 0;
+  int countLv = 0;
+  for (final id in c.startingDeck) {
+    final card = cardDatabase[id];
+    if (card == null) continue;
+    final eff = (card.effect ?? '').toLowerCase();
+    for (final seg in eff.split(';')) {
+      final t = seg.trim().split(RegExp(r'\s+'));
+      if (t.isEmpty) continue;
+      final key = t[0];
+      final val = t.length > 1 ? double.tryParse(t[1]) ?? 0 : 0;
+      if (key == 'strength' || key == 'temp_strength' || key == 'sturdy' || key == 'max_hp_up') {
+        double w = 1;
+        if (key == 'temp_strength') w = 0.25;
+        if (key == 'sturdy') w = 0.3;
+        gain += val * w;
+      } else if (key == 'draw') {
+        double ease = 1.0;
+        if (card.cost == 0) ease = 1.2;
+        else if (card.cost <= 1) ease = 1.0;
+        else ease = 0.5;
+        drawEaseSum += ease;
+      } else if (key == 'energy' || key == 'heal') {
+        tempo += val;
+      } else if (key == 'block' || key == 'heal') {
+        double w = key == 'block' ? 0.1 : 1.0;
+        survival += val * w;
+      }
+    }
+    deckLvAvg += card.level.toDouble();
+    countLv++;
+  }
+  final deck = countLv > 0 ? (deckLvAvg / countLv) / 5.0 : 0.0;
+  final draw = countLv > 0 ? (drawEaseSum / countLv) : 0.0;
+  const baseline = 0.2;
+  double scale(double v) => (v * 2).clamp(baseline, 1.0);
+  final gainN = scale((gain / 12.0).clamp(0.0, 1.0));
+  final drawN = scale((draw / 12.0).clamp(0.0, 1.0));
+  final tempoN = scale((tempo / 12.0).clamp(0.0, 1.0));
+  final survivalN = scale((survival / 12.0).clamp(0.0, 1.0));
+  final deckN = scale(deck.clamp(0.0, 1.0));
+  return [gainN, drawN, tempoN, survivalN, deckN];
+}
+
+class _RadarChart extends StatefulWidget {
+  final Color color;
+  final List<double> data;
+  final List<String> labels;
+  const _RadarChart({required this.color, required this.data, required this.labels});
+  @override
+  State<_RadarChart> createState() => _RadarChartState();
+}
+
+class _RadarChartState extends State<_RadarChart> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _progress;
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 260));
+    _progress = CurvedAnimation(parent: _controller, curve: Curves.easeOutBack);
+    _controller.forward();
+  }
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: SizedBox.expand(
+        child: AnimatedBuilder(
+          animation: _progress,
+          builder: (_, __) {
+            final animatedData = widget.data.map((v) => v * _progress.value).toList();
+            return CustomPaint(painter: _RadarPainter(color: widget.color, data: animatedData, labels: widget.labels, progress: _progress.value));
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _RadarPainter extends CustomPainter {
+  final Color color;
+  final List<double> data;
+  final List<String> labels;
+  final double progress;
+  _RadarPainter({required this.color, required this.data, required this.labels, this.progress = 1.0});
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = math.min(size.width, size.height) * 0.38;
+    final axisCount = data.length;
+    final axisPaint = Paint()..color = color.withValues(alpha: 0.25 * progress)..strokeWidth = 1;
+    final ringPaint = Paint()..color = color.withValues(alpha: 0.06 * progress);
+    final ringStroke = Paint()..color = color.withValues(alpha: 0.2 * progress)..style = PaintingStyle.stroke..strokeWidth = 1;
+    for (int r = 1; r <= 3; r++) {
+      final rr = radius * (r / 3);
+      canvas.drawCircle(center, rr, ringPaint);
+      canvas.drawCircle(center, rr, ringStroke);
+    }
+    for (int i = 0; i < axisCount; i++) {
+      final a = -math.pi / 2 + i * (2 * math.pi / axisCount);
+      final end = Offset(center.dx + radius * math.cos(a), center.dy + radius * math.sin(a));
+      canvas.drawLine(center, end, axisPaint);
+    }
+    final path = Path();
+    for (int i = 0; i < axisCount; i++) {
+      final a = -math.pi / 2 + i * (2 * math.pi / axisCount);
+      final rr = radius * data[i].clamp(0.0, 1.0);
+      final p = Offset(center.dx + rr * math.cos(a), center.dy + rr * math.sin(a));
+      if (i == 0) path.moveTo(p.dx, p.dy); else path.lineTo(p.dx, p.dy);
+    }
+    path.close();
+    final fill = Paint()..color = color.withValues(alpha: 0.25 * progress);
+    final stroke = Paint()..color = color.withValues(alpha: 0.6 * progress)..style = PaintingStyle.stroke..strokeWidth = 2;
+    canvas.drawPath(path, fill);
+    canvas.drawPath(path, stroke);
+    final tp = Paint()..color = color.withValues(alpha: 0.9 * progress);
+    for (int i = 0; i < axisCount; i++) {
+      final a = -math.pi / 2 + i * (2 * math.pi / axisCount);
+      final end = Offset(center.dx + (radius + 18) * math.cos(a), center.dy + (radius + 18) * math.sin(a));
+      final textPainter = TextPainter(text: TextSpan(text: labels[i], style: TextStyle(color: tp.color, fontSize: 10, fontFamily: 'monospace')), textDirection: TextDirection.ltr)..layout();
+      textPainter.paint(canvas, end.translate(-textPainter.width / 2, -textPainter.height / 2));
+    }
+  }
+  @override
+  bool shouldRepaint(covariant _RadarPainter oldDelegate) => oldDelegate.data != data || oldDelegate.color != color;
+}
 class _ScanlinePainter extends CustomPainter {
   final double progress;
   final Color color;
@@ -64,6 +202,8 @@ class _ScanlinePainter extends CustomPainter {
     final random = math.Random();
     final glitchOffset = isGlitch ? (random.nextDouble() - 0.5) * 5 : 0.0;
     
+    final bandTop = size.height * progress - 50 + glitchOffset;
+    final bandRect = Rect.fromLTWH(0, bandTop, size.width, 100);
     final paint = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
@@ -75,9 +215,9 @@ class _ScanlinePainter extends CustomPainter {
           Colors.transparent,
         ],
         stops: const [0.0, 0.45, 0.55, 1.0],
-      ).createShader(Rect.fromLTWH(0, size.height * progress - 50 + glitchOffset, size.width, 100));
+      ).createShader(bandRect);
 
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
+    canvas.drawRect(bandRect, paint);
 
     // 绘制极细的横线
     final linePaint = Paint()
@@ -569,6 +709,14 @@ class StartScreen extends StatelessWidget {
           const Positioned.fill(
             child: CyberBackground(),
           ),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Opacity(
+                opacity: 0.35,
+                child: RepaintBoundary(child: const HoloTowerWidget()),
+              ),
+            ),
+          ),
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -640,6 +788,7 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
   String? selectedCharacterId;
   String? _animatingCharacterId;
   final Map<String, AnimationController> _animationControllers = {};
+  bool _radarExpanded = false;
 
   @override
   void dispose() {
@@ -812,10 +961,17 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
 
                     return GestureDetector(
                       onTap: () {
-                        setState(() {
-                          selectedCharacterId = character.id;
-                        });
-                        _startAnimation(character.id);
+                        if (selectedCharacterId == character.id) {
+                          setState(() {
+                            _radarExpanded = !_radarExpanded;
+                          });
+                        } else {
+                          setState(() {
+                            selectedCharacterId = character.id;
+                            _radarExpanded = true;
+                          });
+                          _startAnimation(character.id);
+                        }
                       },
                       child: AnimatedScale(
                         duration: const Duration(milliseconds: 160),
@@ -923,6 +1079,32 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                                             ),
                                           )).toList(),
                                         ),
+                                      ),
+                                    ],
+                                    if (isSelected) ...[
+                                      const SizedBox(height: 12),
+                                      AnimatedSize(
+                                        duration: const Duration(milliseconds: 200),
+                                        curve: Curves.easeOut,
+                                        alignment: Alignment.topCenter,
+                                        child: _radarExpanded
+                                            ? Container(
+                                                padding: const EdgeInsets.all(12),
+                                                decoration: BoxDecoration(
+                                                  color: classColor.withValues(alpha: 0.04),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  border: Border.all(color: classColor.withValues(alpha: 0.3)),
+                                                ),
+                                                child: SizedBox(
+                                                  height: 180,
+                                                  child: _RadarChart(
+                                                    color: classColor,
+                                                    data: _buildRadarData(character),
+                                                    labels: const ['增益', '抽牌', '节奏', '生存', '牌组'],
+                                                  ),
+                                                ),
+                                              )
+                                            : const SizedBox.shrink(),
                                       ),
                                     ],
                                   ],

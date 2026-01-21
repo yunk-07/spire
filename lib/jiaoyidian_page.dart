@@ -8,7 +8,7 @@ import 'card_data.dart';
 import 'game_state.dart';
 import 'level_data.dart';
 // import 'rest_page.dart';
-import 'main.dart' show createHoloRoute;
+import 'core/route.dart' show createHoloRoute;
 import 'exchange_page.dart';
 
 class JiaoyidianPage extends StatefulWidget {
@@ -49,7 +49,7 @@ class _JiaoyidianPageState extends State<JiaoyidianPage> {
         backgroundColor: const Color(0xFF05060A),
         body: Stack(
           children: [
-            Positioned.fill(child: CustomPaint(painter: _DepotGridPainter())),
+            Positioned.fill(child: RepaintBoundary(child: CustomPaint(painter: _DepotGridPainter()))),
             SafeArea(
               child: Column(
                 children: [
@@ -119,7 +119,8 @@ class _JiaoyidianPageState extends State<JiaoyidianPage> {
   }
 
   Widget _logicPanel(Color color, Widget child) {
-    return Container(
+    return RepaintBoundary(
+      child: Container(
       width: 720,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       decoration: BoxDecoration(color: const Color(0xFF0A0F16).withValues(alpha: 0.9), borderRadius: BorderRadius.circular(8), border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5), boxShadow: [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 24, spreadRadius: 2), const BoxShadow(color: Colors.black, blurRadius: 10, offset: Offset(0, 4))]),
@@ -139,6 +140,7 @@ class _JiaoyidianPageState extends State<JiaoyidianPage> {
           ],
         ),
       ),
+    ),
     );
   }
 

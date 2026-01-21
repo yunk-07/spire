@@ -8,7 +8,7 @@ import 'card_data.dart';
 import 'game_state.dart';
 import 'level_data.dart';
 // import 'rest_page.dart';
-import 'main.dart' show createHoloRoute;
+import 'core/route.dart' show createHoloRoute;
 import 'exchange_page.dart';
 
 class JiaohuanZhanPage extends StatefulWidget {
@@ -26,10 +26,15 @@ class _JiaohuanZhanPageState extends State<JiaohuanZhanPage> {
   void initState() {
     super.initState();
     final random = Random();
-    final pool = List<CardData>.from(cardDatabase.values);
+    final keys = cardDatabase.keys.toList();
+    final used = <int>{};
     final picked = <CardData>[];
-    while (picked.length < 5 && pool.isNotEmpty) {
-      picked.add(pool.removeAt(random.nextInt(pool.length)));
+    while (picked.length < 5 && used.length < keys.length) {
+      final idx = random.nextInt(keys.length);
+      if (used.add(idx)) {
+        final c = cardDatabase[keys[idx]];
+        if (c != null) picked.add(c);
+      }
     }
     _cards = picked;
     _prices = _cards.map((c) => 2 + c.level * 3 + random.nextInt(3)).toList();
@@ -51,7 +56,7 @@ class _JiaohuanZhanPageState extends State<JiaohuanZhanPage> {
         backgroundColor: const Color(0xFF05060A),
         body: Stack(
           children: [
-            Positioned.fill(child: CustomPaint(painter: _DepotGridPainter())),
+            Positioned.fill(child: RepaintBoundary(child: CustomPaint(painter: _DepotGridPainter()))),
             SafeArea(
               child: Column(
                 children: [
@@ -129,7 +134,8 @@ class _JiaohuanZhanPageState extends State<JiaohuanZhanPage> {
   }
 
   Widget _logicPanel(Color color, Widget child) {
-    return Container(
+    return RepaintBoundary(
+      child: Container(
       width: 720,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       decoration: BoxDecoration(color: const Color(0xFF0A0F16).withValues(alpha: 0.9), borderRadius: BorderRadius.circular(8), border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5), boxShadow: [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 24, spreadRadius: 2), const BoxShadow(color: Colors.black, blurRadius: 10, offset: Offset(0, 4))]),
@@ -149,6 +155,7 @@ class _JiaohuanZhanPageState extends State<JiaohuanZhanPage> {
           ],
         ),
       ),
+    ),
     );
   }
 
