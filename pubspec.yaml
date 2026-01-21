@@ -50,22 +50,22 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "images/spire-app.png"
+  image_path: "images/spire-app.jpg"
   min_sdk_android: 21
-  adaptive_icon_foreground: "images/spire-app.png"
+  adaptive_icon_foreground: "images/spire-app.jpg"
   adaptive_icon_background: "#05060A"
   web:
     generate: true
-    image_path: "images/spire-app.png"
+    image_path: "images/spire-app.jpg"
     background_color: "#05060A"
     theme_color: "#05060A"
   windows:
     generate: true
-    image_path: "images/spire-app.png"
+    image_path: "images/spire-app.jpg"
     icon_size: 48
   macos:
     generate: true
-    image_path: "images/spire-app.png"
+    image_path: "images/spire-app.jpg"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

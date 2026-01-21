@@ -281,6 +281,18 @@ class GameProgress {
         if (type == LevelType.boss) nodeDiff = 5;
         nodeDiff = nodeDiff.clamp(1, 5);
 
+        if (nodeDiff == 1) {
+          if (type == LevelType.infiltration) {
+            final easyPool = ['slime', 'goblin', 'skeleton', 'iron_dummy', 'echo_bug', 'spark_ball'];
+            programs = [easyPool[random.nextInt(easyPool.length)]];
+          } else if (type == LevelType.elite) {
+            // 降低同层精英数量，以保证一星更平滑
+            if (programs.length > 2) {
+              programs = programs.take(2).toList();
+            }
+          }
+        }
+
         return LevelInfo(
           id: id,
           title: title,
@@ -352,14 +364,20 @@ class GameProgress {
   }
 
   static String _getLevelTitle(LevelType type, String prefix, int diff) {
-    final infiltrationNames = [
-      '薄雾街口','灯塔小径','风鸣断桥','银灯巷','低语庭院','回声广场',
-      '雾港栈桥','星辉坂道','霓虹长廊','回声甬道','光塔边缘','潮汐平台'
+    final infiltrationNamesDefault = [
+      '薄雾街口','灯塔小径','风鸣断桥','低语庭院','回声广场',
+      '雾港栈桥','回声甬道','潮汐平台'
     ];
-    final eliteNames = [
-      '裂影堡','霜夜塔','星落庭','破晓门','铁潮岗',
-      '磁涡城','玄霜壁','光弧庭','量子门','裂隙枢'
+    final eliteNamesDefault = [
+      '裂影堡','霜夜塔','破晓门','铁潮岗','磁涡城','玄霜壁','量子门','裂隙枢'
     ];
+    // 主题化命名池
+    final infiltrationNeon = ['霓虹长廊','银灯巷','极光坡道','光塔廊桥','星辉街口'];
+    final eliteNeon = ['极光塔','星辉庭','银灯枢','霓虹城门','光塔哨所'];
+    final infiltrationWasteland = ['风砂沟道','铁锈栈桥','荒原坡口','残壁斜巷','灰迹隘口'];
+    final eliteWasteland = ['锈蚀堡','风坍岗','荒潮枢','碎壁塔','砂脊门'];
+    final infiltrationAbyss = ['裂幕小径','影语岔口','夜幕甬道','回声坡','深渊断层'];
+    final eliteAbyss = ['深渊塔','影潮庭','裂隙门','夜幕枢','幽渊哨'];
     final cacheNames = ['补给点','器械站','补给仓','休整处','维修舱','后勤点'];
     final exchangeNames = ['小摊位','货栈','商铺','交易点','数据柜','交换站'];
     final mysteryNames = ['奇遇点','偶发事件','未知之所','扭曲之门','随机扰动'];
@@ -368,14 +386,33 @@ class GameProgress {
     final r = Random();
     switch (type) {
       case LevelType.infiltration:
-        return infiltrationNames[r.nextInt(infiltrationNames.length)];
+        switch (prefix) {
+          case '霓虹':
+            return infiltrationNeon[r.nextInt(infiltrationNeon.length)];
+          case '荒原':
+            return infiltrationWasteland[r.nextInt(infiltrationWasteland.length)];
+          case '深渊':
+            return infiltrationAbyss[r.nextInt(infiltrationAbyss.length)];
+          default:
+            return infiltrationNamesDefault[r.nextInt(infiltrationNamesDefault.length)];
+        }
       case LevelType.elite:
-        return eliteNames[r.nextInt(eliteNames.length)];
+        switch (prefix) {
+          case '霓虹':
+            return eliteNeon[r.nextInt(eliteNeon.length)];
+          case '荒原':
+            return eliteWasteland[r.nextInt(eliteWasteland.length)];
+          case '深渊':
+            return eliteAbyss[r.nextInt(eliteAbyss.length)];
+          default:
+            return eliteNamesDefault[r.nextInt(eliteNamesDefault.length)];
+        }
       case LevelType.cache:
         return cacheNames[r.nextInt(cacheNames.length)];
       case LevelType.exchange:
         return exchangeNames[r.nextInt(exchangeNames.length)];
       case LevelType.mystery:
+        // 可保持通用命名，避免过多分叉
         return mysteryNames[r.nextInt(mysteryNames.length)];
       case LevelType.rest:
         return restNames[r.nextInt(restNames.length)];
