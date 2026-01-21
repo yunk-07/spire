@@ -79,7 +79,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - images/spire-app.png
+    - images/spire-app.jpg
   fonts:
     - family: SpireE
       fonts:
