@@ -165,13 +165,13 @@ const Map<String, SecurityProgram> systemDatabase = {
   ),
   "iron_dummy": SecurityProgram(
     id: "iron_dummy",
-    name: "铁甲模块",
+    name: "铁甲",
     type: SystemType.normal,
     level: 1,
-    maxHp: 55,
+    maxHp: 88,
     baseDamage: 6,
-    damageMin: 4,
-    damageMax: 8,
+    damageMin: 1,
+    damageMax: 4,
     description: "笨重但极其坚固的冗余模块，常被用作物理屏障",
     skills: [
       MonsterSkill(id: "heavy_slam", name: "重力冲击", chance: 0.2, buff: BuffKind.weak, stacks: 2),

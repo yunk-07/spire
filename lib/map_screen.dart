@@ -4,6 +4,7 @@
 
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'dart:ui' show ImageFilter;
 import 'nation_selection_screen.dart';
 import 'start_screen.dart';
 import 'level_data.dart';
@@ -760,72 +761,94 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             color: Colors.transparent,
             child: Stack(
               children: [
-                Container(
-                  width: 380,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: color.withValues(alpha: 0.5)),
-                    boxShadow: [BoxShadow(color: color.withValues(alpha: 0.2), blurRadius: 16)],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.map_outlined, color: color, size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(node.title, softWrap: true, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'monospace', letterSpacing: 1))),
-                          _difficultyStars(node.difficulty),
-                        ],
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(0),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                    child: Container(
+                      width: 420,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0A0F16).withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(0),
+                        border: Border.all(color: color.withValues(alpha: 0.5), width: 1),
+                        boxShadow: [BoxShadow(color: color.withValues(alpha: 0.25), blurRadius: 18, spreadRadius: 2)],
                       ),
-                      const SizedBox(height: 10),
-                      Text("// NODE_INFO", style: TextStyle(color: color.withValues(alpha: 0.5), fontSize: 9, fontFamily: 'monospace', letterSpacing: 2)),
-                      const SizedBox(height: 8),
-                      if (monsterNames.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.05),
-                            border: Border(left: BorderSide(color: color.withValues(alpha: 0.4), width: 2)),
-                          ),
-                          child: Text("可能出现的怪兽：\n${monsterNames.join('、')}", softWrap: true, style: const TextStyle(color: Color(0xFFE1E9FF), fontSize: 12)),
-                        ),
-                      const SizedBox(height: 8),
-                      if (nextTitles.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF6CE4FF).withValues(alpha: 0.05),
-                            border: Border(left: BorderSide(color: const Color(0xFF6CE4FF).withValues(alpha: 0.4), width: 2)),
-                          ),
-                          child: Text("可能出现的下一节点：\n${nextTitles.join('、')}", softWrap: true, style: const TextStyle(color: Color(0xFFE1E9FF), fontSize: 12)),
-                        ),
-                      const SizedBox(height: 16),
-                      Row(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: CyberButton(
-                              label: '进入',
-                              height: 42,
-                              fontSize: 12,
-                              onPressed: () {
-                                Navigator.pop(ctx);
-                                _enterLevel(node);
-                              },
+                          Row(
+                            children: [
+                              Icon(Icons.map_outlined, color: color, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(node.title, softWrap: true, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'monospace', letterSpacing: 1))),
+                              _difficultyStars(node.difficulty),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Text("// LEVEL_CONFIRM", style: TextStyle(color: color.withValues(alpha: 0.5), fontSize: 9, fontFamily: 'monospace', letterSpacing: 2)),
+                              const Spacer(),
+                              Text("ID:${node.id}", style: TextStyle(color: const Color(0xFF8FA3C0), fontSize: 10, fontFamily: 'monospace')),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          if (monsterNames.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.05),
+                                border: Border(left: BorderSide(color: color.withValues(alpha: 0.4), width: 2)),
+                              ),
+                              child: Text("可能出现的怪兽：\n${monsterNames.join('、')}", softWrap: true, style: const TextStyle(color: Color(0xFFE1E9FF), fontSize: 12)),
                             ),
+                          const SizedBox(height: 8),
+                          if (nextTitles.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF6CE4FF).withValues(alpha: 0.05),
+                                border: Border(left: BorderSide(color: const Color(0xFF6CE4FF).withValues(alpha: 0.4), width: 2)),
+                              ),
+                              child: Text("可能出现的下一节点：\n${nextTitles.join('、')}", softWrap: true, style: const TextStyle(color: Color(0xFFE1E9FF), fontSize: 12)),
+                            ),
+                          const SizedBox(height: 18),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: CyberButton(
+                                  label: '取消',
+                                  height: 40,
+                                  fontSize: 12,
+                                  color: const Color(0xFF8FA3C0),
+                                  onPressed: () => Navigator.pop(ctx),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: CyberButton(
+                                  label: '进入',
+                                  height: 40,
+                                  fontSize: 12,
+                                  onPressed: () {
+                                    Navigator.pop(ctx);
+                                    _enterLevel(node);
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
                 Positioned.fill(
                   child: IgnorePointer(
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(8),
                       child: const CyberScanline(color: Color(0x116CE4FF)),
                     ),
                   ),
@@ -833,7 +856,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 Positioned.fill(
                   child: IgnorePointer(
                     child: CustomPaint(
-                      painter: CyberCornerPainter(color: color.withValues(alpha: 0.4), cornerSize: 10),
+                      painter: CyberCornerPainter(color: color.withValues(alpha: 0.4), cornerSize: 12),
                     ),
                   ),
                 ),

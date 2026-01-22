@@ -2,6 +2,7 @@
  * 游戏主逻辑文件，包含战斗系统、卡牌渲染、Buff 说明浮层等核心 UI 与逻辑实现。
  */
 import 'dart:math';
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'card_data.dart';
@@ -267,6 +268,34 @@ class AnimationService extends ChangeNotifier {
   bool hpDamageFlashActive = false;
   int? lastPlayerDamage;
   DateTime? lastPlayerDamageAt;
+  Timer? _frameTimer;
+  bool _hasActiveEffects() {
+    return popups.isNotEmpty ||
+        attacks.isNotEmpty ||
+        gridPulses.isNotEmpty ||
+        roleEffects.isNotEmpty ||
+        protecting.isNotEmpty ||
+        glitching.isNotEmpty ||
+        bouncing.isNotEmpty ||
+        motions.isNotEmpty ||
+        blockPopups.isNotEmpty ||
+        shieldBreaks.isNotEmpty ||
+        blockGains.isNotEmpty ||
+        healPopups.isNotEmpty ||
+        fireOverlayActive ||
+        hpDamageFlashActive;
+  }
+  void _ensurePump() {
+    if (_frameTimer != null) return;
+    _frameTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
+      if (!_hasActiveEffects()) {
+        _frameTimer?.cancel();
+        _frameTimer = null;
+        return;
+      }
+      notifyListeners();
+    });
+  }
 
   void showDamage(Entity target, int value) {
     final ctx = target.key.currentContext;
@@ -280,6 +309,7 @@ class AnimationService extends ChangeNotifier {
     final p = DamagePopup(value, pos);
     popups.add(p);
     notifyListeners();
+    _ensurePump();
 
     if (target.id == "接入单元") {
       hpDamageFlashActive = true;
@@ -289,6 +319,10 @@ class AnimationService extends ChangeNotifier {
       Future.delayed(const Duration(milliseconds: 250), () {
         hpDamageFlashActive = false;
         notifyListeners();
+        if (!_hasActiveEffects()) {
+          _frameTimer?.cancel();
+          _frameTimer = null;
+        }
       });
       Future.delayed(const Duration(milliseconds: 900), () {
         if (lastPlayerDamageAt != null &&
@@ -303,11 +337,19 @@ class AnimationService extends ChangeNotifier {
     Future.delayed(const Duration(milliseconds: 400), () {
       glitching.remove(target); // 停止效果
       notifyListeners();
+      if (!_hasActiveEffects()) {
+        _frameTimer?.cancel();
+        _frameTimer = null;
+      }
     });
 
     Future.delayed(const Duration(milliseconds: 800), () {
       popups.remove(p);
       notifyListeners();
+      if (!_hasActiveEffects()) {
+        _frameTimer?.cancel();
+        _frameTimer = null;
+      }
     });
   }
 
@@ -598,56 +640,36 @@ class RoleEffectPainter extends CustomPainter {
   void _drawLinShieldEffect(Canvas canvas, Size size, Offset center, double progress) {
     final pink = const Color(0xFFC3A6FF);
     final purple = const Color(0xFF7A3BFF);
-    final bgAlpha = (1.0 - progress).clamp(0.0, 1.0);
-    final beamAlpha = (0.8 - progress).clamp(0.0, 0.8);
-    final shieldAlpha = (1.0 - progress).clamp(0.0, 1.0);
-    final leftShader = LinearGradient(
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-        colors: [purple.withValues(alpha: beamAlpha * 0.6), pink.withValues(alpha: 0.0)],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-    final rightShader = LinearGradient(
-        begin: Alignment.centerRight,
-        end: Alignment.centerLeft,
-        colors: [purple.withValues(alpha: beamAlpha * 0.6), pink.withValues(alpha: 0.0)],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-    final leftW = size.width * 0.35 * (1.0 - progress);
-    final rightW = size.width * 0.35 * (1.0 - progress);
-    canvas.drawRect(Rect.fromLTWH(0, 0, leftW, size.height), Paint()..shader = leftShader);
-    canvas.drawRect(Rect.fromLTWH(size.width - rightW, 0, rightW, size.height), Paint()..shader = rightShader);
-    final rand = Random(131);
-    for (int i = 0; i < 18; i++) {
-      final a = rand.nextDouble() * pi * 2;
-      final r = size.width * 0.28 * (1.0 - progress);
-      final x = center.dx + cos(a) * r;
-      final y = center.dy + sin(a) * r;
-      final p = Paint()..color = pink.withValues(alpha: bgAlpha * 0.6);
-      canvas.drawCircle(Offset(x, y), 2 + rand.nextDouble() * 3, p);
-    }
-    final ringOuter = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.6
-      ..color = pink.withValues(alpha: shieldAlpha * 0.6);
-    final ringInner = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6
-      ..color = purple.withValues(alpha: shieldAlpha * 0.4);
-    final rBase = 42.0 + 16.0 * progress;
-    canvas.drawCircle(center, rBase, ringOuter);
-    canvas.drawCircle(center, rBase - 6, ringInner);
-    final hex = Path();
-    final hexR = 26.0 + 10.0 * progress;
-    for (int i = 0; i < 6; i++) {
-      final a = (pi / 3) * i;
-      final vx = center.dx + cos(a) * hexR;
-      final vy = center.dy + sin(a) * hexR;
-      if (i == 0) hex.moveTo(vx, vy); else hex.lineTo(vx, vy);
-    }
-    hex.close();
-    canvas.drawPath(hex, Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..color = purple.withValues(alpha: shieldAlpha * 0.5));
+    final a = (1.0 - progress).clamp(0.0, 1.0);
+    final edgeColor = Color.lerp(purple, pink, 0.5)!.withValues(alpha: 0.5 * a);
+    final topRect = Rect.fromLTWH(0, 0, size.width, size.height * 0.14);
+    final bottomRect = Rect.fromLTWH(0, size.height * 0.86, size.width, size.height * 0.14);
+    final leftRect = Rect.fromLTWH(0, 0, size.width * 0.10, size.height);
+    final rightRect = Rect.fromLTWH(size.width * 0.90, 0, size.width * 0.10, size.height);
+    final topShader = const LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [Color(0xFFC3A6FF), Color(0x00C3A6FF)],
+    ).createShader(topRect);
+    final bottomShader = const LinearGradient(
+      begin: Alignment.bottomCenter,
+      end: Alignment.topCenter,
+      colors: [Color(0xFFC3A6FF), Color(0x00C3A6FF)],
+    ).createShader(bottomRect);
+    final leftShader = const LinearGradient(
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+      colors: [Color(0xFFC3A6FF), Color(0x00C3A6FF)],
+    ).createShader(leftRect);
+    final rightShader = const LinearGradient(
+      begin: Alignment.centerRight,
+      end: Alignment.centerLeft,
+      colors: [Color(0xFFC3A6FF), Color(0x00C3A6FF)],
+    ).createShader(rightRect);
+    canvas.drawRect(topRect, Paint()..shader = topShader..colorFilter = ColorFilter.mode(edgeColor, BlendMode.srcIn));
+    canvas.drawRect(bottomRect, Paint()..shader = bottomShader..colorFilter = ColorFilter.mode(edgeColor, BlendMode.srcIn));
+    canvas.drawRect(leftRect, Paint()..shader = leftShader..colorFilter = ColorFilter.mode(edgeColor, BlendMode.srcIn));
+    canvas.drawRect(rightRect, Paint()..shader = rightShader..colorFilter = ColorFilter.mode(edgeColor, BlendMode.srcIn));
   }
   void _drawLangWave(Canvas canvas, Size size, Offset center, double progress) {
     final base = const Color(0xFF4DCCFF);
@@ -723,16 +745,25 @@ class RoleEffectPainter extends CustomPainter {
       ..strokeWidth = 1.5;
 
     final hexSize = 40.0;
-    final rows = (size.height / (hexSize * 1.5)).ceil();
-    final cols = (size.width / (hexSize * sqrt(3))).ceil();
+    final rowHeight = hexSize * 1.5;
+    final colWidth = hexSize * sqrt(3);
+    final radius = (progress * size.width).clamp(0.0, size.width);
+    final band = 60.0;
+    final minY = (center.dy - radius - band).clamp(0.0, size.height);
+    final maxY = (center.dy + radius + band).clamp(0.0, size.height);
+    final startRow = (minY / rowHeight).floor();
+    final endRow = (maxY / rowHeight).ceil();
+    final rows = endRow.clamp(0, (size.height / rowHeight).ceil());
+    final startCol = ((center.dx - radius - band) / colWidth).floor().clamp(0, (size.width / colWidth).ceil());
+    final endCol = ((center.dx + radius + band) / colWidth).ceil().clamp(0, (size.width / colWidth).ceil());
 
-    for (int r = 0; r < rows; r++) {
-      for (int c = 0; c < cols; c++) {
-        final x = c * hexSize * sqrt(3) + (r % 2 == 0 ? 0 : hexSize * sqrt(3) / 2);
-        final y = r * hexSize * 1.5;
+    for (int r = startRow; r < rows; r++) {
+      for (int c = startCol; c < endCol; c++) {
+        final x = c * colWidth + (r % 2 == 0 ? 0 : colWidth / 2);
+        final y = r * rowHeight;
         
         final dist = (Offset(x, y) - center).distance;
-        if ((dist - progress * size.width).abs() < 50) {
+        if ((dist - radius).abs() < band) {
           _drawHex(canvas, Offset(x, y), hexSize, paint);
         }
       }
@@ -6645,12 +6676,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                     ),
                   ),
                   
-                  // 2. 动态扫描线
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: RepaintBoundary(child: CyberScanline(color: color)),
-                    ),
-                  ),
+                  
                   
                   // 3. 装饰性边角
                   Positioned.fill(
@@ -6966,6 +6992,9 @@ class _GridPainter extends CustomPainter {
 class _FireOverlayPainter extends CustomPainter {
   final DateTime start;
   _FireOverlayPainter(this.start);
+  Size? _lastSize;
+  List<Rect>? _stripes;
+  List<Color>? _stripeColors;
   @override
   void paint(Canvas canvas, Size size) {
     final elapsed = DateTime.now().difference(start).inMilliseconds;
@@ -6985,15 +7014,24 @@ class _FireOverlayPainter extends CustomPainter {
       Rect.fromLTWH(0, 0, size.width, size.height),
       Paint()..shader = grad,
     );
-    final rnd = Random(777);
-    for (int i = 0; i < 24; i++) {
-      final x = rnd.nextDouble() * size.width;
-      final h = size.height * (0.2 + rnd.nextDouble() * 0.5);
-      final w = 2.0 + rnd.nextDouble() * 3.0;
-      final yTop = size.height * (1.0 - p);
-      final rect = Rect.fromLTWH(x, yTop, w, h);
-      final col = Color.lerp(const Color(0xFFFFD700), const Color(0xFFFF4500), rnd.nextDouble())!
-          .withValues(alpha: 0.18 * (1.0 - p));
+    if (_lastSize != size || _stripes == null || _stripeColors == null) {
+      _lastSize = size;
+      final rnd = Random(777);
+      _stripes = List.generate(24, (_) {
+        final x = rnd.nextDouble() * size.width;
+        final h = size.height * (0.2 + rnd.nextDouble() * 0.5);
+        final w = 2.0 + rnd.nextDouble() * 3.0;
+        return Rect.fromLTWH(x, 0, w, h);
+      });
+      _stripeColors = List.generate(24, (_) =>
+        Color.lerp(const Color(0xFFFFD700), const Color(0xFFFF4500), rnd.nextDouble())!.withValues(alpha: 0.18)
+      );
+    }
+    final yTop = size.height * (1.0 - p);
+    for (int i = 0; i < (_stripes!.length); i++) {
+      final base = _stripes![i];
+      final rect = Rect.fromLTWH(base.left, yTop, base.width, base.height);
+      final col = _stripeColors![i]!.withValues(alpha: 0.18 * (1.0 - p));
       canvas.drawRect(rect, Paint()..color = col);
     }
   }

@@ -64,19 +64,21 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
                   return Stack(
                     children: [
                       Positioned.fill(
-                        child: CustomPaint(
-                          painter: _NationMapPainter(
-                            nations: nations,
-                            hoveredId: _hoveredNationId,
-                            pulse: _pulseController,
-                            positions: positions,
-                            edges: edges,
+                        child: RepaintBoundary(
+                          child: CustomPaint(
+                            painter: _NationMapPainter(
+                              nations: nations,
+                              hoveredId: _hoveredNationId,
+                              pulse: _pulseController,
+                              positions: positions,
+                              edges: edges,
+                            ),
                           ),
                         ),
                       ),
                       ...nations.map((nation) {
                         final position = positions[nation.id]!;
-                        final size = 140.0 * nation.areaScale;
+                        const double size = 140.0;
                         return Positioned(
                           left: position.dx - size / 2,
                           top: position.dy - size / 2,
@@ -85,72 +87,74 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
                             onExit: (_) => setState(() => _hoveredNationId = null),
                             child: GestureDetector(
                               onTap: () => _selectNation(nation),
-                              child: Container(
-                                width: size,
-                                height: size,
-                                color: Colors.transparent,
-                                child: Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      if (GameProgress.completedNationIds.contains(nation.id))
-                                        Icon(
-                                          Icons.check_circle_outline,
-                                          color: const Color(0xFF6CE4FF).withValues(alpha: 0.6),
-                                          size: 20 * nation.areaScale + 4,
+                              child: RepaintBoundary(
+                                child: Container(
+                                  width: size,
+                                  height: size,
+                                  color: Colors.transparent,
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        if (GameProgress.completedNationIds.contains(nation.id))
+                                          Icon(
+                                            Icons.check_circle_outline,
+                                            color: const Color(0xFF6CE4FF).withValues(alpha: 0.6),
+                                            size: 24,
+                                          ),
+                                        ConstrainedBox(
+                                          constraints: const BoxConstraints(maxWidth: size),
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            alignment: Alignment.center,
+                                            child: Text(
+                                              nation.title,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: GameProgress.completedNationIds.contains(nation.id) 
+                                                  ? const Color(0xFF6CE4FF).withValues(alpha: 0.6) 
+                                                  : Colors.white.withValues(alpha: 0.8),
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 1,
+                                                shadows: const [
+                                                  Shadow(color: Colors.black, blurRadius: 4),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
                                         ),
-                                      ConstrainedBox(
-                                        constraints: BoxConstraints(maxWidth: size),
-                                        child: FittedBox(
-                                          fit: BoxFit.scaleDown,
-                                          alignment: Alignment.center,
-                                          child: Text(
-                                            nation.title,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            textAlign: TextAlign.center,
+                                        const SizedBox(height: 2),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: List.generate(nation.difficulty.clamp(1, 5), (i) {
+                                            return Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 1),
+                                              child: Icon(
+                                                Icons.star,
+                                                size: 10,
+                                                color: GameProgress.completedNationIds.contains(nation.id)
+                                                    ? Colors.white.withValues(alpha: 0.3)
+                                                    : nation.themeColor.withValues(alpha: 0.9),
+                                              ),
+                                            );
+                                          }),
+                                        ),
+                                        if (GameProgress.completedNationIds.contains(nation.id))
+                                          const Text(
+                                            'SYNCED',
                                             style: TextStyle(
-                                              color: GameProgress.completedNationIds.contains(nation.id) 
-                                                ? const Color(0xFF6CE4FF).withValues(alpha: 0.6) 
-                                                : Colors.white.withValues(alpha: 0.8),
-                                              fontSize: 10 * nation.areaScale + 2,
+                                              color: Color(0xFF6CE4FF),
+                                              fontSize: 8,
                                               fontWeight: FontWeight.bold,
                                               letterSpacing: 1,
-                                              shadows: const [
-                                                Shadow(color: Colors.black, blurRadius: 4),
-                                              ],
+                                              fontFamily: 'monospace',
                                             ),
                                           ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: List.generate(nation.difficulty.clamp(1, 5), (i) {
-                                          return Padding(
-                                            padding: const EdgeInsets.symmetric(horizontal: 1),
-                                            child: Icon(
-                                              Icons.star,
-                                              size: 8 * nation.areaScale + 2,
-                                              color: GameProgress.completedNationIds.contains(nation.id)
-                                                  ? Colors.white.withValues(alpha: 0.3)
-                                                  : nation.themeColor.withValues(alpha: 0.9),
-                                            ),
-                                          );
-                                        }),
-                                      ),
-                                      if (GameProgress.completedNationIds.contains(nation.id))
-                                        Text(
-                                          'SYNCED',
-                                          style: TextStyle(
-                                            color: const Color(0xFF6CE4FF).withValues(alpha: 0.4),
-                                            fontSize: 8,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 1,
-                                            fontFamily: 'monospace',
-                                          ),
-                                        ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
