@@ -19,8 +19,8 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
   late AnimationController _pulseController;
   String? _statusTip;
   Color? _statusTipColor;
-  Map<String, Offset>? _positions;
-  List<List<String>> _edges = [];
+  // Map<String, Offset>? _positions;
+  // List<List<String>> _edges = [];
 
   @override
   void initState() {
@@ -417,6 +417,7 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
     return res ?? false;
   }
 
+  /*
   Offset _getNationPosition(Nation nation, Size size) {
     final random = math.Random(nation.id.hashCode);
     // 增加一点偏移量，使5-7个国度分布更均匀
@@ -425,6 +426,7 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
       size.height * (0.25 + random.nextDouble() * 0.5),
     );
   }
+  */
   Map<String, Offset> _computeLayout(List<Nation> nations, Size size) {
     final positions = <String, Offset>{};
     final cx = size.width * 0.5;
@@ -530,7 +532,7 @@ class _NationMapPainter extends CustomPainter {
     // 使用节点控件呈现国度，不在画布中绘制不规则方块
   }
 
-  void _drawNation(Canvas canvas, Size size, Nation nation) {}
+  // void _drawNation(Canvas canvas, Size size, Nation nation) {}
 
   @override
   bool shouldRepaint(_NationMapPainter oldDelegate) =>

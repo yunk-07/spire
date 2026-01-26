@@ -15,7 +15,7 @@ class MaintenanceBayScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = const Color(0xFF6CE4FF);
+    // final color = const Color(0xFF6CE4FF);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {

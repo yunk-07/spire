@@ -46,6 +46,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
       case CardSuite.secure: return const Color(0xFFC3A6FF);
       case CardSuite.industrial: return const Color(0xFFFFB344);
       case CardSuite.quantum: return const Color(0xFFE26CFF);
+      case CardSuite.demon: return const Color(0xFF9D00FF);
     }
   }
 
@@ -67,6 +68,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
       case CardSuite.secure: return Icons.security_rounded;
       case CardSuite.industrial: return Icons.settings_rounded;
       case CardSuite.quantum: return Icons.auto_awesome_rounded;
+      case CardSuite.demon: return Icons.pest_control_rodent_rounded;
     }
   }
 
@@ -167,6 +169,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
         case CardSuite.industrial: return const Color(0xFF1A140A);
         case CardSuite.quantum: return const Color(0xFF140A1A);
         case CardSuite.classic: return const Color(0xFF101722);
+        case CardSuite.demon: return const Color(0xFF0F001A);
       }
     }
     
@@ -904,6 +907,18 @@ class SuiteTechPainter extends CustomPainter {
             Offset(size.width * 0.8, size.height * 0.2),
             20.0 + i * 15,
             paint..style = PaintingStyle.stroke,
+          );
+        }
+        break;
+      case CardSuite.demon:
+        // 恶魔：放射状的尖锐线条
+        final center = Offset(size.width * 0.5, size.height * 0.5);
+        for (int i = 0; i < 8; i++) {
+          final angle = i * pi / 4;
+          canvas.drawLine(
+            center,
+            center + Offset(cos(angle) * 30, sin(angle) * 30),
+            paint..strokeWidth = 2.0,
           );
         }
         break;

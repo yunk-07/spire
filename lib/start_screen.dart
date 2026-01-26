@@ -4,8 +4,9 @@ import 'dart:ui';
 import 'character_data.dart';
 import 'card_data.dart';
 import 'level_data.dart';
+// import 'brainchip_data.dart';
 import 'main.dart';
-import 'nation_selection_screen.dart';
+import 'brainchip_selection_screen.dart';
 import 'core/tower_painter.dart';
 import 'game_state.dart';
 
@@ -1159,7 +1160,7 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                           Navigator.push(
                             context,
                             createHoloRoute(
-                              const NationSelectionScreen(),
+                              const BrainChipSelectionScreen(),
                             ),
                           );
                         }

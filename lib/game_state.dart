@@ -15,6 +15,7 @@ class GameState {
   
   // 焰心：热量进度（跨关卡持久化）
   static int heatProgress = 0;
+  static String? selectedBrainChipId;
 
   /// 修复完整度
   static void heal(int amount) {

@@ -79,7 +79,7 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final themeColor = const Color(0xFF00F0FF);
+    const themeColor = Color(0xFF00F0FF);
 
     return PopScope(
       canPop: false,
@@ -246,6 +246,7 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
   }
   
 
+  /*
   Widget _buildBackground() {
     return const SizedBox.shrink();
   }
@@ -373,7 +374,9 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
       ),
     );
   }
+  */
 
+  /*
   Widget _buildHeaderBadge(String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
@@ -388,6 +391,7 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
       ),
     );
   }
+  */
 
   Widget _buildVisualCenter(Color color) {
     return AnimatedBuilder(
@@ -618,6 +622,7 @@ class _GridPainter extends CustomPainter {
   bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
 
+/*
 class _CyberBackgroundPainter extends CustomPainter {
   final double glitchValue;
   final Random random;
@@ -650,6 +655,7 @@ class _CyberBackgroundPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
+*/
 
 class _CenterCorePainter extends CustomPainter {
   final Color color;

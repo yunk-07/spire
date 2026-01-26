@@ -745,6 +745,7 @@ class _ExchangePageState extends State<ExchangePage> {
       case CardSuite.secure: return Icons.security_rounded;
       case CardSuite.industrial: return Icons.settings_rounded;
       case CardSuite.quantum: return Icons.auto_awesome_rounded;
+      case CardSuite.demon: return Icons.pest_control_rodent_rounded;
     }
   }
 
@@ -776,6 +777,7 @@ class _ExchangePageState extends State<ExchangePage> {
       case CardSuite.industrial: return const Color(0xFF1A140A);
       case CardSuite.quantum: return const Color(0xFF140A1A);
       case CardSuite.classic: return const Color(0xFF101722);
+      case CardSuite.demon: return const Color(0xFF0F001A);
     }
   }
 
@@ -861,6 +863,7 @@ class _ExchangePageState extends State<ExchangePage> {
       case CardSuite.secure: return const Color(0xFFC3A6FF);
       case CardSuite.industrial: return const Color(0xFFFFB344);
       case CardSuite.quantum: return const Color(0xFFE26CFF);
+      case CardSuite.demon: return const Color(0xFF9D00FF);
     }
   }
 
@@ -971,8 +974,9 @@ IconData getSuiteIcon(CardSuite suite) {
     case CardSuite.overload: return Icons.warning_amber_rounded;
     case CardSuite.secure: return Icons.security_rounded;
     case CardSuite.industrial: return Icons.settings_rounded;
-    case CardSuite.quantum: return Icons.auto_awesome_rounded;
-  }
+  case CardSuite.quantum: return Icons.auto_awesome_rounded;
+  case CardSuite.demon: return Icons.pest_control_rodent_rounded;
+}
 }
 
 Widget smallTargetIcon(CardTarget target, Color color) {
@@ -1002,8 +1006,9 @@ Color getCardBgColor(CardSuite suite) {
     case CardSuite.secure: return const Color(0xFF0A1A0A);
     case CardSuite.industrial: return const Color(0xFF1A140A);
     case CardSuite.quantum: return const Color(0xFF140A1A);
-    case CardSuite.classic: return const Color(0xFF101722);
-  }
+  case CardSuite.classic: return const Color(0xFF101722);
+  case CardSuite.demon: return const Color(0xFF0F001A);
+}
 }
 
 final Map<String, List<InlineSpan>> _descCache = {};
@@ -1078,8 +1083,9 @@ Color getSuiteColor(CardSuite suite) {
     case CardSuite.overload: return const Color(0xFFFF4444);
     case CardSuite.secure: return const Color(0xFFC3A6FF);
     case CardSuite.industrial: return const Color(0xFFFFB344);
-    case CardSuite.quantum: return const Color(0xFFE26CFF);
-  }
+  case CardSuite.quantum: return const Color(0xFFE26CFF);
+  case CardSuite.demon: return const Color(0xFF9D00FF);
+}
 }
 
 String getTypeName(CardType type) {

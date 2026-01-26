@@ -2,7 +2,7 @@ import 'card_data.dart';
 
 /// 效果执行回调函数类型
 typedef EffectCallback =
-    void Function(String effect, CardData card, dynamic target, dynamic battle);
+    void Function(String effect, CardData? card, dynamic target, dynamic battle);
 
 /// 卡牌效果执行器
 class CardEffect {
@@ -16,7 +16,7 @@ class CardEffect {
   /// 执行效果
   static void execute(
     String effect,
-    CardData card,
+    CardData? card,
     dynamic target,
     dynamic battle,
   ) {
@@ -27,7 +27,7 @@ class CardEffect {
 /// 标准卡牌效果执行器
 class CardEffectExecutor {
   /// 执行卡牌效果
-  void execute(String effect, CardData card, dynamic target, dynamic battle) {
+  void execute(String effect, CardData? card, dynamic target, dynamic battle) {
     // 分割多个效果（支持分号或&&分隔）
     final effects = effect.split(RegExp(r';|&&')).map((e) => e.trim()).where((e) => e.isNotEmpty);
     
@@ -37,7 +37,7 @@ class CardEffectExecutor {
   }
   
   /// 执行单个效果
-  void _executeSingleEffect(String effectPart, CardData card, dynamic target, dynamic battle) {
+  void _executeSingleEffect(String effectPart, CardData? card, dynamic target, dynamic battle) {
     final parts = effectPart.split(' ');
     if (parts.isEmpty) return;
     
@@ -47,7 +47,7 @@ class CardEffectExecutor {
       case 'damage':
         if (parts.length > 1) {
           final value = int.tryParse(parts[1]) ?? 0;
-          if (card.target == CardTarget.all) {
+          if (card?.target == CardTarget.all) {
             for (final enemy in battle.activePrograms) {
               if (enemy.hp > 0) {
                 battle.applyDamage(enemy, value);
@@ -80,7 +80,7 @@ class CardEffectExecutor {
       case 'vulnerable':
         if (parts.length > 1) {
           final turns = int.tryParse(parts[1]) ?? 1;
-          if (card.target == CardTarget.all) {
+          if (card?.target == CardTarget.all) {
             for (final enemy in battle.activePrograms) {
               if (enemy.hp > 0) enemy.vulnerable += turns;
             }
@@ -106,7 +106,7 @@ class CardEffectExecutor {
       case 'weak':
         if (parts.length > 1) {
           final turns = int.tryParse(parts[1]) ?? 1;
-          if (card.target == CardTarget.all) {
+          if (card?.target == CardTarget.all) {
             for (final enemy in battle.activePrograms) {
               if (enemy.hp > 0) enemy.weak += turns;
             }
@@ -118,7 +118,7 @@ class CardEffectExecutor {
       case 'curse':
         if (parts.length > 1) {
           final turns = int.tryParse(parts[1]) ?? 1;
-          if (card.target == CardTarget.all) {
+          if (card?.target == CardTarget.all) {
             for (final enemy in battle.activePrograms) {
               if (enemy.hp > 0) enemy.curse += turns;
             }

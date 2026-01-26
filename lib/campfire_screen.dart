@@ -52,17 +52,20 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
           children: [
             Positioned.fill(child: CustomPaint(painter: _GridPainter())),
             SafeArea(
-              child: Column(
-                children: [
-                  const SizedBox(height: 40),
-                  _styledHeader(),
-                  const SizedBox(height: 12),
-                  _metaRow(color),
-                  const SizedBox(height: 24),
-                  _logicPanel(color, _buildVisualCenter()),
-                  const SizedBox(height: 24),
-                  _logicPanel(color, _options(color)),
-                ],
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 40),
+                    _styledHeader(),
+                    const SizedBox(height: 12),
+                    _metaRow(color),
+                    const SizedBox(height: 24),
+                    _logicPanel(color, _buildVisualCenter()),
+                    const SizedBox(height: 24),
+                    _logicPanel(color, _options(color)),
+                    const SizedBox(height: 40),
+                  ],
+                ),
               ),
             ),
             if (_isProcessing) _processingOverlay(color),
@@ -73,89 +76,89 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildHeader(Color color) {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.05),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-        borderRadius: BorderRadius.circular(4),
-        boxShadow: [
-          BoxShadow(color: color.withValues(alpha: 0.02), blurRadius: 10, spreadRadius: 2),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(child: CyberScanline(color: color.withValues(alpha: 0.06))),
-          Positioned.fill(child: CustomPaint(painter: CyberCornerPainter(color: color.withValues(alpha: 0.3)))),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Column(
-                  children: [
-                    Container(width: 4, height: 4, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
-                    const SizedBox(height: 4),
-                    Container(width: 4, height: 4, decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: 0.3))),
-                    const SizedBox(height: 4),
-                    Container(width: 4, height: 4, decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: 0.3))),
-                  ],
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          "篝火处",
-                          style: TextStyle(
-                            color: color,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 2,
-                            fontFamily: 'monospace',
-                            shadows: [Shadow(color: color.withValues(alpha: 0.5), blurRadius: 8)],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text("CAMPFIRE NODE // ${widget.levelId}", style: TextStyle(color: color.withValues(alpha: 0.6), fontSize: 9, fontFamily: 'monospace')),
-                          const SizedBox(width: 12),
-                          _headerBadge("ONLINE", color),
-                          const SizedBox(width: 8),
-                          _headerBadge("ENCRYPTED", color.withValues(alpha: 0.5)),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(Icons.local_fire_department, color: color, size: 24),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _headerBadge(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 0.5),
-        borderRadius: BorderRadius.circular(2),
-      ),
-      child: Text(label, style: TextStyle(color: color, fontSize: 7, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
-    );
-  }
+  // Widget _buildHeader(Color color) {
+  //   return Container(
+  //     margin: const EdgeInsets.all(16),
+  //     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  //     decoration: BoxDecoration(
+  //       color: color.withValues(alpha: 0.05),
+  //       border: Border.all(color: color.withValues(alpha: 0.2)),
+  //       borderRadius: BorderRadius.circular(4),
+  //       boxShadow: [
+  //         BoxShadow(color: color.withValues(alpha: 0.02), blurRadius: 10, spreadRadius: 2),
+  //       ],
+  //     ),
+  //     child: Stack(
+  //       children: [
+  //         Positioned.fill(child: CyberScanline(color: color.withValues(alpha: 0.06))),
+  //         Positioned.fill(child: CustomPaint(painter: CyberCornerPainter(color: color.withValues(alpha: 0.3)))),
+  //         Padding(
+  //           padding: const EdgeInsets.all(8.0),
+  //           child: Row(
+  //             children: [
+  //               Column(
+  //                 children: [
+  //                   Container(width: 4, height: 4, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+  //                   const SizedBox(height: 4),
+  //                   Container(width: 4, height: 4, decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: 0.3))),
+  //                   const SizedBox(height: 4),
+  //                   Container(width: 4, height: 4, decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: 0.3))),
+  //                 ],
+  //               ),
+  //               const SizedBox(width: 16),
+  //               Expanded(
+  //                 child: Column(
+  //                   crossAxisAlignment: CrossAxisAlignment.start,
+  //                   mainAxisSize: MainAxisSize.min,
+  //                   children: [
+  //                     FittedBox(
+  //                       fit: BoxFit.scaleDown,
+  //                       alignment: Alignment.centerLeft,
+  //                       child: Text(
+  //                         "篝火处",
+  //                         style: TextStyle(
+  //                           color: color,
+  //                           fontSize: 22,
+  //                           fontWeight: FontWeight.bold,
+  //                           letterSpacing: 2,
+  //                           fontFamily: 'monospace',
+  //                           shadows: [Shadow(color: color.withValues(alpha: 0.5), blurRadius: 8)],
+  //                         ),
+  //                       ),
+  //                     ),
+  //                     const SizedBox(height: 4),
+  //                     Row(
+  //                       children: [
+  //                         Text("CAMPFIRE NODE // ${widget.levelId}", style: TextStyle(color: color.withValues(alpha: 0.6), fontSize: 9, fontFamily: 'monospace')),
+  //                         const SizedBox(width: 12),
+  //                         _headerBadge("ONLINE", color),
+  //                         const SizedBox(width: 8),
+  //                         _headerBadge("ENCRYPTED", color.withValues(alpha: 0.5)),
+  //                       ],
+  //                     ),
+  //                   ],
+  //                 ),
+  //               ),
+  //               Icon(Icons.local_fire_department, color: color, size: 24),
+  //             ],
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+  //
+  // Widget _headerBadge(String label, Color color) {
+  //   return Container(
+  //     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+  //     decoration: BoxDecoration(
+  //       color: color.withValues(alpha: 0.15),
+  //       border: Border.all(color: color.withValues(alpha: 0.3), width: 0.5),
+  //       borderRadius: BorderRadius.circular(2),
+  //     ),
+  //     child: Text(label, style: TextStyle(color: color, fontSize: 7, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+  //   );
+  // }
 
   Widget _buildVisualCenter() {
     final flameColor = const Color(0xFFFF6A00);
@@ -193,7 +196,8 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
   Widget _options(Color color) {
     return Center(
       child: Container(
-        width: 600,
+        constraints: const BoxConstraints(maxWidth: 600),
+        width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
@@ -359,11 +363,12 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
 
   Color _suiteColor(CardSuite suite) {
     switch (suite) {
-     case CardSuite.classic: return const Color(0xFF6CE4FF);
+      case CardSuite.classic: return const Color(0xFF6CE4FF);
       case CardSuite.overload: return const Color(0xFFFF4444);
       case CardSuite.secure: return const Color(0xFFC3A6FF);
       case CardSuite.industrial: return const Color(0xFFFFB344);
       case CardSuite.quantum: return const Color(0xFFE26CFF);
+      case CardSuite.demon: return const Color(0xFF9D00FF);
     }
   }
 
@@ -402,7 +407,9 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
           child: Material(
             color: Colors.transparent,
             child: Container(
-              width: 420,
+              constraints: const BoxConstraints(maxWidth: 420),
+              width: double.infinity,
+              margin: const EdgeInsets.symmetric(horizontal: 24),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
@@ -537,8 +544,10 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
           child: Material(
             color: Colors.transparent,
             child: Container(
-              width: 320,
-              padding: const EdgeInsets.all(24),
+            constraints: const BoxConstraints(maxWidth: 320),
+            width: double.infinity,
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
                 borderRadius: BorderRadius.circular(4),
@@ -628,7 +637,9 @@ Widget _metaRow(Color color) {
 
 Widget _logicPanel(Color color, Widget child) {
   return Container(
-    width: 720,
+    constraints: const BoxConstraints(maxWidth: 720),
+    width: double.infinity,
+    margin: const EdgeInsets.symmetric(horizontal: 16),
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
     decoration: BoxDecoration(color: const Color(0xFF0A0F16).withValues(alpha: 0.9), borderRadius: BorderRadius.circular(8), border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5), boxShadow: [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 24, spreadRadius: 2), const BoxShadow(color: Colors.black, blurRadius: 10, offset: Offset(0, 4))]),
     child: ClipRRect(

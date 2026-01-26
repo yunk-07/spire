@@ -13,12 +13,13 @@ import 'map_screen.dart';
 import 'level_data.dart';
 import 'game_state.dart';
 import 'character_data.dart';
-import 'laser_painter.dart';
-import 'slash_painter.dart';
+// import 'laser_painter.dart';
+// import 'slash_painter.dart';
 import 'animation_constants.dart';
-import 'effect_styles.dart';
+// import 'effect_styles.dart';
 import 'scanline_jitter_painter.dart';
 import 'effects_widgets.dart';
+import 'brainchip_data.dart';
 
 // ============================================================================
 // 文件说明 / 主要函数说明及键的作用
@@ -585,6 +586,18 @@ class SuiteTechPainter extends CustomPainter {
           );
         }
         break;
+      case CardSuite.demon:
+        // 恶魔：放射状的尖锐线条
+        final center = Offset(size.width * 0.5, size.height * 0.5);
+        for (int i = 0; i < 8; i++) {
+          final angle = i * pi / 4;
+          canvas.drawLine(
+            center,
+            center + Offset(cos(angle) * 30, sin(angle) * 30),
+            paint..strokeWidth = 2.0,
+          );
+        }
+        break;
     }
   }
 
@@ -630,7 +643,7 @@ class RoleEffectPainter extends CustomPainter {
           _drawGlitchSquares(canvas, size, effect.pos, progress);
           break;
         case CharacterClass.fa:
-          _drawFaWaves(canvas, size, progress);
+          // _drawFaWaves(canvas, size, progress);
           break;
       }
     }
@@ -801,52 +814,7 @@ class RoleEffectPainter extends CustomPainter {
     }
   }
 
-  void _drawWaveLines(Canvas canvas, Size size, Offset center, double progress) {
-    final paint = Paint()
-      ..color = const Color(0xFF4DCCFF).withValues(alpha: (1.0 - progress) * 0.6)
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
 
-    final path = Path();
-    final waveCount = 3;
-    final waveWidth = size.width * 0.8;
-    
-    for (int i = 0; i < waveCount; i++) {
-      final yOffset = center.dy + (i - 1) * 30 + sin(progress * pi * 2 + i) * 10;
-      final xStart = center.dx - waveWidth / 2;
-      
-      path.reset();
-      path.moveTo(xStart, yOffset);
-      
-      for (double x = 0; x <= waveWidth; x += 10) {
-        final dx = xStart + x;
-        final dy = yOffset + sin((x / waveWidth) * pi * 4 + progress * pi * 2 + i) * 15 * (1.0 - progress);
-        path.lineTo(dx, dy);
-      }
-      canvas.drawPath(path, paint);
-    }
-  }
-
-  void _drawFaWaves(Canvas canvas, Size size, double progress) {
-    final baseY = size.height * (1.0 - progress);
-    for (int i = 0; i < 3; i++) {
-      final amp = 10.0 + i * 2.0;
-      final freq = 0.010 + i * 0.003;
-      final phase = progress * (8.0 + i);
-      final path = Path()..moveTo(0, baseY + amp * sin(phase));
-      for (double x = 0; x <= size.width; x += 6) {
-        final y = baseY + amp * sin(x * freq + phase);
-        path.lineTo(x, y);
-      }
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = Colors.white.withValues(alpha: (0.20 - i * 0.04).clamp(0.0, 1.0))
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = (1.8 - i * 0.3),
-      );
-    }
-  }
 
   @override
   bool shouldRepaint(RoleEffectPainter oldDelegate) => true;
@@ -874,6 +842,28 @@ class _HpBarBackgroundPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _TopBarGridPainter extends CustomPainter {
+  final Color color;
+  final double progress;
+  _TopBarGridPainter({required this.color, required this.progress});
+  @override
+  void paint(Canvas canvas, Size size) {
+    final base = color.withValues(alpha: 0.04 + 0.08 * Curves.easeOut.transform(progress.clamp(0.0, 1.0)));
+    final p = Paint()
+      ..color = base
+      ..strokeWidth = 1.0;
+    final spacing = 24.0 - 8.0 * Curves.easeOut.transform(progress.clamp(0.0, 1.0));
+    for (double x = -size.height; x < size.width; x += spacing) {
+      canvas.drawLine(Offset(x, 0), Offset(x + size.height, size.height), p);
+    }
+    for (double x = size.width + size.height; x > 0; x -= spacing) {
+      canvas.drawLine(Offset(x, 0), Offset(x - size.height, size.height), p);
+    }
+  }
+  @override
+  bool shouldRepaint(covariant _TopBarGridPainter oldDelegate) => oldDelegate.color != color || oldDelegate.progress != progress;
 }
 
 /// 关键区域：全局主题
@@ -1136,6 +1126,8 @@ class BattlePage extends StatefulWidget {
 
 class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   final anim = AnimationService();
+  late AnimationController _waveCtrl;
+  late AnimationController _chipDeployCtrl;
   late AnimationController _hpPulseCtrl;
   final GlobalKey _drawPileKey = GlobalKey();
   final GlobalKey _discardPileKey = GlobalKey();
@@ -1164,11 +1156,13 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   bool hasDrawnCards = false; // 当前回合是否已抽牌
   bool isVictory = false; // 胜负标识
   bool _victoryRecorded = false; // 胜利记录一次
-  bool _playerTookDamageThisTurn = false; // 影蚀职业：记录本回合是否受到伤害
   CardSuite? _lastUsedSuite; // 几何职业：记录上一张使用的牌类别
   bool _yingshiInitBonusGranted = false;
   bool _interactionLocked = false;
   bool _resultScheduling = false;
+  bool _chipBannerActive = false;
+  bool _bossRewardSelected = false; // 是否已选择 Boss 奖励
+  String? _chipName;
 
   // Buff 详情查看状态
   String? _activeBuffName;
@@ -1311,6 +1305,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _hpPulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat(reverse: true);
+    _waveCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat();
+    _chipDeployCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
     // 关键区域：根据地图节点构建系统程序
     activePrograms = _buildProgramsFromIds(widget.programIds);
     // 设置DSL效果执行器
@@ -1319,6 +1315,23 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     characterData = characterDatabase[GameState.selectedCharacterId]!;
     // 焰心：跨关卡持久热量进度同步到战斗页
     heatProgress = GameState.heatProgress.clamp(0, 48);
+    final chipId = GameState.selectedBrainChipId;
+    if (chipId != null) {
+      final chip = brainChipPool.firstWhere((c) => c.id == chipId, orElse: () => brainChipPool.first);
+      _chipName = chip.name;
+      _chipBannerActive = true;
+      _chipDeployCtrl.forward();
+      
+      // 关键区域：执行脑机 DSL 效果
+      if (chip.effect != null) {
+        CardEffect.execute(chip.effect!, null, null, this);
+      }
+      
+      Future.delayed(const Duration(milliseconds: 1600), () {
+        _chipBannerActive = false;
+        if (mounted) setState(() {});
+      });
+    }
     _applyStarFiveModifiers();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_starFiveToast != null) {
@@ -1341,6 +1354,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   void dispose() {
     // 释放所有动画控制器
     _hpPulseCtrl.dispose();
+    _waveCtrl.dispose();
+    _chipDeployCtrl.dispose();
     for (final controller in _cardAnimationControllers.values) {
       controller.dispose();
     }
@@ -1452,15 +1467,15 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   /// DSL效果执行器实现
   void _executeCardEffect(
     String effect,
-    CardData card,
+    CardData? card,
     dynamic target,
     dynamic battle,
   ) {
     // 分割多个效果（支持分号分隔）
     final effects = effect.split(';').map((e) => e.trim()).where((e) => e.isNotEmpty);
     final bool isFa = characterData.characterClass == CharacterClass.fa;
-    final bool isEnemyTarget = card.target == CardTarget.enemy;
-    final bool isAllTarget = card.target == CardTarget.all;
+    final bool isEnemyTarget = card?.target == CardTarget.enemy;
+    final bool isAllTarget = card?.target == CardTarget.all;
     final bool hasEnemyEffect = effect.contains('damage') ||
         effect.contains('vulnerable') ||
         effect.contains('weak') ||
@@ -1501,9 +1516,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         case 'block':
           if (parts.length > 1) {
             final value = int.tryParse(parts[1]) ?? 0;
-            final total = value * repeatCount;
-            player.block += total;
-            anim.showBlockGain(player, total);
+            // 防御始终为固定值，不随目标数量倍增
+            player.block += value;
+            anim.showBlockGain(player, value);
           }
           break;
 
@@ -1575,15 +1590,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         case 'sturdy':
           if (parts.length > 1) {
             final turns = int.tryParse(parts[1]) ?? 1;
-            if (isAllTarget || faToAll) {
-              for (final enemy in enemyTargets) {
-                enemy.sturdy += turns;
-              }
-            } else if (target != null) {
-              (target as Entity).sturdy += turns;
-            } else {
-              player.sturdy += turns;
-            }
+            // 坚固效果始终作用于自身
+            player.sturdy += turns;
           }
           break;
 
@@ -1764,6 +1772,12 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     // 触发玩家行动反馈动画（小弹跳）
     anim.showActionFeedback(player);
 
+    // 关键区域：ANN接替思维脑机被动 —— 手牌小于7，每使用一张牌摸一张牌
+    if (GameState.selectedBrainChipId == 'ann_replacement' && hand.length < 7) {
+      _randomDrawCards(count: 1);
+      _showStatusTip("【ANN】神经网络自动补牌", const Color(0xFF9D00FF));
+    }
+
     // 使用DSL系统处理卡牌效果
           if (card.effect != null) {
             // 关键区域：根据卡牌属性选择攻击特效类型
@@ -1915,10 +1929,10 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         if (gain > 0) player.tempStrength += gain;
       }
       
-      // 关键区域：记录玩家受损状态（用于影蚀被动等）
-      if (identical(target, player)) {
-        _playerTookDamageThisTurn = true;
-      }
+      // 记录玩家受损状态（用于影蚀被动等）
+    // if (identical(target, player)) {
+    //   _playerTookDamageThisTurn = true;
+    // }
 
       anim.showDamage(target, remaining);
       _playHitSound();
@@ -2045,7 +2059,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       player.vulnerable += 1;
       _yingshiInitBonusGranted = true;
     }
-    _playerTookDamageThisTurn = false; // 重置受损记录
+    // _playerTookDamageThisTurn = false; // 重置受损记录
 
     // 同步阶段开始时自动抽牌：随机获取数据包
     _randomDrawCards(bonus: drawBonus);
@@ -2056,7 +2070,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   }
 
   /// 随机抽牌逻辑：随机抽取随机张牌
-  void _randomDrawCards({int bonus = 0}) {
+  void _randomDrawCards({int bonus = 0, int? count}) {
     if (drawPile.isEmpty) {
       drawPile.addAll(discardPile);
       discardPile.clear();
@@ -2064,12 +2078,19 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     }
 
     final random = Random();
-    final cardsToDraw =
-        random.nextInt(
-              characterData.maxDrawPerTurn - characterData.minDrawPerTurn + 1,
-            ) +
-            characterData.minDrawPerTurn +
-            bonus;
+    int cardsToDraw;
+    
+    if (count != null) {
+      cardsToDraw = count;
+    } else {
+      cardsToDraw =
+          random.nextInt(
+                characterData.maxDrawPerTurn - characterData.minDrawPerTurn + 1,
+              ) +
+              characterData.minDrawPerTurn +
+              bonus;
+    }
+    
     final actualDrawCount = cardsToDraw.clamp(1, drawPile.length);
 
     final newCards = <CardInstance>[];
@@ -2465,7 +2486,13 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                         if (hasBloodGlow) return const Color(0xFFFF4D4D);
                         final isJianrenBoost = (characterData.characterClass == CharacterClass.jianren &&
                           activePrograms.any((e) => e.hp > 0 && e.block <= 0));
-                        return isJianrenBoost ? const Color(0xFFFFD700) : const Color(0xFF6CE4FF);
+                        if (isJianrenBoost) return const Color(0xFFFFD700);
+                        final chipId = GameState.selectedBrainChipId;
+                        if (chipId != null) {
+                          final chip = brainChipPool.firstWhere((c) => c.id == chipId, orElse: () => brainChipPool.first);
+                          return Color(chip.themeColor);
+                        }
+                        return const Color(0xFF6CE4FF);
                       })(),
                     )),
                   ),
@@ -2474,7 +2501,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       child: IgnorePointer(
                         child: RepaintBoundary(
                           child: CustomPaint(
-                            painter: _WaveIdlePainter(),
+                            painter: _WaveIdlePainter(repaint: _waveCtrl),
                           ),
                         ),
                       ),
@@ -2499,6 +2526,47 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       ),
                     ),
                   ),
+                  if (_chipBannerActive && _chipName != null)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: AnimatedBuilder(
+                          animation: _chipDeployCtrl,
+                          builder: (context, _) {
+                            final t = Curves.easeOut.transform(_chipDeployCtrl.value.clamp(0.0, 1.0));
+                            final col = (() {
+                              final chipId = GameState.selectedBrainChipId;
+                              if (chipId != null) {
+                                final chip = brainChipPool.firstWhere((c) => c.id == chipId, orElse: () => brainChipPool.first);
+                                return Color(chip.themeColor);
+                              }
+                              return const Color(0xFF6CE4FF);
+                            })();
+                            return Opacity(
+                              opacity: (t < 0.8 ? t : 1.0 - (t - 0.8) / 0.2).clamp(0.0, 1.0),
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: col.withValues(alpha: 0.7)),
+                                    boxShadow: [BoxShadow(color: col.withValues(alpha: 0.25), blurRadius: 12)],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.memory, color: col, size: 18),
+                                      const SizedBox(width: 10),
+                                      Text("${_chipName} 脑机 接入", style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
               // 根据屏幕方向选择不同布局
               isLandscape ? _landscapeLayout() : _portraitLayout(),
               // 低生命值屏幕红光
@@ -2889,10 +2957,31 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _chipDeployCtrl,
+                builder: (context, _) {
+                  final color = (() {
+                    final isJianrenBoost = (characterData.characterClass == CharacterClass.jianren &&
+                        activePrograms.any((e) => e.hp > 0 && e.block <= 0));
+                    if (isJianrenBoost) return const Color(0xFFFFD700);
+                    final chipId = GameState.selectedBrainChipId;
+                    if (chipId != null) {
+                      final chip = brainChipPool.firstWhere((c) => c.id == chipId, orElse: () => brainChipPool.first);
+                      return Color(chip.themeColor);
+                    }
+                    return const Color(0xFF6CE4FF);
+                  })();
+                  return CustomPaint(painter: _TopBarGridPainter(color: color, progress: _chipDeployCtrl.value));
+                },
+              ),
+            ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             // 元数据标签
             Row(
               children: [
@@ -3126,10 +3215,12 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             ),
             const SizedBox(height: 6),
             _statusEffectsBar(player),
+            const SizedBox(height: 6),
+            _brainChipBadge(),
           ],
         ),
-      ),
-    );
+      ]),
+    ));
   }
 
   /// 获取游戏阶段对应的颜色
@@ -3152,6 +3243,77 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     );
   }
 
+  Widget _brainChipBadge() {
+    final chipId = GameState.selectedBrainChipId;
+    if (chipId == null) return const SizedBox.shrink();
+    final chip = brainChipPool.firstWhere((c) => c.id == chipId, orElse: () => brainChipPool.first);
+    final col = Color(chip.themeColor);
+    return GestureDetector(
+      onTap: () {
+        showGeneralDialog(
+          context: context,
+          barrierDismissible: true,
+          barrierLabel: "BRAIN_CHIP_INFO",
+          barrierColor: Colors.black.withValues(alpha: 0.8),
+          transitionDuration: const Duration(milliseconds: 150),
+          pageBuilder: (ctx, a1, a2) {
+            return Center(
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  width: 320,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: col.withValues(alpha: 0.6)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.memory, color: col, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(chip.name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
+                      Text("Lv.${chip.level} · ${chip.effect ?? ''}", style: TextStyle(color: col, fontSize: 12)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(chip.description, style: const TextStyle(color: Color(0xFF8FA3C0), fontSize: 12)),
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: CyberButton(label: "关闭", width: 100, height: 36, fontSize: 12, color: col, onPressed: () => Navigator.pop(ctx)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: col.withValues(alpha: 0.6)),
+          boxShadow: [BoxShadow(color: col.withValues(alpha: 0.2), blurRadius: 8)],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.memory, size: 14, color: col),
+            const SizedBox(width: 6),
+            Text("脑机", style: TextStyle(color: col.withValues(alpha: 0.8), fontSize: 10, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+          ],
+        ),
+      ),
+    );
+  }
   /// 获取游戏阶段对应的文本
 
   Widget _battleField() {
@@ -3543,6 +3705,10 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                 _gameStatisticsWidget(),
                                 const SizedBox(height: 28),
                                 
+                                // Boss 奖励选择区域
+                                if (isVictory && GameProgress.isCurrentNationFinished() && !_bossRewardSelected)
+                                  _bossRewardSelectionWidget()
+                                else
                                 // 按钮区域
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -3629,6 +3795,188 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     );
   }
 
+
+  // 关键区域：Boss 奖励选择
+  Widget _bossRewardSelectionWidget() {
+    return Column(
+      children: [
+        const Text(
+          "--- 检测到核心溢出：请选择奖励 ---",
+          style: TextStyle(
+            color: Colors.amber, 
+            fontSize: 12, 
+            fontWeight: FontWeight.bold,
+            fontFamily: 'monospace',
+            letterSpacing: 1.5,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _rewardOption(
+              icon: Icons.memory,
+              title: "获取随机脑机",
+              desc: "销毁旧脑机，接入新协议\n(系统稳定性下降: -2 Max HP)",
+              color: const Color(0xFF6CE4FF),
+              onTap: () => _handleBrainChipReward(),
+            ),
+            const SizedBox(width: 20),
+            _rewardOption(
+              icon: Icons.pest_control_rodent_rounded,
+              title: "获取恶魔牌",
+              desc: "一张拥有毁天灭地力量的卡牌\n(Lv ? 禁忌指令)",
+              color: const Color(0xFF9D00FF),
+              onTap: () => _handleDemonCardReward(),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _rewardOption({
+    required IconData icon,
+    required String title,
+    required String desc,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 160,
+        height: 120,
+        padding: const EdgeInsets.all(0),
+        decoration: BoxDecoration(
+          color: const Color(0xFF05060A),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: color.withValues(alpha: 0.6), width: 1.5),
+          boxShadow: [
+            BoxShadow(color: color.withValues(alpha: 0.2), blurRadius: 10, spreadRadius: 1),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 8),
+            Text(
+              title, 
+              style: TextStyle(
+                color: color, 
+                fontWeight: FontWeight.bold, 
+                fontSize: 13,
+                fontFamily: 'monospace',
+              )
+            ),
+            const SizedBox(height: 6),
+            Text(
+              desc,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: color.withValues(alpha: 0.7), 
+                fontSize: 9,
+                height: 1.3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _handleBrainChipReward() {
+    final random = Random();
+    // 排除当前已有的脑机
+    final availableChips = brainChipPool.where((c) => c.id != GameState.selectedBrainChipId).toList();
+    if (availableChips.isEmpty) return;
+    final newChip = availableChips[random.nextInt(availableChips.length)];
+
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "BRAIN_CHIP_CONFIRM",
+      barrierColor: Colors.black.withValues(alpha: 0.8),
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (ctx, a1, a2) {
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: 300,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0A0F16),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: const Color(0xFFFF4444).withValues(alpha: 0.6)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 36),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "警告：脑机热拔插",
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    "接入新脑机 [${newChip.name}] 将会强行销毁当前脑机。由于数据接口不匹配，你的系统最大完整度将下降 2 点。\n\n是否执行此高风险操作？",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Color(0xFF8FA3C0), fontSize: 13, height: 1.5),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      CyberButton(
+                        label: "放弃", 
+                        width: 100, 
+                        height: 40, 
+                        color: Colors.grey, 
+                        onPressed: () => Navigator.pop(ctx)
+                      ),
+                      CyberButton(
+                        label: "确认接入", 
+                        width: 100, 
+                        height: 40, 
+                        color: const Color(0xFF6CE4FF), 
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          setState(() {
+                            GameState.playerMaxHp = (GameState.playerMaxHp - 2).clamp(1, 999);
+                            GameState.playerHp = min(GameState.playerHp, GameState.playerMaxHp);
+                            GameState.selectedBrainChipId = newChip.id;
+                            _bossRewardSelected = true;
+                            _statusTip = "脑机已更换，最大完整度 -2";
+                            _statusTipColor = Colors.orangeAccent;
+                          });
+                        }
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _handleDemonCardReward() {
+    final demonCards = cardDatabase.values.where((c) => c.suite == CardSuite.demon).toList();
+    if (demonCards.isEmpty) return;
+    final card = demonCards[Random().nextInt(demonCards.length)];
+
+    setState(() {
+      GameState.drawPile.add(card.id);
+      _bossRewardSelected = true;
+      _statusTip = "恶魔指令 [${card.name}] 已注入指令集";
+      _statusTipColor = const Color(0xFF9D00FF);
+    });
+  }
 
   Widget _overlayButton(
     IconData icon,
@@ -5393,6 +5741,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                   case CardSuite.secure: return const Color(0xFFC3A6FF);
                   case CardSuite.industrial: return const Color(0xFFFFB344);
                   case CardSuite.quantum: return const Color(0xFFE26CFF);
+                  case CardSuite.demon: return const Color(0xFF9D00FF);
                 }
               }
 
@@ -5486,6 +5835,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                   case CardSuite.secure: return const Color(0xFFC3A6FF);
                   case CardSuite.industrial: return const Color(0xFFFFB344);
                   case CardSuite.quantum: return const Color(0xFFE26CFF);
+                  case CardSuite.demon: return const Color(0xFF9D00FF);
                 }
               }
 
@@ -5739,41 +6089,44 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     bool dragging = false,
     bool showCompleteAnimation = false,
   }) {
-    // 关键区域：根据卡牌套装(Suite)确定视觉风格
-    Color getSuiteColor() {
-      switch (c.suite) {
-        case CardSuite.classic: return const Color(0xFF6CE4FF); // 经典霓虹青
-        case CardSuite.overload: return const Color(0xFFFF4444); // 红色过载
-        case CardSuite.secure: return const Color(0xFFC3A6FF); // 淡紫色
-        case CardSuite.industrial: return const Color(0xFFFFB344); // 工业机械橙
-        case CardSuite.quantum: return const Color(0xFFE26CFF); // 量子虚空紫
-      }
+  // 关键区域：根据卡牌套装(Suite)确定视觉风格
+  Color getSuiteColor() {
+    switch (c.suite) {
+      case CardSuite.classic: return const Color(0xFF6CE4FF); // 经典霓虹青
+      case CardSuite.overload: return const Color(0xFFFF4444); // 红色过载
+      case CardSuite.secure: return const Color(0xFFC3A6FF); // 淡紫色
+      case CardSuite.industrial: return const Color(0xFFFFB344); // 工业机械橙
+      case CardSuite.quantum: return const Color(0xFFE26CFF); // 量子虚空紫
+      case CardSuite.demon: return const Color(0xFF9D00FF); // 恶魔深紫
     }
+  }
 
-    Color getRarityColor() {
-        switch (c.level) {
-          case 1: return const Color(0xFF44FF44); // 绿色 (普通) - 已对换
-          case 2: return const Color(0xFF6CE4FF); // 蓝绿色 (优秀) - 已对换
-          case 3: return const Color(0xFFE26CFF); // 紫色 (稀有)
-        case 4: return const Color(0xFFFFD700); // 金色 (史诗)
-        case 5: return const Color(0xFFFF4444); // 红色 (传说)
-        default: return Colors.white70;
-      }
+  Color getRarityColor() {
+    if (c.suite == CardSuite.demon) return const Color(0xFFFF0000); // 恶魔牌特有红
+    switch (c.level) {
+      case 1: return const Color(0xFF44FF44); // 绿色 (普通) - 已对换
+      case 2: return const Color(0xFF6CE4FF); // 蓝绿色 (优秀) - 已对换
+      case 3: return const Color(0xFFE26CFF); // 紫色 (稀有)
+      case 4: return const Color(0xFFFFD700); // 金色 (史诗)
+      case 5: return const Color(0xFFFF4444); // 红色 (传说)
+      default: return Colors.white70;
     }
+  }
 
-    final suiteColor = getSuiteColor();
-    final rarityColor = getRarityColor();
-    
-    // 背景色微调：不同套装背景略有差异
-    Color getCardBgColor() {
-      switch (c.suite) {
-        case CardSuite.overload: return const Color(0xFF1A0A0A);
-        case CardSuite.secure: return const Color(0xFF1A0A1A);
-        case CardSuite.industrial: return const Color(0xFF1A140A);
-        case CardSuite.quantum: return const Color(0xFF140A1A);
-        case CardSuite.classic: return const Color(0xFF101722);
-      }
+  final suiteColor = getSuiteColor();
+  final rarityColor = getRarityColor();
+  
+  // 背景色微调：不同套装背景略有差异
+  Color getCardBgColor() {
+    switch (c.suite) {
+      case CardSuite.overload: return const Color(0xFF1A0A0A);
+      case CardSuite.secure: return const Color(0xFF1A0A1A);
+      case CardSuite.industrial: return const Color(0xFF1A140A);
+      case CardSuite.quantum: return const Color(0xFF140A1A);
+      case CardSuite.classic: return const Color(0xFF101722);
+      case CardSuite.demon: return const Color(0xFF0F001A);
     }
+  }
     
     final cardBgColor = getCardBgColor().withValues(alpha: 0.9);
     
@@ -5920,7 +6273,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            "Lv${c.level}",
+                            c.suite == CardSuite.demon ? "Lv ?" : "Lv${c.level}",
                             style: TextStyle(
                               fontSize: 6,
                               fontWeight: FontWeight.bold,
@@ -5961,6 +6314,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       case CardSuite.secure: return Icons.security_rounded;
       case CardSuite.industrial: return Icons.settings_rounded;
       case CardSuite.quantum: return Icons.auto_awesome_rounded;
+      case CardSuite.demon: return Icons.pest_control_rodent_rounded; // 恶魔感图标
     }
   }
 
@@ -6008,206 +6362,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     );
   }
 
-  // 1. 物理冲击特效 (改为能量波视觉效果)
-  Widget _impactEffect(AttackEffect e) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 600),
-      curve: Curves.easeOutCubic,
-      builder: (_, t, __) {
-        final opacity = (1.0 - t).clamp(0.0, 1.0);
-        final scale = 0.5 + t * 2.0;
-        return Stack(
-          children: [
-            // 目标位置的冲击波
-            Positioned(
-              left: e.end.dx + 50 - (40 * scale),
-              top: e.end.dy + 60 - (40 * scale),
-              child: Opacity(
-                opacity: opacity,
-                child: Container(
-                  width: 80 * scale,
-                  height: 80 * scale,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFF6CE4FF).withValues(alpha: opacity),
-                      width: 4 * (1 - t),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF6CE4FF).withValues(alpha: opacity * 0.5),
-                        blurRadius: 20 * t,
-                        spreadRadius: 5 * t,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // 2. 激光射线特效
-  Widget _laserEffect(AttackEffect e) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: AnimDurations.laser,
-      builder: (_, t, __) {
-        final opacity = t < 0.2 ? t / 0.2 : (t < 0.8 ? 1.0 : 1.0 - (t - 0.8) / 0.2);
-        final width = t < 0.3 ? t / 0.3 * 8.0 : (1.0 - (t - 0.3) / 0.7) * 8.0;
-        
-        return Stack(
-          children: [
-            CustomPaint(
-              painter: LaserPainter(
-                start: e.start + const Offset(40, 48),
-                end: e.end + const Offset(50, 60),
-                progress: t,
-                color: EffectColors.laserPrimary,
-                width: width,
-                opacity: opacity,
-              ),
-            ),
-            // 目标处的冲击光圈
-            if (t > 0.2 && t < 0.8)
-              Positioned(
-                left: e.end.dx + 50 - 30,
-                top: e.end.dy + 60 - 30,
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0, end: 1),
-                  duration: const Duration(milliseconds: 200),
-                  builder: (_, v, __) => Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF6CE4FF).withValues(alpha: 1.0 - v), width: 2),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        );
-      },
-    );
-  }
-
-  // 3. 斩击特效
-  Widget _slashEffect(AttackEffect e) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: AnimDurations.slash,
-      builder: (_, t, __) {
-        return Stack(
-          children: [
-            // 斩击痕迹
-            CustomPaint(
-              painter: SlashPainter(
-                center: e.end + const Offset(50, 60),
-                progress: t,
-                color: EffectColors.slashPrimary,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // 4. 爆炸特效
-  Widget _explosionEffect(AttackEffect e) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 1000),
-      builder: (_, t, __) {
-        return Stack(
-          children: [
-            // 投掷物轨迹
-            if (t < 0.4)
-              Positioned(
-                left: Offset.lerp(e.start, e.end, t / 0.4)!.dx + 40,
-                top: Offset.lerp(e.start, e.end, t / 0.4)!.dy + 40,
-                child: Transform.rotate(
-                  angle: t * 10,
-                  child: const Icon(Icons.brightness_high, color: Color(0xFFFF9500), size: 24),
-                ),
-              ),
-            // 爆炸火花
-            if (t >= 0.3)
-              ...List.generate(12, (i) {
-                final progress = ((t - 0.3) / 0.7).clamp(0.0, 1.0);
-                if (progress <= 0 || progress >= 1) return const SizedBox();
-                final angle = (i * 30) * pi / 180;
-                final dist = progress * 80;
-                return Positioned(
-                  left: e.end.dx + 50 + cos(angle) * dist,
-                  top: e.end.dy + 60 + sin(angle) * dist,
-                  child: Opacity(
-                    opacity: 1.0 - progress,
-                    child: Container(
-                      width: 8 * (1 - progress),
-                      height: 8 * (1 - progress),
-                      decoration: const BoxDecoration(color: Color(0xFFFF4444), shape: BoxShape.circle),
-                    ),
-                  ),
-                );
-              }),
-          ],
-        );
-      },
-    );
-  }
-
-  // 5. 注入特效
-  Widget _injectEffect(AttackEffect e) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 800),
-      builder: (_, t, __) {
-        return Stack(
-          children: [
-            // 注入流
-            if (t < 0.6)
-              ...List.generate(5, (i) {
-                final delay = i * 0.1;
-                final progress = ((t - delay) / 0.5).clamp(0.0, 1.0);
-                if (progress <= 0 || progress >= 1) return const SizedBox();
-                final pos = Offset.lerp(e.start + const Offset(40, 48), e.end + const Offset(50, 60), progress)!;
-                return Positioned(
-                  left: pos.dx,
-                  top: pos.dy,
-                  child: Container(
-                    width: 4,
-                    height: 4,
-                    decoration: const BoxDecoration(color: Color(0xFF00FFCC), shape: BoxShape.circle),
-                  ),
-                );
-              }),
-            // 目标处的数据流上升
-            if (t > 0.4)
-              ...List.generate(3, (i) {
-                final progress = ((t - 0.4) / 0.6).clamp(0.0, 1.0);
-                return Positioned(
-                  left: e.end.dx + 30 + (i * 20),
-                  top: e.end.dy + 80 - (progress * 60),
-                  child: Opacity(
-                    opacity: (1.0 - progress) * 0.7,
-                    child: Text(
-                      (i % 2 == 0 ? "101" : "011"),
-                      style: const TextStyle(color: Color(0xFF00FFCC), fontSize: 10, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                );
-              }),
-          ],
-        );
-      },
-    );
-  }
+// End of BattlePage class
 
   Widget _damagePopup(DamagePopup p) {
     return TweenAnimationBuilder<double>(
@@ -7031,7 +7186,7 @@ class _FireOverlayPainter extends CustomPainter {
     for (int i = 0; i < (_stripes!.length); i++) {
       final base = _stripes![i];
       final rect = Rect.fromLTWH(base.left, yTop, base.width, base.height);
-      final col = _stripeColors![i]!.withValues(alpha: 0.18 * (1.0 - p));
+      final col = _stripeColors![i].withValues(alpha: 0.18 * (1.0 - p));
       canvas.drawRect(rect, Paint()..color = col);
     }
   }
@@ -7040,6 +7195,7 @@ class _FireOverlayPainter extends CustomPainter {
 }
  
 class _WaveIdlePainter extends CustomPainter {
+  _WaveIdlePainter({Listenable? repaint}) : super(repaint: repaint);
   @override
   void paint(Canvas canvas, Size size) {
     final base = const Color(0xFF4DCCFF);

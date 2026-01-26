@@ -276,6 +276,7 @@ const Map<String, CharacterData> characterDatabase = {
       "glitch_step",
       "void_slash",
       "data_broadcast",
+      "block_wall",
     ],
     minDrawPerTurn: 3,
     maxDrawPerTurn: 6,

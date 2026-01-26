@@ -30,7 +30,8 @@ enum CardSuite {
   overload,   // 红色过载/故障
   secure,     // 淡紫终端/安全系统
   industrial, // 工业橙/机械
-  quantum     // 量子紫/虚空
+  quantum,    // 量子紫/虚空
+  demon       // 恶魔/独特样式
 }
 
 /// 卡牌数据模型
@@ -964,5 +965,40 @@ const Map<String, CardData> cardDatabase = {
     level: 3,
     effect: 'sturdy 5',
     description: '为外壳覆以纳米涂层，获得 5 层坚固，使护盾在回合结束保留。',
+  ),
+
+  // --- 独特：恶魔系列 ---
+  'demon_breath': CardData(
+    id: 'demon_breath',
+    name: '恶魔之息',
+    type: CardType.exploit,
+    target: CardTarget.all,
+    suite: CardSuite.demon,
+    cost: 3,
+    level: 999, // Lv 为 ? 在显示逻辑中处理
+    effect: 'damage 66; curse 3; weak 3',
+    description: '释放来自深渊的威压。对全体造成 66 点伤害，施加 3 层恶意代码和虚弱。',
+  ),
+  'demon_embrace': CardData(
+    id: 'demon_embrace',
+    name: '恶魔之拥',
+    type: CardType.encryption,
+    target: CardTarget.self,
+    suite: CardSuite.demon,
+    cost: 2,
+    level: 999,
+    effect: 'block 40; strength 5; self_damage 5',
+    description: '接受恶魔的拥抱。获得 40 点防御和 5 点算力，但自损 5 点生命。',
+  ),
+  'demon_contract': CardData(
+    id: 'demon_contract',
+    name: '灵魂契约',
+    type: CardType.routine,
+    target: CardTarget.self,
+    suite: CardSuite.demon,
+    cost: 0,
+    level: 999,
+    effect: 'energy 3; draw 5; max_hp_down 2',
+    description: '签署不可逆的契约。获得 3 点能量并摸 5 张牌，但永久失去 2 点生命上限。',
   ),
 };
