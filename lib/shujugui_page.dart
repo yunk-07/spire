@@ -25,7 +25,8 @@ class _ShujuguiPageState extends State<ShujuguiPage> {
   void initState() {
     super.initState();
     final random = Random();
-    final high = cardDatabase.values.where((c) => c.level >= 4).toList();
+    // 关键区域：排除恶魔和神圣系列卡牌（仅限Boss奖励）
+    final high = cardDatabase.values.where((c) => c.level >= 4 && c.suite != CardSuite.demon && c.suite != CardSuite.holy).toList();
     final pool = List<CardData>.from(high);
     final picked = <CardData>[];
     while (picked.length < 2 && pool.isNotEmpty) {
@@ -36,7 +37,7 @@ class _ShujuguiPageState extends State<ShujuguiPage> {
 
   @override
   Widget build(BuildContext context) {
-    final color = const Color(0xFF6CE4FF);
+    final color = GameState.getThemeColor();
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -50,7 +51,7 @@ class _ShujuguiPageState extends State<ShujuguiPage> {
         backgroundColor: const Color(0xFF05060A),
         body: Stack(
           children: [
-            Positioned.fill(child: RepaintBoundary(child: CustomPaint(painter: _DepotGridPainter()))),
+            Positioned.fill(child: RepaintBoundary(child: CustomPaint(painter: _DepotGridPainter(color)))),
             SafeArea(
               child: Column(
                 children: [
@@ -89,10 +90,10 @@ class _ShujuguiPageState extends State<ShujuguiPage> {
 
   Widget _buildHeader(Color color) {
     return Column(
-      children: const [
-        Text('数据柜', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: Color(0xFF6CE4FF), blurRadius: 20)])),
-        SizedBox(height: 12),
-        Text('DATA CABINET v3.4', style: TextStyle(fontSize: 10, color: Color(0x666CE4FF), letterSpacing: 2, fontFamily: 'monospace')),
+      children: [
+        Text('数据柜', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: color, blurRadius: 20)])),
+        const SizedBox(height: 12),
+        Text('DATA CABINET v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
       ],
     );
   }
@@ -216,7 +217,7 @@ class _ShujuguiPageState extends State<ShujuguiPage> {
                     const Text('即将终止当前的尖塔渗透任务，未同步的数据流将会丢失。是否确认断开物理接入？', style: TextStyle(color: Color(0xFFE1E9FF), fontSize: 14, height: 1.6, fontFamily: 'monospace')),
                     const SizedBox(height: 32),
                     Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                      CyberButton(width: 100, height: 36, fontSize: 12, label: '维持接入', color: const Color(0xFF6CE4FF), onPressed: () => Navigator.pop(ctx, false)),
+                      CyberButton(width: 100, height: 36, fontSize: 12, label: '维持接入', color: GameState.getThemeColor(), onPressed: () => Navigator.pop(ctx, false)),
                       const SizedBox(width: 16),
                       CyberButton(width: 100, height: 36, fontSize: 12, label: '确认断开', color: const Color(0xFFFF6A6A), onPressed: () => Navigator.pop(ctx, true)),
                     ]),
@@ -235,9 +236,12 @@ class _ShujuguiPageState extends State<ShujuguiPage> {
 }
 
 class _DepotGridPainter extends CustomPainter {
+  final Color themeColor;
+  _DepotGridPainter(this.themeColor);
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = const Color(0xFFE26CFF).withValues(alpha: 0.05)..strokeWidth = 1;
+    final paint = Paint()..color = themeColor.withValues(alpha: 0.05)..strokeWidth = 1;
     const spacing = 30.0;
     for (double x = 0; x < size.width; x += spacing) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);

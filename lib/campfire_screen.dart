@@ -34,7 +34,7 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    final color = const Color(0xFF6CE4FF);
+    final color = GameState.getThemeColor();
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -220,7 +220,7 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
                     title: "休息",
                     subtitle: "REGENERATE",
                     desc: "恢复缺失生命的 50%",
-                    color: const Color(0xFF6CE4FF),
+                    color: GameState.getThemeColor(),
                     icon: Icons.hotel,
                     onTap: _rest,
                   ),
@@ -349,7 +349,7 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
   Color _rarityColor(int level) {
     switch (level) {
       case 1:
-        return const Color(0xFF6CE4FF);
+        return GameState.getThemeColor();
       case 2:
         return const Color(0xFFFFA726);
       case 3:
@@ -363,12 +363,13 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
 
   Color _suiteColor(CardSuite suite) {
     switch (suite) {
-      case CardSuite.classic: return const Color(0xFF6CE4FF);
+      case CardSuite.classic: return GameState.getThemeColor();
       case CardSuite.overload: return const Color(0xFFFF4444);
       case CardSuite.secure: return const Color(0xFFC3A6FF);
       case CardSuite.industrial: return const Color(0xFFFFB344);
       case CardSuite.quantum: return const Color(0xFFE26CFF);
       case CardSuite.demon: return const Color(0xFF9D00FF);
+      case CardSuite.holy: return const Color(0xFFFFD700);
     }
   }
 
@@ -506,7 +507,7 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
                     height: 36,
                     fontSize: 12,
                     label: '取消',
-                    color: const Color(0xFF6CE4FF),
+                    color: GameState.getThemeColor(),
                     onPressed: () => Navigator.pop(ctx),
                   ),
                 ],
@@ -526,8 +527,8 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
   Widget _processingOverlay(Color color) {
     return Container(
       color: Colors.black.withValues(alpha: 0.9),
-      child: const Center(
-        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6CE4FF)),
+      child: Center(
+        child: CircularProgressIndicator(strokeWidth: 2, color: GameState.getThemeColor()),
       ),
     );
   }
@@ -593,7 +594,7 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          CyberButton(width: 100, height: 36, fontSize: 12, label: '维持接入', color: const Color(0xFF6CE4FF), onPressed: () => Navigator.pop(ctx, false)),
+                          CyberButton(width: 100, height: 36, fontSize: 12, label: '维持接入', color: GameState.getThemeColor(), onPressed: () => Navigator.pop(ctx, false)),
                           const SizedBox(width: 16),
                           CyberButton(width: 100, height: 36, fontSize: 12, label: '确认断开', color: const Color(0xFFFF6A6A), onPressed: () => Navigator.pop(ctx, true)),
                         ],
@@ -612,11 +613,12 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
 }
 
 Widget _styledHeader() {
+  final color = GameState.getThemeColor();
   return Column(
-    children: const [
-      Text('篝火处', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: Color(0xFF6CE4FF), blurRadius: 20)])),
-      SizedBox(height: 12),
-      Text('CAMPFIRE v3.4', style: TextStyle(fontSize: 10, color: Color(0x666CE4FF), letterSpacing: 2, fontFamily: 'monospace')),
+    children: [
+      Text('篝火处', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: color, blurRadius: 20)])),
+      const SizedBox(height: 12),
+      Text('CAMPFIRE v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
     ],
   );
 }
@@ -658,7 +660,8 @@ Widget _logicPanel(Color color, Widget child) {
 class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = const Color(0xFF6CE4FF).withValues(alpha: 0.05)..strokeWidth = 1;
+    final themeColor = GameState.getThemeColor();
+    final paint = Paint()..color = themeColor.withValues(alpha: 0.05)..strokeWidth = 1;
     const spacing = 30.0;
     for (double x = 0; x < size.width; x += spacing) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);

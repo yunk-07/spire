@@ -6,6 +6,7 @@ import 'level_data.dart';
 import 'card_data.dart';
 import 'main.dart';
 import 'map_screen.dart';
+import 'theme_config.dart';
 
 /// 数据缓存站页面 - 允许接入单元同步数据并恢复完整度
 class RestPage extends StatefulWidget {
@@ -36,40 +37,6 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
   void dispose() {
     _fadeController.dispose();
     super.dispose();
-  }
-
-  // 辅助函数：根据卡牌套装(Suite)确定视觉风格
-  Color _getSuiteColor(CardSuite suite) {
-    switch (suite) {
-      case CardSuite.classic: return const Color(0xFF6CE4FF);
-      case CardSuite.overload: return const Color(0xFFFF4444);
-      case CardSuite.secure: return const Color(0xFFC3A6FF);
-      case CardSuite.industrial: return const Color(0xFFFFB344);
-      case CardSuite.quantum: return const Color(0xFFE26CFF);
-      case CardSuite.demon: return const Color(0xFF9D00FF);
-    }
-  }
-
-  Color _getRarityColor(int level) {
-    switch (level) {
-      case 1: return const Color(0xFF44FF44);
-      case 2: return const Color(0xFF6CE4FF);
-      case 3: return const Color(0xFFE26CFF);
-      case 4: return const Color(0xFFFFD700);
-      case 5: return const Color(0xFFFF4444);
-      default: return Colors.white70;
-    }
-  }
-
-  IconData _getSuiteIcon(CardSuite suite) {
-    switch (suite) {
-      case CardSuite.classic: return Icons.bolt_rounded;
-      case CardSuite.overload: return Icons.warning_amber_rounded;
-      case CardSuite.secure: return Icons.security_rounded;
-      case CardSuite.industrial: return Icons.settings_rounded;
-      case CardSuite.quantum: return Icons.auto_awesome_rounded;
-      case CardSuite.demon: return Icons.pest_control_rodent_rounded;
-    }
   }
 
   Widget _buildCardDescription(CardData c, Color highlightColor) {
@@ -159,21 +126,9 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
   }
 
   Widget _cardWidget(CardData c) {
-    final suiteColor = _getSuiteColor(c.suite);
-    final rarityColor = _getRarityColor(c.level);
-    
-    Color getCardBgColor() {
-      switch (c.suite) {
-        case CardSuite.overload: return const Color(0xFF1A0A0A);
-        case CardSuite.secure: return const Color(0xFF0A1A0A);
-        case CardSuite.industrial: return const Color(0xFF1A140A);
-        case CardSuite.quantum: return const Color(0xFF140A1A);
-        case CardSuite.classic: return const Color(0xFF101722);
-        case CardSuite.demon: return const Color(0xFF0F001A);
-      }
-    }
-    
-    final cardBgColor = getCardBgColor().withValues(alpha: 0.9);
+    final suiteColor = ThemeConfig.getSuiteColor(c.suite);
+    final rarityColor = ThemeConfig.getRarityColor(c.level, suite: c.suite);
+    final cardBgColor = ThemeConfig.getCardBgColor(c.suite).withValues(alpha: 0.9);
     
     return Container(
       width: 100,
@@ -254,7 +209,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
                         ),
                         child: Row(
                           children: [
-                            Icon(_getSuiteIcon(c.suite), size: 8, color: suiteColor),
+                            Icon(ThemeConfig.getSuiteIcon(c.suite), size: 8, color: suiteColor),
                             Text(
                               "${c.cost}",
                               style: TextStyle(
@@ -285,7 +240,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        "Lv${c.level}",
+                        (c.suite == CardSuite.demon || c.suite == CardSuite.holy) ? "Lv ?" : "Lv${c.level}",
                         style: TextStyle(
                           fontSize: 7,
                           fontWeight: FontWeight.bold,
@@ -307,7 +262,8 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
 
   void _generateRandomCard() {
     final random = Random();
-    final allCards = cardDatabase.values.toList();
+    // 关键区域：排除恶魔和神圣系列卡牌（仅限Boss奖励）
+    final allCards = cardDatabase.values.where((c) => c.suite != CardSuite.demon && c.suite != CardSuite.holy).toList();
     
     // 随机抽取3张不重复的卡牌
     final List<CardData> pickedCards = [];
@@ -466,7 +422,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
                             height: 36,
                             fontSize: 12,
                             label: '维持接入',
-                            color: const Color(0xFF6CE4FF),
+                            color: GameState.getThemeColor(),
                             onPressed: () => Navigator.pop(ctx, false),
                           ),
                           const SizedBox(width: 16),
@@ -493,6 +449,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
   }
 
   Widget _buildInitialView() {
+    final themeColor = GameState.getThemeColor();
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -500,18 +457,18 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFF6CE4FF).withValues(alpha: 0.1),
+            color: themeColor.withValues(alpha: 0.1),
             shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFF6CE4FF).withValues(alpha: 0.2)),
+            border: Border.all(color: themeColor.withValues(alpha: 0.2)),
             boxShadow: [
-              BoxShadow(color: const Color(0xFF6CE4FF).withValues(alpha: 0.1), blurRadius: 20, spreadRadius: 5),
+              BoxShadow(color: themeColor.withValues(alpha: 0.1), blurRadius: 20, spreadRadius: 5),
             ],
           ),
-          child: const Icon(Icons.hub_outlined, color: Color(0xFF6CE4FF), size: 48),
+          child: Icon(Icons.hub_outlined, color: themeColor, size: 48),
         ),
         const SizedBox(height: 32),
         
-        const Text(
+        Text(
           '数据缓存站',
           style: TextStyle(
             fontSize: 32,
@@ -520,16 +477,16 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
             letterSpacing: 8,
             fontFamily: 'monospace',
             shadows: [
-              Shadow(color: Color(0xFF6CE4FF), blurRadius: 20),
+              Shadow(color: themeColor, blurRadius: 20),
             ],
           ),
         ),
         const SizedBox(height: 12),
-        const Text(
+        Text(
           'DATA CACHE STATION v2.1',
           style: TextStyle(
             fontSize: 10,
-            color: Color(0x666CE4FF),
+            color: themeColor.withValues(alpha: 0.4),
             letterSpacing: 2,
             fontFamily: 'monospace',
           ),
@@ -544,7 +501,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
             color: const Color(0xFF0A0F16).withValues(alpha: 0.85),
             borderRadius: BorderRadius.circular(4),
             border: Border.all(
-              color: const Color(0xFF6CE4FF).withValues(alpha: 0.3),
+              color: themeColor.withValues(alpha: 0.3),
               width: 1,
             ),
             boxShadow: [
@@ -555,7 +512,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
             children: [
               Positioned.fill(
                 child: CustomPaint(
-                  painter: CyberCornerPainter(color: const Color(0x996CE4FF)),
+                  painter: CyberCornerPainter(color: themeColor.withValues(alpha: 0.6)),
                 ),
               ),
               Column(
@@ -566,14 +523,14 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
                       Container(
                         width: 4,
                         height: 4,
-                        decoration: const BoxDecoration(color: Color(0xFF6CE4FF), shape: BoxShape.circle),
+                        decoration: BoxDecoration(color: themeColor, shape: BoxShape.circle),
                       ),
                       const SizedBox(width: 8),
-                      const Text(
+                      Text(
                         'UNIT_INTEGRITY_STATUS',
                         style: TextStyle(
                           fontSize: 9,
-                          color: Color(0xFF6CE4FF),
+                          color: themeColor,
                           fontFamily: 'monospace',
                           letterSpacing: 1.5,
                         ),
@@ -582,7 +539,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
                       Container(
                         width: 4,
                         height: 4,
-                        decoration: const BoxDecoration(color: Color(0xFF6CE4FF), shape: BoxShape.circle),
+                        decoration: BoxDecoration(color: themeColor, shape: BoxShape.circle),
                       ),
                     ],
                   ),
@@ -651,6 +608,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
     required String description,
     required VoidCallback onTap,
   }) {
+    final themeColor = GameState.getThemeColor();
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -660,12 +618,12 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
           color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: const Color(0xFF6CE4FF).withValues(alpha: 0.5),
+            color: themeColor.withValues(alpha: 0.5),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF6CE4FF).withValues(alpha: 0.2),
+              color: themeColor.withValues(alpha: 0.2),
               blurRadius: 10,
               spreadRadius: 1,
             ),
@@ -677,13 +635,13 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
             Positioned.fill(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(7),
-                child: const CyberScanline(color: Color(0x336CE4FF)),
+                child: CyberScanline(color: themeColor.withValues(alpha: 0.2)),
               ),
             ),
             // 装饰边角
             Positioned.fill(
               child: CustomPaint(
-                painter: CyberCornerPainter(color: const Color(0x666CE4FF)),
+                painter: CyberCornerPainter(color: themeColor.withValues(alpha: 0.4)),
               ),
             ),
             Row(
@@ -691,10 +649,10 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF6CE4FF).withValues(alpha: 0.1),
+                    color: themeColor.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(icon, color: const Color(0xFF6CE4FF), size: 24),
+                  child: Icon(icon, color: themeColor, size: 24),
                 ),
                 const SizedBox(width: 20),
                 Expanded(
@@ -723,7 +681,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: Color(0xFF6CE4FF)),
+                Icon(Icons.chevron_right, color: themeColor),
               ],
             ),
           ],
@@ -733,6 +691,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
   }
 
   Widget _buildCardRewardView() {
+    final themeColor = GameState.getThemeColor();
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -740,25 +699,25 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF6CE4FF).withValues(alpha: 0.1),
+            color: themeColor.withValues(alpha: 0.1),
             shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFF6CE4FF).withValues(alpha: 0.3)),
+            border: Border.all(color: themeColor.withValues(alpha: 0.3)),
           ),
-          child: const Icon(Icons.downloading, color: Color(0xFF6CE4FF), size: 40),
+          child: Icon(Icons.downloading, color: themeColor, size: 40),
         ),
         const SizedBox(height: 32),
         
-        const Text(
+        Text(
           'CACHE_EXTRACT_COMPLETE',
           style: TextStyle(
             fontSize: 10,
-            color: Color(0xFF6CE4FF),
+            color: themeColor,
             letterSpacing: 4,
             fontFamily: 'monospace',
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           '指令集提取完成',
           style: TextStyle(
             fontSize: 28,
@@ -766,7 +725,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
             color: Colors.white,
             letterSpacing: 2,
             shadows: [
-              Shadow(color: Color(0xFF6CE4FF), blurRadius: 15),
+              Shadow(color: themeColor, blurRadius: 15),
             ],
           ),
         ),
@@ -788,7 +747,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
             color: const Color(0xFF0A0F16).withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(8),
             border: Border.symmetric(
-              horizontal: BorderSide(color: const Color(0xFF6CE4FF).withValues(alpha: 0.1)),
+              horizontal: BorderSide(color: themeColor.withValues(alpha: 0.1)),
             ),
           ),
           child: Row(
@@ -921,6 +880,13 @@ class SuiteTechPainter extends CustomPainter {
             paint..strokeWidth = 2.0,
           );
         }
+        break;
+      case CardSuite.holy:
+        // 神圣：发散的十字星与圆环
+        final center = Offset(size.width * 0.5, size.height * 0.4);
+        canvas.drawCircle(center, 15, paint..style = PaintingStyle.stroke);
+        canvas.drawLine(center - const Offset(20, 0), center + const Offset(20, 0), paint);
+        canvas.drawLine(center - const Offset(0, 20), center + const Offset(0, 20), paint);
         break;
     }
   }

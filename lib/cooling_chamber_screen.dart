@@ -13,7 +13,6 @@ class CoolingChamberScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // final color = const Color(0xFF6CE4FF);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -43,7 +42,7 @@ class CoolingChamberScreen extends StatelessWidget {
                         height: 44,
                         fontSize: 12,
                         label: '深度冷却：恢复 30 + 初始防火墙 +15',
-                        color: const Color(0xFF6CE4FF),
+                        color: GameState.getThemeColor(),
                         onPressed: () {
                           GameState.heal(30);
                           GameState.playerBlock = 15;
@@ -113,7 +112,7 @@ class CoolingChamberScreen extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          CyberButton(width: 100, height: 36, fontSize: 12, label: '维持接入', color: const Color(0xFF6CE4FF), onPressed: () => Navigator.pop(ctx, false)),
+                          CyberButton(width: 100, height: 36, fontSize: 12, label: '维持接入', color: GameState.getThemeColor(), onPressed: () => Navigator.pop(ctx, false)),
                           const SizedBox(width: 16),
                           CyberButton(width: 100, height: 36, fontSize: 12, label: '确认断开', color: const Color(0xFFFF6A6A), onPressed: () => Navigator.pop(ctx, true)),
                         ],
@@ -132,7 +131,7 @@ class CoolingChamberScreen extends StatelessWidget {
 }
 
 Widget _logicPanel(Widget child) {
-  final color = const Color(0xFF6CE4FF);
+  final color = GameState.getThemeColor();
   return Container(
     width: 620,
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -160,17 +159,18 @@ Widget _logicPanel(Widget child) {
 }
 
 Widget _buildHeader() {
+  final color = GameState.getThemeColor();
   return Column(
-    children: const [
-      Text('冷却间', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: Color(0xFF6CE4FF), blurRadius: 20)])),
-      SizedBox(height: 12),
-      Text('COOLING CHAMBER v3.4', style: TextStyle(fontSize: 10, color: Color(0x666CE4FF), letterSpacing: 2, fontFamily: 'monospace')),
+    children: [
+      Text('冷却间', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: color, blurRadius: 20)])),
+      const SizedBox(height: 12),
+      Text('COOLING CHAMBER v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
     ],
   );
 }
 
 Widget _metaRow() {
-  final color = const Color(0xFF6CE4FF);
+  final color = GameState.getThemeColor();
   return Padding(
     padding: const EdgeInsets.symmetric(horizontal: 24),
     child: Row(
@@ -187,7 +187,8 @@ Widget _metaRow() {
 class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = const Color(0xFF6CE4FF).withValues(alpha: 0.05)..strokeWidth = 1;
+    final themeColor = GameState.getThemeColor();
+    final paint = Paint()..color = themeColor.withValues(alpha: 0.05)..strokeWidth = 1;
     const spacing = 30.0;
     for (double x = 0; x < size.width; x += spacing) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);

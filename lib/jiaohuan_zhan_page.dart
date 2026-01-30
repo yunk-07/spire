@@ -26,15 +26,12 @@ class _JiaohuanZhanPageState extends State<JiaohuanZhanPage> {
   void initState() {
     super.initState();
     final random = Random();
-    final keys = cardDatabase.keys.toList();
-    final used = <int>{};
+    // 关键区域：排除恶魔和神圣系列卡牌（仅限Boss奖励）
+    final pool = cardDatabase.values.where((c) => c.suite != CardSuite.demon && c.suite != CardSuite.holy).toList();
     final picked = <CardData>[];
-    while (picked.length < 5 && used.length < keys.length) {
-      final idx = random.nextInt(keys.length);
-      if (used.add(idx)) {
-        final c = cardDatabase[keys[idx]];
-        if (c != null) picked.add(c);
-      }
+    while (picked.length < 5 && pool.isNotEmpty) {
+      final idx = random.nextInt(pool.length);
+      picked.add(pool.removeAt(idx));
     }
     _cards = picked;
     _prices = _cards.map((c) => 2 + c.level * 3 + random.nextInt(3)).toList();
@@ -42,7 +39,7 @@ class _JiaohuanZhanPageState extends State<JiaohuanZhanPage> {
 
   @override
   Widget build(BuildContext context) {
-    final color = const Color(0xFF6CE4FF);
+    final color = GameState.getThemeColor();
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -56,7 +53,7 @@ class _JiaohuanZhanPageState extends State<JiaohuanZhanPage> {
         backgroundColor: const Color(0xFF05060A),
         body: Stack(
           children: [
-            Positioned.fill(child: RepaintBoundary(child: CustomPaint(painter: _DepotGridPainter()))),
+            Positioned.fill(child: RepaintBoundary(child: CustomPaint(painter: _DepotGridPainter(color)))),
             SafeArea(
               child: Column(
                 children: [
@@ -97,10 +94,10 @@ class _JiaohuanZhanPageState extends State<JiaohuanZhanPage> {
 
   Widget _buildHeader(Color color) {
     return Column(
-      children: const [
-        Text('交换站', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: Color(0xFF6CE4FF), blurRadius: 20)])),
-        SizedBox(height: 12),
-        Text('SWITCH STATION v3.4', style: TextStyle(fontSize: 10, color: Color(0x666CE4FF), letterSpacing: 2, fontFamily: 'monospace')),
+      children: [
+        Text('交换站', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: color, blurRadius: 20)])),
+        const SizedBox(height: 12),
+        Text('SWITCH STATION v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
       ],
     );
   }
@@ -236,7 +233,7 @@ class _JiaohuanZhanPageState extends State<JiaohuanZhanPage> {
                     const Text('即将终止当前的尖塔渗透任务，未同步的数据流将会丢失。是否确认断开物理接入？', style: TextStyle(color: Color(0xFFE1E9FF), fontSize: 14, height: 1.6, fontFamily: 'monospace')),
                     const SizedBox(height: 32),
                     Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                      CyberButton(width: 100, height: 36, fontSize: 12, label: '维持接入', color: const Color(0xFF6CE4FF), onPressed: () => Navigator.pop(ctx, false)),
+                      CyberButton(width: 100, height: 36, fontSize: 12, label: '维持接入', color: GameState.getThemeColor(), onPressed: () => Navigator.pop(ctx, false)),
                       const SizedBox(width: 16),
                       CyberButton(width: 100, height: 36, fontSize: 12, label: '确认断开', color: const Color(0xFFFF6A6A), onPressed: () => Navigator.pop(ctx, true)),
                     ]),
@@ -255,9 +252,12 @@ class _JiaohuanZhanPageState extends State<JiaohuanZhanPage> {
 }
 
 class _DepotGridPainter extends CustomPainter {
+  final Color themeColor;
+  _DepotGridPainter(this.themeColor);
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = const Color(0xFF42A5F5).withValues(alpha: 0.05)..strokeWidth = 1;
+    final paint = Paint()..color = themeColor.withValues(alpha: 0.05)..strokeWidth = 1;
     const spacing = 30.0;
     for (double x = 0; x < size.width; x += spacing) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);

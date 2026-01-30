@@ -1,4 +1,5 @@
 // character_data.dart
+import 'package:flutter/material.dart';
 
 /// 角色职业枚举
 enum CharacterClass {
@@ -18,6 +19,7 @@ class CharacterData {
   final String id;
   final String name;
   final CharacterClass characterClass;
+  final IconData icon;
   final int maxHp;
   final List<String> startingDeck;
   final int minDrawPerTurn;
@@ -29,6 +31,7 @@ class CharacterData {
     required this.id,
     required this.name,
     required this.characterClass,
+    required this.icon,
     required this.maxHp,
     required this.startingDeck,
     required this.minDrawPerTurn,
@@ -47,6 +50,7 @@ const Map<String, CharacterData> characterDatabase = {
     id: "xueye",
     name: "血液",
     characterClass: CharacterClass.xueye,
+    icon: Icons.favorite,
     maxHp: 100,
     startingDeck: [
       "xueye_strike",
@@ -78,6 +82,7 @@ const Map<String, CharacterData> characterDatabase = {
     id: "lin",
     name: "林",
     characterClass: CharacterClass.lin,
+    icon: Icons.account_tree,
     maxHp: 120,
     startingDeck: [
       "lin_strike",
@@ -108,6 +113,7 @@ const Map<String, CharacterData> characterDatabase = {
     id: "langchao",
     name: "浪潮",
     characterClass: CharacterClass.langchao,
+    icon: Icons.waves,
     maxHp: 95,
     startingDeck: [
       "langchao_strike",
@@ -137,6 +143,7 @@ const Map<String, CharacterData> characterDatabase = {
     id: "jianren",
     name: "剑刃",
     characterClass: CharacterClass.jianren,
+    icon: Icons.colorize,
     maxHp: 166,
     startingDeck: [
       "jianren_strike",
@@ -169,6 +176,7 @@ const Map<String, CharacterData> characterDatabase = {
     id: "yanxin",
     name: "焰心",
     characterClass: CharacterClass.yanxin,
+    icon: Icons.local_fire_department,
     maxHp: 82,
     startingDeck: [
       "yanxin_strike",
@@ -200,6 +208,7 @@ const Map<String, CharacterData> characterDatabase = {
     id: "yingshi",
     name: "影逐",
     characterClass: CharacterClass.yingshi,
+    icon: Icons.visibility_off,
     maxHp: 80,
     startingDeck: [
       "yingshi_strike",
@@ -232,6 +241,7 @@ const Map<String, CharacterData> characterDatabase = {
     id: "jihe",
     name: "几何",
     characterClass: CharacterClass.jihe,
+    icon: Icons.category,
     maxHp: 90,
     startingDeck: [
       "jihe_strike",
@@ -262,6 +272,7 @@ const Map<String, CharacterData> characterDatabase = {
     id: "xuxing",
     name: "虚行",
     characterClass: CharacterClass.xuxing,
+    icon: Icons.blur_on,
     maxHp: 94,
     startingDeck: [
       "xuxing_strike",
@@ -292,6 +303,7 @@ const Map<String, CharacterData> characterDatabase = {
     id: "fa",
     name: "法",
     characterClass: CharacterClass.fa,
+    icon: Icons.gavel,
     maxHp: 95,
     startingDeck: [
       "data_broadcast",

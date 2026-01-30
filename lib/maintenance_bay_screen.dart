@@ -15,12 +15,12 @@ class MaintenanceBayScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // final color = const Color(0xFF6CE4FF);
+    final themeColor = GameState.getThemeColor();
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        final shouldExit = await _confirmExit(context);
+        final shouldExit = await _confirmExit(context, themeColor);
         if (shouldExit && context.mounted) {
           Navigator.popUntil(context, (route) => route.isFirst);
         }
@@ -29,14 +29,14 @@ class MaintenanceBayScreen extends StatelessWidget {
         backgroundColor: const Color(0xFF05060A),
         body: Stack(
           children: [
-            Positioned.fill(child: CustomPaint(painter: _GridPainter())),
+            Positioned.fill(child: CustomPaint(painter: _GridPainter(themeColor))),
             SafeArea(
               child: Column(
                 children: [
                   const SizedBox(height: 40),
-                  _buildHeader(),
+                  _buildHeader(themeColor),
                   const SizedBox(height: 12),
-                  _metaRow(),
+                  _metaRow(themeColor),
                   const SizedBox(height: 48),
                   Center(
                     child: _logicPanel(
@@ -45,17 +45,18 @@ class MaintenanceBayScreen extends StatelessWidget {
                         height: 44,
                         fontSize: 12,
                         label: '维保检修：随机提供一张牌（可选），接受则修复10',
-                        color: const Color(0xFFFFD700),
+                        color: themeColor,
                         onPressed: () async {
                           final random = Random();
-                          final keys = cardDatabase.keys.toList();
-                          if (keys.isEmpty) {
+                          // 关键区域：排除恶魔和神圣系列卡牌（仅限Boss奖励）
+                          final availableCards = cardDatabase.values.where((c) => c.suite != CardSuite.demon && c.suite != CardSuite.holy).toList();
+                          if (availableCards.isEmpty) {
                             CyberToast.show(context, '数据库暂无可用卡牌');
                             return;
                           }
-                          final cardId = keys[random.nextInt(keys.length)];
-                          final card = cardDatabase[cardId];
-                          final accepted = await _showOfferDialog(context, cardId, card?.name ?? cardId, card?.description ?? '');
+                          final card = availableCards[random.nextInt(availableCards.length)];
+                          final cardId = card.id;
+                          final accepted = await _showOfferDialog(context, cardId, card.name, card.description ?? '', themeColor);
                           if (accepted == true) {
                             if (!GameState.drawPile.contains(cardId)) {
                               GameState.drawPile.add(cardId);
@@ -66,6 +67,7 @@ class MaintenanceBayScreen extends StatelessWidget {
                           Navigator.pushReplacement(context, createHoloRoute(const MapScreen(canSelect: true)));
                         },
                       ),
+                      themeColor,
                     ),
                   ),
                 ],
@@ -77,7 +79,7 @@ class MaintenanceBayScreen extends StatelessWidget {
     );
   }
 
-  Future<bool> _confirmExit(BuildContext context) async {
+  Future<bool> _confirmExit(BuildContext context, Color themeColor) async {
     final res = await showGeneralDialog<bool>(
       context: context,
       barrierDismissible: true,
@@ -94,28 +96,28 @@ class MaintenanceBayScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: const Color(0xFFFF6A6A).withValues(alpha: 0.8), width: 2),
-                boxShadow: [BoxShadow(color: const Color(0xFFFF6A6A).withValues(alpha: 0.2), blurRadius: 30, spreadRadius: 2)],
+                border: Border.all(color: themeColor.withValues(alpha: 0.8), width: 2),
+                boxShadow: [BoxShadow(color: themeColor.withValues(alpha: 0.2), blurRadius: 30, spreadRadius: 2)],
               ),
               child: Stack(
                 children: [
                   Positioned.fill(
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(2),
-                      child: const CyberScanline(color: Color(0x11FF6A6A)),
+                      child: CyberScanline(color: themeColor.withValues(alpha: 0.07)),
                     ),
                   ),
-                  Positioned.fill(child: CustomPaint(painter: CyberCornerPainter(color: const Color(0x66FF6A6A)))),
+                  Positioned.fill(child: CustomPaint(painter: CyberCornerPainter(color: themeColor.withValues(alpha: 0.5)))),
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Row(
+                      Row(
                         children: [
-                          Icon(Icons.warning_amber_rounded, color: Color(0xFFFF6A6A), size: 20),
-                          SizedBox(width: 10),
+                          Icon(Icons.warning_amber_rounded, color: themeColor, size: 20),
+                          const SizedBox(width: 10),
                           Text(
                             "DISCONNECT_REQUEST",
-                            style: TextStyle(color: Color(0xFFFF6A6A), fontSize: 10, fontFamily: 'monospace', letterSpacing: 2, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: themeColor, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -128,9 +130,9 @@ class MaintenanceBayScreen extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          CyberButton(width: 100, height: 36, fontSize: 12, label: '维持接入', color: const Color(0xFF6CE4FF), onPressed: () => Navigator.pop(ctx, false)),
+                          CyberButton(width: 100, height: 36, fontSize: 12, label: '维持接入', color: Colors.grey, onPressed: () => Navigator.pop(ctx, false)),
                           const SizedBox(width: 16),
-                          CyberButton(width: 100, height: 36, fontSize: 12, label: '确认断开', color: const Color(0xFFFF6A6A), onPressed: () => Navigator.pop(ctx, true)),
+                          CyberButton(width: 100, height: 36, fontSize: 12, label: '确认断开', color: themeColor, onPressed: () => Navigator.pop(ctx, true)),
                         ],
                       ),
                     ],
@@ -145,8 +147,8 @@ class MaintenanceBayScreen extends StatelessWidget {
     return res ?? false;
   }
 
-  Future<bool?> _showOfferDialog(BuildContext context, String cardId, String name, String desc) async {
-    final accent = const Color(0xFFFFD700);
+  Future<bool?> _showOfferDialog(BuildContext context, String cardId, String name, String desc, Color themeColor) async {
+    final accent = themeColor;
     return showGeneralDialog<bool>(
       context: context,
       barrierDismissible: true,
@@ -185,7 +187,7 @@ class MaintenanceBayScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      CyberButton(width: 120, height: 36, fontSize: 12, label: '拒绝', color: const Color(0xFF6CE4FF), onPressed: () => Navigator.pop(ctx, false)),
+                      CyberButton(width: 120, height: 36, fontSize: 12, label: '拒绝', color: Colors.grey, onPressed: () => Navigator.pop(ctx, false)),
                       const SizedBox(width: 12),
                       CyberButton(width: 160, height: 36, fontSize: 12, label: '接受并修复10', color: accent, onPressed: () => Navigator.pop(ctx, true)),
                     ],
@@ -200,8 +202,7 @@ class MaintenanceBayScreen extends StatelessWidget {
   }
 }
 
-Widget _logicPanel(Widget child) {
-  final color = const Color(0xFF6CE4FF);
+Widget _logicPanel(Widget child, Color color) {
   return Container(
     width: 620,
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -228,18 +229,17 @@ Widget _logicPanel(Widget child) {
   );
 }
 
-Widget _buildHeader() {
+Widget _buildHeader(Color themeColor) {
   return Column(
-    children: const [
-      Text('维保处', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: Color(0xFF6CE4FF), blurRadius: 20)])),
-      SizedBox(height: 12),
-      Text('MAINTENANCE BAY v3.4', style: TextStyle(fontSize: 10, color: Color(0x666CE4FF), letterSpacing: 2, fontFamily: 'monospace')),
+    children: [
+      Text('维保处', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: themeColor, blurRadius: 20)])),
+      const SizedBox(height: 12),
+      Text('MAINTENANCE BAY v3.4', style: TextStyle(fontSize: 10, color: themeColor.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
     ],
   );
 }
 
-Widget _metaRow() {
-  final color = const Color(0xFF6CE4FF);
+Widget _metaRow(Color color) {
   return Padding(
     padding: const EdgeInsets.symmetric(horizontal: 24),
     child: Row(
@@ -247,24 +247,30 @@ Widget _metaRow() {
       children: [
         Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFF0A0F16), borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.4)), boxShadow: [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 10)]), child: Row(children: [Icon(Icons.build, size: 14, color: color), const SizedBox(width: 6), const Text("OPTIONS: 1", style: TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2))])),
         const SizedBox(width: 12),
-        Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFF0A0F16), borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.4))), child: Row(children: [Icon(Icons.memory, size: 14, color: color), const SizedBox(width: 6), const Text("NODE", style: TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))])),
+        Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFF0A0F16), borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.4)), boxShadow: [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 10)]), child: Row(children: [Icon(Icons.shield, size: 14, color: color), const SizedBox(width: 6), Text("HP: ${GameState.playerHp}/${GameState.playerMaxHp}", style: const TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2))])),
       ],
     ),
   );
 }
 
 class _GridPainter extends CustomPainter {
+  final Color themeColor;
+  _GridPainter(this.themeColor);
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = const Color(0xFF6CE4FF).withValues(alpha: 0.05)..strokeWidth = 1;
-    const spacing = 30.0;
-    for (double x = 0; x < size.width; x += spacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    final paint = Paint()
+      ..color = themeColor.withValues(alpha: 0.05)
+      ..strokeWidth = 1.0;
+
+    for (double i = 0; i < size.width; i += 40) {
+      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
     }
-    for (double y = 0; y < size.height; y += spacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    for (double i = 0; i < size.height; i += 40) {
+      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
     }
   }
+
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

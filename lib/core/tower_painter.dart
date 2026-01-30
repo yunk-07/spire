@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../game_state.dart';
 // import 'dart:math' as math;
 
 class HoloTowerWidget extends StatefulWidget {
@@ -51,7 +52,7 @@ class _HoloTowerPainter extends CustomPainter {
       final ringPaint = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5
-        ..color = const Color(0xFF6CE4FF).withValues(alpha: alpha);
+        ..color = GameState.getThemeColor().withValues(alpha: alpha);
       canvas.drawCircle(Offset(centerX, towerTopY + towerHeight * 0.2), radius, ringPaint);
     }
 

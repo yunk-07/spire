@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'game_state.dart';
 import 'level_data.dart';
 import 'main.dart';
 import 'start_screen.dart';
@@ -99,7 +100,7 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
                                         if (GameProgress.completedNationIds.contains(nation.id))
                                           Icon(
                                             Icons.check_circle_outline,
-                                            color: const Color(0xFF6CE4FF).withValues(alpha: 0.6),
+                                            color: GameState.getThemeColor().withValues(alpha: 0.6),
                                             size: 24,
                                           ),
                                         ConstrainedBox(
@@ -114,7 +115,7 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
                                               textAlign: TextAlign.center,
                                               style: TextStyle(
                                                 color: GameProgress.completedNationIds.contains(nation.id) 
-                                                  ? const Color(0xFF6CE4FF).withValues(alpha: 0.6) 
+                                                  ? GameState.getThemeColor().withValues(alpha: 0.6) 
                                                   : Colors.white.withValues(alpha: 0.8),
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.bold,
@@ -143,10 +144,10 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
                                           }),
                                         ),
                                         if (GameProgress.completedNationIds.contains(nation.id))
-                                          const Text(
+                                          Text(
                                             'SYNCED',
                                             style: TextStyle(
-                                              color: Color(0xFF6CE4FF),
+                                              color: GameState.getThemeColor(),
                                               fontSize: 8,
                                               fontWeight: FontWeight.bold,
                                               letterSpacing: 1,
@@ -179,10 +180,10 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
               right: 0,
               child: Column(
                 children: [
-                  const Text(
+                  Text(
                     '// SECTOR_SELECTION',
                     style: TextStyle(
-                      color: Color(0xFF6CE4FF),
+                      color: GameState.getThemeColor(),
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 4,
@@ -194,7 +195,7 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
                       ? '所有扇区同步完成，系统核心已完全掌控'
                       : '选择目标国度进行数据渗透 (${GameProgress.completedNationIds.length}/${nations.length} 已同步)',
                     style: TextStyle(
-                      color: const Color(0xFF6CE4FF).withValues(alpha: 0.6),
+                      color: GameState.getThemeColor().withValues(alpha: 0.6),
                       fontSize: 12,
                       letterSpacing: 2,
                     ),
@@ -284,12 +285,12 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.stars, color: Color(0xFF6CE4FF), size: 64),
+              Icon(Icons.stars, color: GameState.getThemeColor(), size: 64),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 "MISSION_ACCOMPLISHED",
                 style: TextStyle(
-                  color: Color(0xFF6CE4FF),
+                  color: GameState.getThemeColor(),
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 8,
@@ -481,7 +482,7 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
   void _selectNation(Nation nation) {
     if (GameProgress.completedNationIds.contains(nation.id)) {
       // 如果已通关，显示提示
-      _showStatusTip('${nation.title} 已完全同步，请选择其他扇区。', const Color(0xFF6CE4FF));
+      _showStatusTip('${nation.title} 已完全同步，请选择其他扇区。', GameState.getThemeColor());
       return;
     }
     GameProgress.enterNation(nation.id);
@@ -514,6 +515,7 @@ class _NationMapPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final themeColor = GameState.getThemeColor();
     if (positions != null && positions!.isNotEmpty) {
       for (final e in edges) {
         final a = positions![e[0]]!;
@@ -522,7 +524,7 @@ class _NationMapPainter extends CustomPainter {
           ..shader = LinearGradient(
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
-            colors: [const Color(0x226CE4FF), const Color(0x22FFD700)],
+            colors: [themeColor.withValues(alpha: 0.13), const Color(0x22FFD700)],
           ).createShader(Rect.fromPoints(a, b))
           ..strokeWidth = 2
           ..style = PaintingStyle.stroke;

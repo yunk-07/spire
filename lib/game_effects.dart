@@ -133,6 +133,20 @@ class CardEffectExecutor {
           battle.player.strength += value;
         }
         break;
+      case 'sturdy':
+        if (parts.length > 1) {
+          final value = int.tryParse(parts[1]) ?? 1;
+          battle.player.sturdy += value;
+        }
+        break;
+      case 'max_hp_up':
+        if (parts.length > 1) {
+          final value = int.tryParse(parts[1]) ?? 0;
+          battle.player.maxHp += value;
+          battle.player.hp += value; // 提升上限时也提升当前生命
+          battle.anim.showHeal(battle.player, value);
+        }
+        break;
       default:
         break;
     }

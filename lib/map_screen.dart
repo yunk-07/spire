@@ -5,6 +5,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'dart:ui' show ImageFilter;
+import 'game_state.dart';
 import 'nation_selection_screen.dart';
 import 'start_screen.dart';
 import 'level_data.dart';
@@ -18,7 +19,6 @@ import 'shangpu_page.dart';
 import 'jiaoyidian_page.dart';
 import 'shujugui_page.dart';
 import 'jiaohuan_zhan_page.dart';
-import 'pages/battle_page.dart';
 import 'program_data.dart';
 import 'campfire_screen.dart';
 import 'rest_stop_screen.dart';
@@ -193,7 +193,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         Text(
                           "// TOPOLOGY_MAP_PROTOCOL",
                           style: TextStyle(
-                            color: const Color(0xFF6CE4FF).withValues(alpha: 0.5),
+                            color: GameState.getThemeColor().withValues(alpha: 0.5),
                             fontSize: 7,
                             letterSpacing: 1.5,
                             fontFamily: 'monospace',
@@ -203,7 +203,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         Text(
                           "SEC_LEVEL: ALPHA",
                           style: TextStyle(
-                            color: const Color(0xFF6CE4FF).withValues(alpha: 0.5),
+                            color: GameState.getThemeColor().withValues(alpha: 0.5),
                             fontSize: 7,
                             letterSpacing: 1,
                             fontFamily: 'monospace',
@@ -305,10 +305,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6CE4FF).withValues(alpha: 0.1),
+                      color: GameState.getThemeColor().withValues(alpha: 0.1),
                       border: Border.symmetric(
                         horizontal: BorderSide(
-                          color: const Color(0xFF6CE4FF).withValues(alpha: 0.5),
+                          color: GameState.getThemeColor().withValues(alpha: 0.5),
                           width: 1,
                         ),
                       ),
@@ -316,10 +316,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
+                        Text(
                           "SECTOR_FULLY_SYNCHRONIZED",
                           style: TextStyle(
-                            color: Color(0xFF6CE4FF),
+                            color: GameState.getThemeColor(),
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 4,
@@ -330,7 +330,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         Text(
                           "当前扇区核心已解构，请前往大地图选择下一目标",
                           style: TextStyle(
-                            color: const Color(0xFF6CE4FF).withValues(alpha: 0.7),
+                            color: GameState.getThemeColor().withValues(alpha: 0.7),
                             fontSize: 10,
                             letterSpacing: 1,
                           ),
@@ -420,7 +420,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     Color glowColor;
     switch (node.type) {
       case LevelType.infiltration:
-        glowColor = const Color(0xFF6CE4FF);
+        glowColor = GameState.getThemeColor();
         break;
       case LevelType.elite:
         glowColor = const Color(0xFFFF9E6C); // 橙色：精英
@@ -449,7 +449,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         diffColor = const Color(0xFF44FF44);
         break;
       case 2:
-        diffColor = const Color(0xFF6CE4FF);
+        diffColor = GameState.getThemeColor();
         break;
       case 3:
         diffColor = const Color(0xFFE26CFF);
@@ -600,7 +600,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                       bottom: 2,
                       right: 4,
                       child: Text(
-                        "L:${layerIndex} N:${nodeIndex}",
+                        "L:$layerIndex N:$nodeIndex",
                         style: TextStyle(
                           color: glowColor.withValues(alpha: 0.5 * alpha),
                           fontSize: 9,
@@ -726,13 +726,13 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                       color: const Color(0xFF0A0F16),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: const Color(0xFF6CE4FF),
+                        color: GameState.getThemeColor(),
                         width: 1,
                       ),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.check,
-                      color: Color(0xFF6CE4FF),
+                      color: GameState.getThemeColor(),
                       size: 10,
                     ),
                   ),
@@ -745,7 +745,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   void _showLevelPreview(BuildContext context, LevelInfo node, int layerIndex) {
-    final color = const Color(0xFF6CE4FF);
+    final color = GameState.getThemeColor();
     final nextLayer = layerIndex + 1 < _layers.length ? _layers[layerIndex + 1] : const <LevelInfo>[];
     final nextTitles = nextLayer.where((lvl) => node.nextLevelIndices.contains(nextLayer.indexOf(lvl))).map((e) => e.title).toList();
     final monsterNames = node.programIds.map((id) => systemDatabase[id]?.name ?? id).toList();
@@ -809,8 +809,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF6CE4FF).withValues(alpha: 0.05),
-                                border: Border(left: BorderSide(color: const Color(0xFF6CE4FF).withValues(alpha: 0.4), width: 2)),
+                                color: color.withValues(alpha: 0.05),
+                                border: Border(left: BorderSide(color: color.withValues(alpha: 0.4), width: 2)),
                               ),
                               child: Text("可能出现的下一节点：\n${nextTitles.join('、')}", softWrap: true, style: const TextStyle(color: Color(0xFFE1E9FF), fontSize: 12)),
                             ),
@@ -849,7 +849,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   child: IgnorePointer(
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: const CyberScanline(color: Color(0x116CE4FF)),
+                      child: CyberScanline(color: color.withValues(alpha: 0.07)),
                     ),
                   ),
                 ),
@@ -1176,7 +1176,7 @@ class _FloatingDataPainter extends CustomPainter {
       textPainter.text = TextSpan(
         text: dataStrings[i % dataStrings.length],
         style: TextStyle(
-          color: const Color(0xFF6CE4FF).withValues(alpha: 0.15),
+          color: GameState.getThemeColor().withValues(alpha: 0.15),
           fontSize: 8,
           fontFamily: 'monospace',
           letterSpacing: 2,

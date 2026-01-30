@@ -79,7 +79,7 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    const themeColor = Color(0xFF00F0FF);
+    final themeColor = GameState.getThemeColor();
 
     return PopScope(
       canPop: false,
@@ -219,7 +219,7 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
                             height: 36,
                             fontSize: 12,
                             label: '维持接入',
-                            color: const Color(0xFF6CE4FF),
+                            color: GameState.getThemeColor(),
                             onPressed: () => Navigator.pop(ctx, false),
                           ),
                           const SizedBox(width: 16),
@@ -565,11 +565,12 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
 }
 
 Widget _styledHeader() {
+  final color = GameState.getThemeColor();
   return Column(
-    children: const [
-      Text('修复站', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: Color(0xFF6CE4FF), blurRadius: 20)])),
-      SizedBox(height: 12),
-      Text('LOGIC REPAIR v3.4', style: TextStyle(fontSize: 10, color: Color(0x666CE4FF), letterSpacing: 2, fontFamily: 'monospace')),
+    children: [
+      Text('修复站', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: color, blurRadius: 20)])),
+      const SizedBox(height: 12),
+      Text('LOGIC REPAIR v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
     ],
   );
 }
@@ -609,7 +610,8 @@ Widget _logicPanel(Color color, Widget child) {
 class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = const Color(0xFF6CE4FF).withValues(alpha: 0.05)..strokeWidth = 1;
+    final themeColor = GameState.getThemeColor();
+    final paint = Paint()..color = themeColor.withValues(alpha: 0.05)..strokeWidth = 1;
     const spacing = 30.0;
     for (double x = 0; x < size.width; x += spacing) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);

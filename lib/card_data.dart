@@ -31,7 +31,8 @@ enum CardSuite {
   secure,     // 淡紫终端/安全系统
   industrial, // 工业橙/机械
   quantum,    // 量子紫/虚空
-  demon       // 恶魔/独特样式
+  demon,      // 恶魔/独特样式
+  holy        // 神圣/高亮样式
 }
 
 /// 卡牌数据模型
@@ -414,7 +415,7 @@ const Map<String, CardData> cardDatabase = {
     suite: CardSuite.overload,
     cost: 0,
     level: 4,
-    effect: 'temp_strength 30 self_damage 5',
+    effect: 'strength 30 self_damage 5',
     description: '大幅提升 30 点算力，但系统负载过高造成 5 点自损伤。',
   ),
   'bludgeon': CardData(
@@ -1000,5 +1001,106 @@ const Map<String, CardData> cardDatabase = {
     level: 999,
     effect: 'energy 3; draw 5; max_hp_down 2',
     description: '签署不可逆的契约。获得 3 点能量并摸 5 张牌，但永久失去 2 点生命上限。',
+  ),
+
+  // --- 独特：神圣系列 ---
+  'holy_light': CardData(
+    id: 'holy_light',
+    name: '神圣之光',
+    type: CardType.exploit,
+    target: CardTarget.all,
+    suite: CardSuite.holy,
+    cost: 2,
+    level: 999,
+    effect: 'damage 30; vulnerable 2; weak 2',
+    description: '净化一切的神圣光芒。对全体造成 30 点伤害，施加 2 层脆弱和虚弱。',
+  ),
+  'holy_barrier': CardData(
+    id: 'holy_barrier',
+    name: '神圣壁垒',
+    type: CardType.encryption,
+    target: CardTarget.self,
+    suite: CardSuite.holy,
+    cost: 2,
+    level: 999,
+    effect: 'block 30; sturdy 3; heal 5',
+    description: '不可逾越的神圣防线。获得 30 点防御，3 层坚固，并恢复 5 点生命。',
+  ),
+  'holy_blessing': CardData(
+    id: 'holy_blessing',
+    name: '神圣祝福',
+    type: CardType.routine,
+    target: CardTarget.self,
+    suite: CardSuite.holy,
+    cost: 0,
+    level: 999,
+    effect: 'energy 2; draw 2',
+    description: '获得神圣的指引。获得 2 点带宽，抽取 2 张卡牌。',
+  ),
+  'holy_judgment': CardData(
+    id: 'holy_judgment',
+    name: '神圣审判',
+    type: CardType.exploit,
+    target: CardTarget.enemy,
+    suite: CardSuite.holy,
+    cost: 2,
+    level: 999,
+    effect: 'damage 50; vulnerable 3; weak 3',
+    description: '降下神圣的审判。对目标造成 50 点伤害，并施加 3 层漏洞暴露与虚弱。',
+  ),
+  'holy_salvation': CardData(
+    id: 'holy_salvation',
+    name: '神圣救赎',
+    type: CardType.routine,
+    target: CardTarget.self,
+    suite: CardSuite.holy,
+    cost: 2,
+    level: 999,
+    effect: 'heal 20; max_hp_up 5',
+    description: '神圣力量的救赎。恢复 20 点生命值，并永久提升 5 点生命上限。',
+  ),
+  'holy_nova': CardData(
+    id: 'holy_nova',
+    name: '神圣新星',
+    type: CardType.exploit,
+    target: CardTarget.all,
+    suite: CardSuite.holy,
+    cost: 2,
+    level: 999,
+    effect: 'damage 20; block 20',
+    description: '神圣能量的爆发。对全体敌人造成 20 点冲击，并获得 20 点防火墙加固。',
+  ),
+  'holy_ascension': CardData(
+    id: 'holy_ascension',
+    name: '神圣升华',
+    type: CardType.routine,
+    target: CardTarget.self,
+    suite: CardSuite.holy,
+    cost: 4,
+    level: 999,
+    effect: 'strength 5; energy 1',
+    description: '灵魂的升华。获得 5 点算力，且每回合额外获得 1 点带宽。',
+  ),
+  'holy_sanctuary': CardData(
+    id: 'holy_sanctuary',
+    name: '神圣避难所',
+    type: CardType.routine,
+    target: CardTarget.self,
+    suite: CardSuite.holy,
+    cost: 2,
+    level: 999,
+    effect: 'block 40; sturdy 2',
+    description: '构筑神圣的避难所。获得 40 点防火墙加固和 2 层坚固。',
+  ),
+  'holy_purification': CardData(
+    id: 'holy_purification',
+    name: '神圣净化',
+    type: CardType.routine,
+    target: CardTarget.self,
+    suite: CardSuite.holy,
+    cost: 1,
+    level: 999,
+    effect: 'block 15; draw 3',
+    description: '净化心灵的阴霾。获得 15 点防火墙加固并抽取 3 张卡牌。',
   ),
 };

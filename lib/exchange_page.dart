@@ -8,6 +8,7 @@ import 'main.dart' hide createHoloRoute;
 import 'core/route.dart' show createHoloRoute;
 import 'start_screen.dart';
 import 'map_screen.dart';
+import 'theme_config.dart';
 
 class ExchangePage extends StatefulWidget {
   final String? levelId;
@@ -67,6 +68,7 @@ class _ExchangePageState extends State<ExchangePage> {
 
   @override
   Widget build(BuildContext context) {
+    final themeColor = GameState.getThemeColor();
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -93,15 +95,15 @@ class _ExchangePageState extends State<ExchangePage> {
               child: Column(
                 children: [
                   const SizedBox(height: 40),
-                  _buildHeader(),
+                  _buildHeader(themeColor),
                   const SizedBox(height: 12),
-                  _metaRow(),
+                  _metaRow(themeColor),
                   const SizedBox(height: 8),
-                  _hpRow(),
+                  _hpRow(themeColor),
                   const SizedBox(height: 48),
                   Expanded(
                     child: Center(
-                      child: _logicPanel(_buildLogicExchangeOptions()),
+                      child: _logicPanel(_buildLogicExchangeOptions(themeColor), themeColor),
                     ),
                   ),
                   Padding(
@@ -109,7 +111,7 @@ class _ExchangePageState extends State<ExchangePage> {
                       child: Text(
                         '请选择一个逻辑交易项以继续...',
                         style: TextStyle(
-                          color: const Color(0xFF6CE4FF).withValues(alpha: 0.6),
+                          color: themeColor.withValues(alpha: 0.6),
                           fontFamily: 'monospace',
                           fontSize: 12,
                           letterSpacing: 2,
@@ -125,8 +127,8 @@ class _ExchangePageState extends State<ExchangePage> {
     );
   }
 
-  Widget _metaRow() {
-    final color = const Color(0xFF6CE4FF);
+  Widget _metaRow(Color themeColor) {
+    final color = themeColor;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
@@ -188,8 +190,8 @@ class _ExchangePageState extends State<ExchangePage> {
     );
   }
 
-  Widget _hpRow() {
-    final color = const Color(0xFF6CE4FF);
+  Widget _hpRow(Color themeColor) {
+    final color = themeColor;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
@@ -216,6 +218,7 @@ class _ExchangePageState extends State<ExchangePage> {
   }
 
   Future<bool> _confirmExit(BuildContext context) async {
+    final themeColor = GameState.getThemeColor();
     final res = await showGeneralDialog<bool>(
       context: context,
       barrierDismissible: true,
@@ -300,7 +303,7 @@ class _ExchangePageState extends State<ExchangePage> {
                             height: 36,
                             fontSize: 12,
                             label: '维持接入',
-                            color: const Color(0xFF6CE4FF),
+                            color: themeColor,
                             onPressed: () => Navigator.pop(ctx, false),
                           ),
                           const SizedBox(width: 16),
@@ -326,10 +329,10 @@ class _ExchangePageState extends State<ExchangePage> {
     return Future.value(res ?? false);
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(Color themeColor) {
     return Column(
       children: [
-        const Text(
+        Text(
           '逻辑交易所',
           style: TextStyle(
             fontSize: 32,
@@ -338,16 +341,16 @@ class _ExchangePageState extends State<ExchangePage> {
             letterSpacing: 8,
             fontFamily: 'monospace',
             shadows: [
-              Shadow(color: Color(0xFF6CE4FF), blurRadius: 20),
+              Shadow(color: themeColor, blurRadius: 20),
             ],
           ),
         ),
         const SizedBox(height: 12),
-        const Text(
+        Text(
           'LOGIC EXCHANGE PROTOCOL v3.4',
           style: TextStyle(
             fontSize: 10,
-            color: Color(0x666CE4FF),
+            color: themeColor.withValues(alpha: 0.4),
             letterSpacing: 2,
             fontFamily: 'monospace',
           ),
@@ -356,7 +359,7 @@ class _ExchangePageState extends State<ExchangePage> {
     );
   }
 
-  Widget _buildLogicExchangeOptions() {
+  Widget _buildLogicExchangeOptions(Color themeColor) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Column(
@@ -365,7 +368,7 @@ class _ExchangePageState extends State<ExchangePage> {
           _optionTile(
             label: "恢复已损失生命的 50%",
             icon: Icons.healing,
-            color: const Color(0xFF6CE4FF),
+            color: themeColor,
             onTap: _healHalfLost,
             description: "根据缺失生命计算恢复量，立即生效。",
           ),
@@ -382,8 +385,8 @@ class _ExchangePageState extends State<ExchangePage> {
     );
   }
 
-  Widget _logicPanel(Widget child) {
-    final color = const Color(0xFF6CE4FF);
+  Widget _logicPanel(Widget child, Color themeColor) {
+    final color = themeColor;
     return RepaintBoundary(
       child: Container(
       width: 620,
@@ -570,6 +573,7 @@ class _ExchangePageState extends State<ExchangePage> {
   }
 
   Future<String?> _showRemoveDialog(BuildContext context, List<String> ids) async {
+    final themeColor = GameState.getThemeColor();
     return await showGeneralDialog<String>(
       context: context,
       barrierDismissible: true,
@@ -586,7 +590,7 @@ class _ExchangePageState extends State<ExchangePage> {
               decoration: BoxDecoration(
                 color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: const Color(0xFF6CE4FF).withValues(alpha: 0.7)),
+                border: Border.all(color: themeColor.withValues(alpha: 0.7)),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -617,7 +621,7 @@ class _ExchangePageState extends State<ExchangePage> {
                                       decoration: BoxDecoration(
                                         color: const Color(0xFF101722),
                                         borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: const Color(0xFF6CE4FF).withValues(alpha: 0.2)),
+                                        border: Border.all(color: themeColor.withValues(alpha: 0.2)),
                                       ),
                                       child: Text(id, style: const TextStyle(color: Colors.white54, fontSize: 12, fontFamily: 'monospace')),
                                     );
@@ -635,7 +639,7 @@ class _ExchangePageState extends State<ExchangePage> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  CyberButton(label: '取消', onPressed: () => Navigator.pop(ctx, null), width: 120, height: 40, fontSize: 12),
+                  CyberButton(label: '取消', onPressed: () => Navigator.pop(ctx, null), width: 120, height: 40, fontSize: 12, color: themeColor),
                 ],
               ),
             ),
@@ -646,9 +650,9 @@ class _ExchangePageState extends State<ExchangePage> {
   }
 
   Widget gameCardWidget(CardData c, {VoidCallback? onTap}) {
-    final suiteColor = getSuiteColor(c.suite);
-    final rarityColor = getRarityColor(c.level);
-    final cardBgColor = getCardBgColor(c.suite).withValues(alpha: 0.9);
+    final suiteColor = ThemeConfig.getSuiteColor(c.suite);
+    final rarityColor = ThemeConfig.getRarityColor(c.level, suite: c.suite);
+    final cardBgColor = ThemeConfig.getCardBgColor(c.suite).withValues(alpha: 0.9);
     final content = RepaintBoundary(
       child: Container(
       width: 160,
@@ -704,7 +708,7 @@ class _ExchangePageState extends State<ExchangePage> {
                         decoration: BoxDecoration(color: const Color(0xFF05060A), borderRadius: BorderRadius.circular(4), border: Border.all(color: suiteColor.withValues(alpha: 0.5), width: 1)),
                         child: Row(
                           children: [
-                            Icon(getSuiteIcon(c.suite), size: 14, color: suiteColor),
+                            Icon(ThemeConfig.getSuiteIcon(c.suite), size: 14, color: suiteColor),
                             const SizedBox(width: 4),
                             Text("${c.cost}", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: suiteColor, fontFamily: 'monospace')),
                           ],
@@ -723,7 +727,7 @@ class _ExchangePageState extends State<ExchangePage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text("Lv${c.level} [${getTypeName(c.type)}]", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: rarityColor.withValues(alpha: 0.9), fontFamily: 'monospace', letterSpacing: 1)),
+                      Text("Lv${c.level} [${ThemeConfig.getTypeName(c.type)}]", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: rarityColor.withValues(alpha: 0.9), fontFamily: 'monospace', letterSpacing: 1)),
                       smallTargetIcon(c.target, suiteColor),
                     ],
                   ),
@@ -738,17 +742,6 @@ class _ExchangePageState extends State<ExchangePage> {
     return onTap != null ? GestureDetector(onTap: onTap, child: content) : content;
   }
 
-  IconData getSuiteIcon(CardSuite suite) {
-    switch (suite) {
-      case CardSuite.classic: return Icons.bolt_rounded;
-      case CardSuite.overload: return Icons.warning_amber_rounded;
-      case CardSuite.secure: return Icons.security_rounded;
-      case CardSuite.industrial: return Icons.settings_rounded;
-      case CardSuite.quantum: return Icons.auto_awesome_rounded;
-      case CardSuite.demon: return Icons.pest_control_rodent_rounded;
-    }
-  }
-
   Widget smallTargetIcon(CardTarget target, Color color) {
     IconData icon;
     switch (target) {
@@ -757,28 +750,6 @@ class _ExchangePageState extends State<ExchangePage> {
       case CardTarget.all: icon = Icons.grain; break;
     }
     return Icon(icon, size: 16, color: color.withValues(alpha: 0.6));
-  }
-
-  Color getRarityColor(int level) {
-    switch (level) {
-      case 1: return const Color(0xFF44FF44);
-      case 2: return const Color(0xFF6CE4FF);
-      case 3: return const Color(0xFFE26CFF);
-      case 4: return const Color(0xFFFFD700);
-      case 5: return const Color(0xFFFF4444);
-      default: return Colors.white70;
-    }
-  }
-
-  Color getCardBgColor(CardSuite suite) {
-    switch (suite) {
-      case CardSuite.overload: return const Color(0xFF1A0A0A);
-      case CardSuite.secure: return const Color(0xFF0A1A0A);
-      case CardSuite.industrial: return const Color(0xFF1A140A);
-      case CardSuite.quantum: return const Color(0xFF140A1A);
-      case CardSuite.classic: return const Color(0xFF101722);
-      case CardSuite.demon: return const Color(0xFF0F001A);
-    }
   }
 
   Widget buildCardDescription(CardData c, Color highlightColor) {
@@ -855,32 +826,12 @@ class _ExchangePageState extends State<ExchangePage> {
       text: TextSpan(children: spans, style: const TextStyle(fontFamily: 'monospace', height: 1.4)),
     );
   }
-
-  Color getSuiteColor(CardSuite suite) {
-    switch (suite) {
-      case CardSuite.classic: return const Color(0xFF6CE4FF);
-      case CardSuite.overload: return const Color(0xFFFF4444);
-      case CardSuite.secure: return const Color(0xFFC3A6FF);
-      case CardSuite.industrial: return const Color(0xFFFFB344);
-      case CardSuite.quantum: return const Color(0xFFE26CFF);
-      case CardSuite.demon: return const Color(0xFF9D00FF);
-    }
-  }
-
-  String getTypeName(CardType type) {
-    switch (type) {
-      case CardType.exploit: return 'EXPLOIT';
-      case CardType.encryption: return 'ENCRYPT';
-      case CardType.routine: return 'ROUTINE';
-      case CardType.module: return 'MODULE';
-    }
-  }
 }
 
 Widget gameCardWidget(CardData c, {VoidCallback? onTap}) {
-  final suiteColor = getSuiteColor(c.suite);
-  final rarityColor = getRarityColor(c.level);
-  final cardBgColor = getCardBgColor(c.suite).withValues(alpha: 0.9);
+  final suiteColor = ThemeConfig.getSuiteColor(c.suite);
+  final rarityColor = ThemeConfig.getRarityColor(c.level, suite: c.suite);
+  final cardBgColor = ThemeConfig.getCardBgColor(c.suite).withValues(alpha: 0.9);
   final content = Container(
     width: 160,
     height: 240,
@@ -935,7 +886,7 @@ Widget gameCardWidget(CardData c, {VoidCallback? onTap}) {
                       decoration: BoxDecoration(color: const Color(0xFF05060A), borderRadius: BorderRadius.circular(4), border: Border.all(color: suiteColor.withValues(alpha: 0.5), width: 1)),
                       child: Row(
                         children: [
-                          Icon(getSuiteIcon(c.suite), size: 14, color: suiteColor),
+                          Icon(ThemeConfig.getSuiteIcon(c.suite), size: 14, color: suiteColor),
                           const SizedBox(width: 4),
                           Text("${c.cost}", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: suiteColor, fontFamily: 'monospace')),
                         ],
@@ -954,7 +905,7 @@ Widget gameCardWidget(CardData c, {VoidCallback? onTap}) {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text("Lv${c.level} [${getTypeName(c.type)}]", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: rarityColor.withValues(alpha: 0.9), fontFamily: 'monospace', letterSpacing: 1)),
+                    Text("Lv${c.level} [${ThemeConfig.getTypeName(c.type)}]", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: rarityColor.withValues(alpha: 0.9), fontFamily: 'monospace', letterSpacing: 1)),
                     smallTargetIcon(c.target, suiteColor),
                   ],
                 ),
@@ -968,17 +919,6 @@ Widget gameCardWidget(CardData c, {VoidCallback? onTap}) {
   return onTap != null ? GestureDetector(onTap: onTap, child: content) : content;
 }
 
-IconData getSuiteIcon(CardSuite suite) {
-  switch (suite) {
-    case CardSuite.classic: return Icons.bolt_rounded;
-    case CardSuite.overload: return Icons.warning_amber_rounded;
-    case CardSuite.secure: return Icons.security_rounded;
-    case CardSuite.industrial: return Icons.settings_rounded;
-  case CardSuite.quantum: return Icons.auto_awesome_rounded;
-  case CardSuite.demon: return Icons.pest_control_rodent_rounded;
-}
-}
-
 Widget smallTargetIcon(CardTarget target, Color color) {
   IconData icon;
   switch (target) {
@@ -987,28 +927,6 @@ Widget smallTargetIcon(CardTarget target, Color color) {
     case CardTarget.all: icon = Icons.grain; break;
   }
   return Icon(icon, size: 16, color: color.withValues(alpha: 0.6));
-}
-
-Color getRarityColor(int level) {
-  switch (level) {
-    case 1: return const Color(0xFF44FF44);
-    case 2: return const Color(0xFF6CE4FF);
-    case 3: return const Color(0xFFE26CFF);
-    case 4: return const Color(0xFFFFD700);
-    case 5: return const Color(0xFFFF4444);
-    default: return Colors.white70;
-  }
-}
-
-Color getCardBgColor(CardSuite suite) {
-  switch (suite) {
-    case CardSuite.overload: return const Color(0xFF1A0A0A);
-    case CardSuite.secure: return const Color(0xFF0A1A0A);
-    case CardSuite.industrial: return const Color(0xFF1A140A);
-    case CardSuite.quantum: return const Color(0xFF140A1A);
-  case CardSuite.classic: return const Color(0xFF101722);
-  case CardSuite.demon: return const Color(0xFF0F001A);
-}
 }
 
 final Map<String, List<InlineSpan>> _descCache = {};
@@ -1077,31 +995,16 @@ Widget buildCardDescription(CardData c, Color highlightColor) {
   );
 }
 
-Color getSuiteColor(CardSuite suite) {
-  switch (suite) {
-    case CardSuite.classic: return const Color(0xFF6CE4FF);
-    case CardSuite.overload: return const Color(0xFFFF4444);
-    case CardSuite.secure: return const Color(0xFFC3A6FF);
-    case CardSuite.industrial: return const Color(0xFFFFB344);
-  case CardSuite.quantum: return const Color(0xFFE26CFF);
-  case CardSuite.demon: return const Color(0xFF9D00FF);
-}
-}
-
-String getTypeName(CardType type) {
-  switch (type) {
-    case CardType.exploit: return 'EXPLOIT';
-    case CardType.encryption: return 'ENCRYPT';
-    case CardType.routine: return 'ROUTINE';
-    case CardType.module: return 'MODULE';
-  }
-}
+// ----------------------------------------------------------------------------
+// Painter
+// ----------------------------------------------------------------------------
 
 class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
+    final themeColor = GameState.getThemeColor();
     final paint = Paint()
-      ..color = const Color(0xFF6CE4FF).withValues(alpha: 0.05)
+      ..color = themeColor.withValues(alpha: 0.05)
       ..strokeWidth = 1;
 
     const spacing = 30.0;

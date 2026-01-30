@@ -27,7 +27,11 @@ class _HuozhanPageState extends State<HuozhanPage> {
     super.initState();
     final random = Random();
     final ids = List<String>.from(GameState.drawPile);
-    final fromDeck = ids.map((id) => cardDatabase[id]).whereType<CardData>().toList();
+    // 关键区域：从当前牌堆选取时也应排除恶魔和神圣卡牌（保持一致性）
+    final fromDeck = ids.map((id) => cardDatabase[id])
+        .whereType<CardData>()
+        .where((c) => c.suite != CardSuite.demon && c.suite != CardSuite.holy)
+        .toList();
     final pool = List<CardData>.from(fromDeck);
     final picked = <CardData>[];
     while (picked.length < 5 && pool.isNotEmpty) {
@@ -44,7 +48,7 @@ class _HuozhanPageState extends State<HuozhanPage> {
 
   @override
   Widget build(BuildContext context) {
-    final color = const Color(0xFF6CE4FF);
+    final color = GameState.getThemeColor();
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -59,7 +63,7 @@ class _HuozhanPageState extends State<HuozhanPage> {
         body: Stack(
           children: [
             // 背景采用与逻辑交易所一致的网格绘制
-            Positioned.fill(child: RepaintBoundary(child: CustomPaint(painter: _DepotGridPainter()))),
+            Positioned.fill(child: RepaintBoundary(child: CustomPaint(painter: _DepotGridPainter(color)))),
             SafeArea(
               child: Column(
                 children: [
@@ -100,7 +104,7 @@ class _HuozhanPageState extends State<HuozhanPage> {
   Widget _buildHeader(Color color) {
     return Column(
       children: [
-        const Text(
+        Text(
           '货栈',
           style: TextStyle(
             fontSize: 32,
@@ -108,15 +112,15 @@ class _HuozhanPageState extends State<HuozhanPage> {
             color: Colors.white,
             letterSpacing: 8,
             fontFamily: 'monospace',
-            shadows: [Shadow(color: Color(0xFF6CE4FF), blurRadius: 20)],
+            shadows: [Shadow(color: color, blurRadius: 20)],
           ),
         ),
         const SizedBox(height: 12),
-        const Text(
+        Text(
           'DEPOT PROTOCOL v3.4',
           style: TextStyle(
             fontSize: 10,
-            color: Color(0x666CE4FF),
+            color: color.withValues(alpha: 0.4),
             letterSpacing: 2,
             fontFamily: 'monospace',
           ),
@@ -364,7 +368,7 @@ class _HuozhanPageState extends State<HuozhanPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          CyberButton(width: 100, height: 36, fontSize: 12, label: '维持接入', color: const Color(0xFF6CE4FF), onPressed: () => Navigator.pop(ctx, false)),
+                          CyberButton(width: 100, height: 36, fontSize: 12, label: '维持接入', color: GameState.getThemeColor(), onPressed: () => Navigator.pop(ctx, false)),
                           const SizedBox(width: 16),
                           CyberButton(width: 100, height: 36, fontSize: 12, label: '确认断开', color: const Color(0xFFFF6A6A), onPressed: () => Navigator.pop(ctx, true)),
                         ],
@@ -386,10 +390,13 @@ class _HuozhanPageState extends State<HuozhanPage> {
 
 // 货栈背景网格Painter：与交易所页面风格一致
 class _DepotGridPainter extends CustomPainter {
+  final Color themeColor;
+  _DepotGridPainter(this.themeColor);
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF6CE4FF).withValues(alpha: 0.05)
+      ..color = themeColor.withValues(alpha: 0.05)
       ..strokeWidth = 1;
     const spacing = 30.0;
     for (double x = 0; x < size.width; x += spacing) {

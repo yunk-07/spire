@@ -245,6 +245,7 @@ class CyberBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColor = GameState.getThemeColor();
     return Stack(
       children: [
         // 基础渐变
@@ -260,12 +261,12 @@ class CyberBackground extends StatelessWidget {
         // 装饰性网格
         Positioned.fill(
           child: CustomPaint(
-            painter: _BackgroundGridPainter(),
+            painter: _BackgroundGridPainter(themeColor: themeColor),
           ),
         ),
         // 扫描线
-        const Positioned.fill(
-          child: CyberScanline(color: Color(0xFF6CE4FF)),
+        Positioned.fill(
+          child: CyberScanline(color: themeColor),
         ),
       ],
     );
@@ -273,10 +274,13 @@ class CyberBackground extends StatelessWidget {
 }
 
 class _BackgroundGridPainter extends CustomPainter {
+  final Color themeColor;
+  _BackgroundGridPainter({required this.themeColor});
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF6CE4FF).withValues(alpha: 0.03)
+      ..color = themeColor.withValues(alpha: 0.03)
       ..strokeWidth = 1.0;
 
     const spacing = 40.0;
@@ -372,6 +376,7 @@ class _CyberToastWidgetState extends State<_CyberToastWidget> with SingleTickerP
 
   @override
   Widget build(BuildContext context) {
+    final themeColor = GameState.getThemeColor();
     return Positioned(
       top: MediaQuery.of(context).size.height * 0.15,
       left: 0,
@@ -391,12 +396,12 @@ class _CyberToastWidgetState extends State<_CyberToastWidget> with SingleTickerP
                     decoration: BoxDecoration(
                       color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
                       border: Border.all(
-                        color: const Color(0xFF6CE4FF).withValues(alpha: 0.8),
+                        color: themeColor.withValues(alpha: 0.8),
                         width: 1.5,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF6CE4FF).withValues(alpha: 0.3),
+                          color: themeColor.withValues(alpha: 0.3),
                           blurRadius: 15,
                           spreadRadius: 2,
                         ),
@@ -408,7 +413,7 @@ class _CyberToastWidgetState extends State<_CyberToastWidget> with SingleTickerP
                         Positioned.fill(
                           child: CustomPaint(
                             painter: CyberCornerPainter(
-                              color: const Color(0xFF6CE4FF).withValues(alpha: 0.5),
+                              color: themeColor.withValues(alpha: 0.5),
                               cornerSize: 8,
                             ),
                           ),
@@ -416,9 +421,9 @@ class _CyberToastWidgetState extends State<_CyberToastWidget> with SingleTickerP
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.info_outline,
-                              color: Color(0xFF6CE4FF),
+                              color: themeColor,
                               size: 18,
                             ),
                             const SizedBox(width: 12),
@@ -475,7 +480,8 @@ class _HoloGridPainter extends CustomPainter {
       return;
     }
 
-    final gridColor = const Color(0x336CE4FF);
+    final themeColor = GameState.getThemeColor();
+    final gridColor = themeColor.withValues(alpha: 0.2);
     final gridPaint =
         Paint()
           ..color = gridColor
@@ -498,10 +504,10 @@ class _HoloGridPainter extends CustomPainter {
     final bandRect = Rect.fromLTRB(bandLeft, 0, bandRight, size.height);
     final bandPaint =
         Paint()
-          ..shader = const LinearGradient(
+          ..shader = LinearGradient(
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
-            colors: [Color(0x006CE4FF), Color(0x446CE4FF)],
+            colors: [themeColor.withValues(alpha: 0), themeColor.withValues(alpha: 0.26)],
           ).createShader(bandRect);
     canvas.drawRect(bandRect, bandPaint);
   }
@@ -518,7 +524,7 @@ class CyberButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final double? width;
   final double height;
-  final Color color;
+  final Color? color;
   final double fontSize;
   final String? heroTag;
 
@@ -529,14 +535,15 @@ class CyberButton extends StatelessWidget {
     this.width = 240,
     this.height = 50,
     this.fontSize = 14,
-    this.color = const Color(0xFF6CE4FF),
+    this.color,
     this.heroTag,
   });
 
   @override
   Widget build(BuildContext context) {
     final bool isDisabled = onPressed == null;
-    final Color activeColor = isDisabled ? Colors.grey : color;
+    final Color effectiveColor = color ?? GameState.getThemeColor();
+    final Color activeColor = isDisabled ? Colors.grey : effectiveColor;
 
     Widget button = Opacity(
       opacity: isDisabled ? 0.5 : 1.0,
@@ -723,12 +730,12 @@ class StartScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // 游戏标题
-                const Text(
+                Text(
                   'SPIRE',
                   style: TextStyle(
                     fontSize: 60,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF6CE4FF),
+                    color: GameState.getThemeColor(),
                     letterSpacing: 8.0,
                   ),
                 ),
@@ -889,7 +896,7 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                     ),
                     border: Border(
                       bottom: BorderSide(
-                        color: const Color(0xFF6CE4FF).withValues(alpha: 0.3),
+                        color: GameState.getThemeColor().withValues(alpha: 0.3),
                         width: 1,
                       ),
                     ),
@@ -902,7 +909,7 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                           Text(
                             "// SYSTEM_NEURAL_LINK",
                             style: TextStyle(
-                              color: const Color(0xFF6CE4FF).withValues(alpha: 0.5),
+                              color: GameState.getThemeColor().withValues(alpha: 0.5),
                               fontSize: 8,
                               letterSpacing: 1.5,
                               fontFamily: 'monospace',
@@ -914,25 +921,25 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.psychology, color: Color(0xFF6CE4FF), size: 20),
+                          Icon(Icons.psychology, color: GameState.getThemeColor(), size: 20),
                           const SizedBox(width: 15),
-                          const Text(
+                          Text(
                             '配置接入单元',
                             style: TextStyle(
-                              color: Color(0xFFE1E9FF),
+                              color: const Color(0xFFE1E9FF),
                               fontWeight: FontWeight.bold,
                               fontSize: 22,
                               letterSpacing: 4,
                               shadows: [
                                 Shadow(
-                                  color: Color(0xFF6CE4FF),
+                                  color: GameState.getThemeColor(),
                                   blurRadius: 10,
                                 ),
                               ],
                             ),
                           ),
                           const SizedBox(width: 15),
-                          const Icon(Icons.psychology, color: Color(0xFF6CE4FF), size: 20),
+                          Icon(Icons.psychology, color: GameState.getThemeColor(), size: 20),
                         ],
                       ),
                     ],

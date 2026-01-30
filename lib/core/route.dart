@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../game_state.dart';
 
 Route<T> createHoloRoute<T>(Widget page) {
   return PageRouteBuilder<T>(
@@ -82,7 +83,8 @@ class _HoloGridPainter extends CustomPainter {
       return;
     }
 
-    final gridColor = const Color(0x336CE4FF);
+    final themeColor = GameState.getThemeColor();
+    final gridColor = themeColor.withValues(alpha: 0.2);
     final gridPaint = Paint()..color = gridColor..strokeWidth = 1;
 
     const cell = 16.0;
@@ -101,10 +103,10 @@ class _HoloGridPainter extends CustomPainter {
     }
     final bandRect = Rect.fromLTRB(0, bandTop, size.width, bandBottom);
     final bandPaint = Paint()
-      ..shader = const LinearGradient(
+      ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Color(0x006CE4FF), Color(0x446CE4FF)],
+        colors: [themeColor.withValues(alpha: 0.0), themeColor.withValues(alpha: 0.26)],
       ).createShader(bandRect);
     canvas.drawRect(bandRect, bandPaint);
   }
