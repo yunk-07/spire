@@ -4,7 +4,7 @@ import 'brainchip_data.dart';
 import 'game_state.dart';
 import 'nation_selection_screen.dart';
 import 'main.dart';
-import 'start_screen.dart';
+import 'theme_config.dart';
 
 class BrainChipSelectionScreen extends StatefulWidget {
   const BrainChipSelectionScreen({super.key});
@@ -320,26 +320,6 @@ class _BrainChipSelectionScreenState extends State<BrainChipSelectionScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLevelBadge(BrainChip chip, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
-      ),
-      child: Text(
-        "LV.${chip.level}",
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          fontFamily: 'monospace',
         ),
       ),
     );

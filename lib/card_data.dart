@@ -438,7 +438,7 @@ const Map<String, CardData> cardDatabase = {
     cost: 4,
     level: 5,
     effect: 'damage 6; heal 20',
-    description: '造成 6 点冲击，并从目标回收资源修复 20 点系统完整性。',
+    description: '造成 6 点冲击，并从目标回收资源修复 20 点系统生命值。',
   ),
   'burning_slash': CardData(
     id: 'burning_slash',
@@ -648,7 +648,7 @@ const Map<String, CardData> cardDatabase = {
     cost: 3,
     level: 2,
     effect: 'damage 12; heal 5',
-    description: '运行捕食者程序，造成 12 点冲击并回收 5 点系统完整性。',
+    description: '运行捕食者程序，造成 12 点冲击并回收 5 点系统生命值。',
   ),
   'logic_gate': CardData(
     id: 'logic_gate',
@@ -726,7 +726,7 @@ const Map<String, CardData> cardDatabase = {
     cost: 4,
     level: 4,
     effect: 'heal 15; block 20; sturdy 2',
-    description: '执行系统重装流程，修复 15 点完整性并部署 20 点防火墙，同时提升 2 点坚固。',
+    description: '执行系统重装流程，修复 15 点生命值并部署 20 点防火墙，同时提升 2 点坚固。',
   ),
   'supercomputer_f': CardData(
     id: 'supercomputer_f',
@@ -819,7 +819,7 @@ const Map<String, CardData> cardDatabase = {
     cost: 1,
     level: 4,
     effect: 'heal 4; block 4',
-    description: '运行底层修复协议，恢复 4 点完整性并获得 4 点防御。',
+    description: '运行底层修复协议，恢复 4 点生命值并获得 4 点防御。',
   ),
   'shield_boost': CardData(
     id: 'shield_boost',

@@ -132,7 +132,7 @@ const Map<String, CharacterData> characterDatabase = {
     maxDrawPerTurn: 6,
     description: "高频脉冲载体，能够瞬间产生大量数据流覆盖目标。",
     passives: [
-      "【涌动】当手牌为 0 时，恢复 2 宽带并摸 2 张牌。",
+      "【涌动】当手牌为 0 时，恢复 2 能量并摸 2 张牌。",
     ],
   ),
 
@@ -261,7 +261,7 @@ const Map<String, CharacterData> characterDatabase = {
     maxDrawPerTurn: 5,
     description: "精密计算核心，擅长建立结构化的逻辑链路。",
     passives: [
-      "【结构链路】当使用的牌与上一张牌类别（suite）相同时，恢复 1 宽带并摸 1 张牌。",
+      "【结构链路】当使用的牌与上一张牌类别（suite）相同时，恢复 1 能量并摸 1 张牌。",
     ],
   ),
 

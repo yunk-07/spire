@@ -1,10 +1,9 @@
 // 作用：封装五类攻击特效的独立组件，便于复用与局部重建
-import 'dart:math';
 import 'package:flutter/material.dart';
+import 'dart:math';
 import 'animation_constants.dart';
 import 'effect_styles.dart';
-import 'laser_painter.dart';
-import 'slash_painter.dart';
+import 'theme_config.dart';
 import 'particle_emitter.dart';
 import 'main.dart' show AttackEffect;
 
@@ -70,7 +69,7 @@ class LaserEffectWidget extends StatelessWidget {
         return Stack(
           children: [
             CustomPaint(
-              painter: LaserPainter(
+              painter: CyberLaserPainter(
                 start: e.start + const Offset(40, 48),
                 end: e.end + const Offset(50, 60),
                 progress: t,
@@ -119,7 +118,7 @@ class SlashEffectWidget extends StatelessWidget {
           children: [
             // 第一段弧形斩击
             CustomPaint(
-              painter: SlashPainter(
+              painter: CyberSlashPainter(
                 center: center,
                 progress: t,
                 color: EffectColors.slashPrimary,
@@ -130,7 +129,7 @@ class SlashEffectWidget extends StatelessWidget {
               Transform.rotate(
                 angle: -0.25,
                 child: CustomPaint(
-                  painter: SlashPainter(
+                  painter: CyberSlashPainter(
                     center: center.translate(-10, -6),
                     progress: secondPhase,
                     color: Colors.white,

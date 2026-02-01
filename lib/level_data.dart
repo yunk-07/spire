@@ -250,7 +250,7 @@ class GameProgress {
         }
 
         // 计算更丰富的难度分布（1-5）
-        int _depthBonus() {
+        int getDepthBonus() {
           if (isFirstLayer) return -1;
           if (isLastLayer) return 2;
           final p = l / (layerCount - 1);
@@ -259,7 +259,7 @@ class GameProgress {
           if (p < 0.75) return 1;
           return 2;
         }
-        int _typeBonus() {
+        int getTypeBonus() {
           switch (type) {
             case LevelType.elite:
               return 1;
@@ -277,7 +277,7 @@ class GameProgress {
           }
         }
         final jitter = [-1, 0, 0, 1][random.nextInt(4)];
-        int nodeDiff = difficulty + _depthBonus() + _typeBonus() + jitter;
+        int nodeDiff = difficulty + getDepthBonus() + getTypeBonus() + jitter;
         if (type == LevelType.boss) nodeDiff = 5;
         nodeDiff = nodeDiff.clamp(1, 5);
 
@@ -417,7 +417,7 @@ class GameProgress {
       case LevelType.rest:
         return restNames[r.nextInt(restNames.length)];
       case LevelType.boss:
-        return '${prefix}${bossNames[r.nextInt(bossNames.length)]}';
+        return '$prefix${bossNames[r.nextInt(bossNames.length)]}';
     }
   }
 

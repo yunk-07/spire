@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'game_state.dart';
 import 'level_data.dart';
 import 'main.dart';
-import 'start_screen.dart';
+import 'theme_config.dart';
 import 'map_screen.dart';
 
 /// 国度选择界面
@@ -43,36 +43,38 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
     final nations = GameProgress.generatedNations;
     final allCompleted = GameProgress.isAllNationsCompleted();
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
-        final shouldExit = await _confirmExit(context);
-        if (shouldExit && context.mounted) {
-          // 返回到开始页面（根路由）
-          Navigator.popUntil(context, (route) => route.isFirst);
-        }
-      },
-      child: Scaffold(
-        body: Stack(
-          children: [
-            const Positioned.fill(child: CyberBackground()),
-            Positioned.fill(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final positions = _computeLayout(nations, constraints.biggest);
-                  final edges = _computeEdges(nations, positions);
-                  return Stack(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final positions = _computeLayout(nations, constraints.biggest);
+        final edges = _computeEdges(nations, positions);
+        
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) async {
+            if (didPop) return;
+            final shouldExit = await showCyberConfirmExit(context);
+            if (shouldExit && context.mounted) {
+              // 返回到开始页面（根路由）
+              Navigator.popUntil(context, (route) => route.isFirst);
+            }
+          },
+          child: Scaffold(
+            body: Stack(
+              children: [
+                const Positioned.fill(child: CyberBackground()),
+                Positioned.fill(
+                  child: Stack(
                     children: [
                       Positioned.fill(
                         child: RepaintBoundary(
                           child: CustomPaint(
-                            painter: _NationMapPainter(
+                            painter: CyberNationMapPainter(
                               nations: nations,
                               hoveredId: _hoveredNationId,
                               pulse: _pulseController,
                               positions: positions,
                               edges: edges,
+                              themeColor: GameState.getThemeColor(),
                             ),
                           ),
                         ),
@@ -164,59 +166,59 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
                         );
                       }),
                     ],
-                  );
-                },
-              ),
-            ),
-            
-            // 全通关提示
-            if (allCompleted)
-              _buildAllCompletedOverlay(),
-
-            // 顶部标题
-            Positioned(
-              top: 60,
-              left: 0,
-              right: 0,
-              child: Column(
-                children: [
-                  Text(
-                    '// SECTOR_SELECTION',
-                    style: TextStyle(
-                      color: GameState.getThemeColor(),
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 4,
-                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    allCompleted 
-                      ? '所有扇区同步完成，系统核心已完全掌控'
-                      : '选择目标国度进行数据渗透 (${GameProgress.completedNationIds.length}/${nations.length} 已同步)',
-                    style: TextStyle(
-                      color: GameState.getThemeColor().withValues(alpha: 0.6),
-                      fontSize: 12,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // 国度详情面板
-            if (_hoveredNationId != null && !allCompleted)
-              Positioned(
-                bottom: 40,
-                left: 20,
-                right: 20,
-                child: _NationDetailPanel(
-                  nation: nations.firstWhere((n) => n.id == _hoveredNationId),
                 ),
-              ),
-            if (_statusTip != null) _statusTipWidget(),
-          ],
-        ),
-      ),
+                
+                // 全通关提示
+                if (allCompleted)
+                  _buildAllCompletedOverlay(),
+
+                // 顶部标题
+                Positioned(
+                  top: 60,
+                  left: 0,
+                  right: 0,
+                  child: Column(
+                    children: [
+                      Text(
+                        '// SECTOR_SELECTION',
+                        style: TextStyle(
+                          color: GameState.getThemeColor(),
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 4,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        allCompleted 
+                          ? '所有扇区同步完成，系统核心已完全掌控'
+                          : '选择目标国度进行数据渗透 (${GameProgress.completedNationIds.length}/${nations.length} 已同步)',
+                        style: TextStyle(
+                          color: GameState.getThemeColor().withValues(alpha: 0.6),
+                          fontSize: 12,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // 国度详情面板
+                if (_hoveredNationId != null && !allCompleted)
+                  Positioned(
+                    bottom: 40,
+                    left: 20,
+                    right: 20,
+                    child: _NationDetailPanel(
+                      nation: nations.firstWhere((n) => n.id == _hoveredNationId),
+                    ),
+                  ),
+                if (_statusTip != null) _statusTipWidget(),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -320,114 +322,6 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
     );
   }
 
-  /// 关键区域备注：系统返回二级确认对话框
-  Future<bool> _confirmExit(BuildContext context) async {
-    final res = await showGeneralDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: "DISCONNECT_CONFIRM",
-      barrierColor: Colors.black.withValues(alpha: 0.8),
-      transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (ctx, anim1, anim2) {
-        return Center(
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              width: 320,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(
-                  color: const Color(0xFFFF6A6A).withValues(alpha: 0.8),
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFF6A6A).withValues(alpha: 0.2),
-                    blurRadius: 30,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: const CyberScanline(color: Color(0x11FF6A6A)),
-                    ),
-                  ),
-                  // 装饰边角
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: CyberCornerPainter(color: const Color(0x66FF6A6A)),
-                    ),
-                  ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        "确认断开连接？",
-                        style: TextStyle(
-                          color: Color(0xFFFF6A6A),
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        "尚未选择目标国度，断开连接将返回主菜单。",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Color(0xFF8FA3C0), fontSize: 13),
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: CyberButton(
-                              label: "取消",
-                              height: 40,
-                              fontSize: 12,
-                              color: const Color(0xFF8FA3C0),
-                              onPressed: () => Navigator.pop(ctx, false),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: CyberButton(
-                              label: "断开",
-                              height: 40,
-                              fontSize: 12,
-                              color: const Color(0xFFFF6A6A),
-                              onPressed: () => Navigator.pop(ctx, true),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-    return res ?? false;
-  }
-
-  /*
-  Offset _getNationPosition(Nation nation, Size size) {
-    final random = math.Random(nation.id.hashCode);
-    // 增加一点偏移量，使5-7个国度分布更均匀
-    return Offset(
-      size.width * (0.15 + random.nextDouble() * 0.7),
-      size.height * (0.25 + random.nextDouble() * 0.5),
-    );
-  }
-  */
   Map<String, Offset> _computeLayout(List<Nation> nations, Size size) {
     final positions = <String, Offset>{};
     final cx = size.width * 0.5;
@@ -463,6 +357,7 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
     }
     return positions;
   }
+
   List<List<String>> _computeEdges(List<Nation> nations, Map<String, Offset> pos) {
     final ids = nations.map((n) => n.id).toList();
     final edges = <List<String>>[];
@@ -498,51 +393,6 @@ class _NationSelectionScreenState extends State<NationSelectionScreen>
   }
 }
 
-class _NationMapPainter extends CustomPainter {
-  final List<Nation> nations;
-  final String? hoveredId;
-  final Animation<double> pulse;
-  final Map<String, Offset>? positions;
-  final List<List<String>> edges;
-
-  _NationMapPainter({
-    required this.nations,
-    required this.hoveredId,
-    required this.pulse,
-    required this.positions,
-    required this.edges,
-  }) : super(repaint: pulse);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final themeColor = GameState.getThemeColor();
-    if (positions != null && positions!.isNotEmpty) {
-      for (final e in edges) {
-        final a = positions![e[0]]!;
-        final b = positions![e[1]]!;
-        final grad = Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [themeColor.withValues(alpha: 0.13), const Color(0x22FFD700)],
-          ).createShader(Rect.fromPoints(a, b))
-          ..strokeWidth = 2
-          ..style = PaintingStyle.stroke;
-        canvas.drawLine(a, b, grad);
-      }
-    }
-    // 使用节点控件呈现国度，不在画布中绘制不规则方块
-  }
-
-  // void _drawNation(Canvas canvas, Size size, Nation nation) {}
-
-  @override
-  bool shouldRepaint(_NationMapPainter oldDelegate) =>
-      oldDelegate.hoveredId != hoveredId ||
-      oldDelegate.positions != positions ||
-      oldDelegate.edges.length != edges.length;
-}
-
 class _NationDetailPanel extends StatelessWidget {
   final Nation nation;
 
@@ -550,23 +400,11 @@ class _NationDetailPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(
-          color: nation.themeColor.withValues(alpha: 0.4),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: nation.themeColor.withValues(alpha: 0.1),
-            blurRadius: 20,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
+    return CyberLogicPanel(
+      color: nation.themeColor,
+      label: "// SECTOR_DATA",
+      sessionLabel: "UID_${nation.id.toUpperCase()}",
+      icon: Icons.analytics_outlined,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -577,38 +415,63 @@ class _NationDetailPanel extends StatelessWidget {
               Text(
                 nation.title.toUpperCase(),
                 style: TextStyle(
-                  color: nation.themeColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
                   letterSpacing: 2,
+                  fontFamily: 'monospace',
                 ),
               ),
               _DifficultyStars(difficulty: nation.difficulty),
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            nation.description,
-            style: const TextStyle(
-              color: Color(0xFF8FA3C0),
-              fontSize: 13,
-              height: 1.5,
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: nation.themeColor.withValues(alpha: 0.05),
+              border: Border(left: BorderSide(color: nation.themeColor, width: 2)),
+            ),
+            child: Text(
+              nation.description,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontSize: 13,
+                height: 1.5,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
+          CyberTacticalDivider(color: nation.themeColor),
+          const SizedBox(height: 12),
           Row(
             children: [
-              _StatItem(label: '预计关卡', value: '${_countLevels(nation)}', color: nation.themeColor),
-              const SizedBox(width: 24),
-              _StatItem(label: '渗透深度', value: '${nation.layers.length} 层', color: nation.themeColor),
+              _StatItem(label: 'EST_NODES', value: '${_countLevels(nation)}', color: nation.themeColor),
+              const SizedBox(width: 32),
+              _StatItem(label: 'DEPTH', value: '${nation.layers.length} LAYERS', color: nation.themeColor),
               const Spacer(),
-              Text(
-                '点击进入国度',
-                style: TextStyle(
-                  color: nation.themeColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'STATUS: READY',
+                    style: TextStyle(
+                      color: nation.themeColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  Text(
+                    'TAP_TO_ENGAGE',
+                    style: TextStyle(
+                      color: nation.themeColor.withValues(alpha: 0.5),
+                      fontSize: 9,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

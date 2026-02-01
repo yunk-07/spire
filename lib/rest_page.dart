@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-import 'start_screen.dart';
 import 'game_state.dart';
 import 'level_data.dart';
 import 'card_data.dart';
@@ -10,9 +9,9 @@ import 'theme_config.dart';
 
 /// 数据缓存站页面 - 允许接入单元同步数据并恢复完整度
 class RestPage extends StatefulWidget {
-  final String levelId;
+  final LevelInfo? level;
 
-  const RestPage({super.key, required this.levelId});
+  const RestPage({super.key, this.level});
 
   @override
   State<RestPage> createState() => _RestPageState();
@@ -23,6 +22,10 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
   int _healAmount = 0;
   bool _showingCardRewards = false;
   List<CardData> _rewardCards = [];
+
+  LevelInfo? get node => widget.level;
+  String get levelId => node?.id ?? 'UNKNOWN';
+  String get levelTitle => node?.title ?? '缓存站';
 
   @override
   void initState() {
@@ -37,227 +40,6 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
   void dispose() {
     _fadeController.dispose();
     super.dispose();
-  }
-
-  Widget _buildCardDescription(CardData c, Color highlightColor) {
-    final text = c.description ?? "";
-    if (text.isEmpty) return const SizedBox.shrink();
-
-    const buffKeywords = {'防火墙加固', '算力', '系统修复', '能量', '能量点', '数据包', '带宽'};
-    const debuffKeywords = {'虚弱', '脆弱', '漏洞暴露', '恶意代码'};
-    const damageKeywords = {'冲击', '自损', '受损'};
-
-    final regex = RegExp(r'(\d+)|(冲击|防火墙加固|数据包|算力|虚弱|脆弱|恶意代码|自损|系统修复|能量|能量点|漏洞暴露|受损|带宽)');
-    final List<TextSpan> spans = [];
-    int lastMatchEnd = 0;
-
-    for (final match in regex.allMatches(text)) {
-      if (match.start > lastMatchEnd) {
-        spans.add(TextSpan(
-          text: text.substring(lastMatchEnd, match.start),
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 8),
-        ));
-      }
-
-      final isNumber = match.group(1) != null;
-      final matchText = match.group(0)!;
-      bool isBadEffect = false;
-      String associatedKeyword = "";
-      if (isNumber) {
-        final afterText = text.substring(match.end, (match.end + 12).clamp(0, text.length));
-        final beforeText = text.substring((match.start - 12).clamp(0, text.length), match.start);
-        for (var k in [...buffKeywords, ...debuffKeywords, ...damageKeywords]) {
-          if (afterText.contains(k) || beforeText.contains(k)) {
-            associatedKeyword = k;
-            break;
-          }
-        }
-      } else {
-        associatedKeyword = matchText;
-      }
-
-      CardTarget target = c.target;
-      if (associatedKeyword == "自损" || associatedKeyword == "受损") target = CardTarget.self;
-
-      if (damageKeywords.contains(associatedKeyword)) {
-        isBadEffect = (target == CardTarget.self);
-      } else if (buffKeywords.contains(associatedKeyword)) {
-        isBadEffect = (target != CardTarget.self);
-      } else if (debuffKeywords.contains(associatedKeyword)) {
-        isBadEffect = (target == CardTarget.self);
-      }
-
-      Color displayColor = isBadEffect ? const Color(0xFFFF4444) : (isNumber ? Colors.white : highlightColor);
-
-      spans.add(TextSpan(
-        text: matchText,
-        style: TextStyle(
-          color: displayColor,
-          fontWeight: (isNumber || isBadEffect) ? FontWeight.w900 : FontWeight.bold,
-          fontSize: isNumber ? 10 : 9,
-          shadows: [Shadow(color: displayColor.withValues(alpha: 0.6), blurRadius: 4)],
-        ),
-      ));
-      lastMatchEnd = match.end;
-    }
-
-    if (lastMatchEnd < text.length) {
-      spans.add(TextSpan(
-        text: text.substring(lastMatchEnd),
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 8),
-      ));
-    }
-
-    return RichText(
-      text: TextSpan(children: spans, style: const TextStyle(fontFamily: 'monospace', height: 1.3)),
-      maxLines: 4,
-      overflow: TextOverflow.ellipsis,
-    );
-  }
-
-  Widget _smallTargetIcon(CardTarget target, Color color) {
-    IconData icon;
-    switch (target) {
-      case CardTarget.enemy: icon = Icons.gps_fixed; break;
-      case CardTarget.self: icon = Icons.shield; break;
-      case CardTarget.all: icon = Icons.grain; break;
-    }
-    return Icon(icon, size: 10, color: color.withValues(alpha: 0.6));
-  }
-
-  Widget _cardWidget(CardData c) {
-    final suiteColor = ThemeConfig.getSuiteColor(c.suite);
-    final rarityColor = ThemeConfig.getRarityColor(c.level, suite: c.suite);
-    final cardBgColor = ThemeConfig.getCardBgColor(c.suite).withValues(alpha: 0.9);
-    
-    return Container(
-      width: 100,
-      height: 140,
-      margin: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: cardBgColor,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: suiteColor.withValues(alpha: 0.6), width: 1.0),
-        boxShadow: [
-          BoxShadow(color: suiteColor.withValues(alpha: 0.2), blurRadius: 8, spreadRadius: 1),
-          BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 4, offset: const Offset(2, 2)),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(3),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: CustomPaint(
-                painter: SuiteTechPainter(c.suite, suiteColor.withValues(alpha: 0.1)),
-              ),
-            ),
-            Positioned.fill(
-              child: IgnorePointer(
-                child: CyberScanline(
-                  color: suiteColor.withValues(alpha: 0.15),
-                  isGlitch: c.suite == CardSuite.overload,
-                ),
-              ),
-            ),
-            Positioned.fill(
-              child: IgnorePointer(
-                child: CustomPaint(
-                  painter: CyberCornerPainter(color: suiteColor.withValues(alpha: 0.15)),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(6),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Builder(
-                          builder: (_) {
-                            final name = c.name;
-                            final base = 10.0;
-                            final shrink = name.length > 4 ? (base - (name.length - 4) * 0.6) : base;
-                            final titleFont = shrink.clamp(7.0, base);
-                            return Text(
-                              name,
-                              softWrap: true,
-                              maxLines: 2,
-                              overflow: TextOverflow.visible,
-                              style: TextStyle(
-                                fontSize: titleFont,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white.withValues(alpha: 0.95),
-                                letterSpacing: 0.5,
-                                fontFamily: 'monospace',
-                                height: 1.1,
-                                shadows: [Shadow(color: suiteColor.withValues(alpha: 0.5), blurRadius: 4)],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 0),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF05060A),
-                          borderRadius: BorderRadius.circular(2),
-                          border: Border.all(color: suiteColor.withValues(alpha: 0.5), width: 0.5),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(ThemeConfig.getSuiteIcon(c.suite), size: 8, color: suiteColor),
-                            Text(
-                              "${c.cost}",
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900,
-                                color: suiteColor,
-                                fontFamily: 'monospace',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    width: double.infinity,
-                    height: 1.5,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [suiteColor, suiteColor.withValues(alpha: 0.2)],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Expanded(child: _buildCardDescription(c, suiteColor)),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        (c.suite == CardSuite.demon || c.suite == CardSuite.holy) ? "Lv ?" : "Lv${c.level}",
-                        style: TextStyle(
-                          fontSize: 7,
-                          fontWeight: FontWeight.bold,
-                          color: rarityColor.withValues(alpha: 0.9),
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                      _smallTargetIcon(c.target, suiteColor),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   void _generateRandomCard() {
@@ -285,7 +67,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
     GameState.drawPile.add(card.id);
     
     // 标记该缓存站已使用
-    GameProgress.markDefeated(widget.levelId);
+    GameProgress.markDefeated(levelId);
     
     if (mounted) {
       CyberToast.show(context, '同步完成：已获取新指令集 [${card.name}]');
@@ -307,7 +89,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        final shouldExit = await _confirmExit(context);
+        final shouldExit = await showCyberConfirmExit(context);
         if (shouldExit && context.mounted) {
           // 返回到开始页面（根路由）
           Navigator.popUntil(context, (route) => route.isFirst);
@@ -324,9 +106,19 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
             FadeTransition(
               opacity: _fadeController,
               child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: _showingCardRewards ? _buildCardRewardView() : _buildInitialView(),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      physics: const ClampingScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: _showingCardRewards ? _buildCardRewardView() : _buildInitialView(),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -334,118 +126,6 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
         ),
       ),
     );
-  }
-
-  Future<bool> _confirmExit(BuildContext context) async {
-    final res = await showGeneralDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: "DISCONNECT_CONFIRM",
-      barrierColor: Colors.black.withValues(alpha: 0.8),
-      transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (ctx, anim1, anim2) {
-        return Center(
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              width: 320,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(
-                  color: const Color(0xFFFF6A6A).withValues(alpha: 0.8),
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFF6A6A).withValues(alpha: 0.2),
-                    blurRadius: 30,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  // 内部扫描线
-                  Positioned.fill(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: const CyberScanline(color: Color(0x11FF6A6A)),
-                    ),
-                  ),
-                  // 装饰边角
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: CyberCornerPainter(color: const Color(0x66FF6A6A)),
-                    ),
-                  ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons.warning_amber_rounded,
-                            color: Color(0xFFFF6A6A),
-                            size: 20,
-                          ),
-                          SizedBox(width: 10),
-                          Text(
-                            "DISCONNECT_REQUEST",
-                            style: TextStyle(
-                              color: Color(0xFFFF6A6A),
-                              fontSize: 10,
-                              fontFamily: 'monospace',
-                              letterSpacing: 2,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        '检测到非正常断开指令。退出将丢失本次数据同步机会，是否确认中断接入？',
-                        style: TextStyle(
-                          color: Color(0xFFE1E9FF),
-                          fontSize: 14,
-                          height: 1.6,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          CyberButton(
-                            width: 100,
-                            height: 36,
-                            fontSize: 12,
-                            label: '维持接入',
-                            color: GameState.getThemeColor(),
-                            onPressed: () => Navigator.pop(ctx, false),
-                          ),
-                          const SizedBox(width: 16),
-                          CyberButton(
-                            width: 100,
-                            height: 36,
-                            fontSize: 12,
-                            label: '强制中断',
-                            color: const Color(0xFFFF6A6A),
-                            onPressed: () => Navigator.pop(ctx, true),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-    return res ?? false;
   }
 
   Widget _buildInitialView() {
@@ -469,7 +149,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
         const SizedBox(height: 32),
         
         Text(
-          '数据缓存站',
+          levelTitle,
           style: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
@@ -491,6 +171,8 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
             fontFamily: 'monospace',
           ),
         ),
+        const SizedBox(height: 12),
+        _metaRow(themeColor),
         const SizedBox(height: 48),
         
         // 当前状态显示
@@ -585,7 +267,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
               _optionButton(
                 icon: Icons.flash_on,
                 title: '执行底层修复',
-                description: '恢复 20 点系统完整度',
+                description: '恢复 20 点生命',
                 onTap: _onRest,
               ),
               const SizedBox(height: 16),
@@ -778,6 +460,68 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
     );
   }
 
+  Widget _metaRow(Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0A0F16),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: color.withValues(alpha: 0.4)),
+              boxShadow: [
+                BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 10),
+              ],
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.hub_outlined, size: 12, color: color),
+                const SizedBox(width: 6),
+                const Text(
+                  "OPTIONS: 2",
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10,
+                    fontFamily: 'monospace',
+                    letterSpacing: 2,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0A0F16),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: color.withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.memory, size: 14, color: color),
+                const SizedBox(width: 6),
+                Text(
+                  "NODE: $levelId",
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10,
+                    fontFamily: 'monospace',
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _onRest() {
     // 恢复20点完整度
     final oldHp = GameState.playerHp;
@@ -786,7 +530,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
     _healAmount = newHp - oldHp;
     
     // 标记该缓存站已使用
-    GameProgress.markDefeated(widget.levelId);
+    GameProgress.markDefeated(levelId);
     
     // 显示同步成功动画和消息
     if (mounted) {
@@ -806,91 +550,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
   Widget _rewardCardWidget(CardData card) {
     return GestureDetector(
       onTap: () => _onSelectCard(card),
-      child: _cardWidget(card),
+      child: ThemeConfig.buildCardWidget(card, width: 100, height: 140),
     );
   }
-}
-
-// 套装背景画笔：为不同套装提供独特的背景纹理
-class SuiteTechPainter extends CustomPainter {
-  final CardSuite suite;
-  final Color color;
-  SuiteTechPainter(this.suite, this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 0.5;
-
-    switch (suite) {
-      case CardSuite.classic:
-        // 经典：平行的 45 度斜线
-        for (double i = -size.height; i < size.width; i += 15) {
-          canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), paint);
-        }
-        break;
-      case CardSuite.overload:
-        // 过载：不规则的水平短促故障线
-        final random = Random(42);
-        for (int i = 0; i < 15; i++) {
-          final y = random.nextDouble() * size.height;
-          final x = random.nextDouble() * size.width;
-          final len = random.nextDouble() * 20 + 5;
-          canvas.drawLine(Offset(x, y), Offset(x + len, y), paint..strokeWidth = 1.0);
-        }
-        break;
-      case CardSuite.secure:
-        // 矩阵：垂直的虚线
-        for (double x = 5; x < size.width; x += 12) {
-          for (double y = 0; y < size.height; y += 8) {
-            if ((x + y) % 16 < 8) {
-              canvas.drawCircle(Offset(x, y), 0.5, paint);
-            }
-          }
-        }
-        break;
-      case CardSuite.industrial:
-        // 工业：交叉的网格
-        for (double i = 0; i < size.width; i += 15) {
-          canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-        }
-        for (double i = 0; i < size.height; i += 15) {
-          canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
-        }
-        break;
-      case CardSuite.quantum:
-        // 量子：同心圆弧片段
-        for (int i = 0; i < 3; i++) {
-          canvas.drawCircle(
-            Offset(size.width * 0.8, size.height * 0.2),
-            20.0 + i * 15,
-            paint..style = PaintingStyle.stroke,
-          );
-        }
-        break;
-      case CardSuite.demon:
-        // 恶魔：放射状的尖锐线条
-        final center = Offset(size.width * 0.5, size.height * 0.5);
-        for (int i = 0; i < 8; i++) {
-          final angle = i * pi / 4;
-          canvas.drawLine(
-            center,
-            center + Offset(cos(angle) * 30, sin(angle) * 30),
-            paint..strokeWidth = 2.0,
-          );
-        }
-        break;
-      case CardSuite.holy:
-        // 神圣：发散的十字星与圆环
-        final center = Offset(size.width * 0.5, size.height * 0.4);
-        canvas.drawCircle(center, 15, paint..style = PaintingStyle.stroke);
-        canvas.drawLine(center - const Offset(20, 0), center + const Offset(20, 0), paint);
-        canvas.drawLine(center - const Offset(0, 20), center + const Offset(0, 20), paint);
-        break;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

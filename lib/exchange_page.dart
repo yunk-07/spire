@@ -4,15 +4,14 @@
 import 'package:flutter/material.dart';
 import 'game_state.dart';
 import 'card_data.dart';
-import 'main.dart' hide createHoloRoute;
+import 'level_data.dart';
 import 'core/route.dart' show createHoloRoute;
-import 'start_screen.dart';
 import 'map_screen.dart';
 import 'theme_config.dart';
 
 class ExchangePage extends StatefulWidget {
-  final String? levelId;
-  const ExchangePage({super.key, this.levelId});
+  final LevelInfo? level;
+  const ExchangePage({super.key, this.level});
 
   @override
   State<ExchangePage> createState() => _ExchangePageState();
@@ -20,6 +19,10 @@ class ExchangePage extends StatefulWidget {
 
 class _ExchangePageState extends State<ExchangePage> {
   bool _hasChosen = false;
+
+  LevelInfo? get node => widget.level;
+  String get levelId => node?.id ?? 'UNKNOWN';
+  String get levelTitle => node?.title ?? '交易所';
 
   @override
   void initState() {
@@ -73,7 +76,7 @@ class _ExchangePageState extends State<ExchangePage> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        final shouldExit = await _confirmExit(context);
+        final shouldExit = await showCyberConfirmExit(context);
         if (shouldExit && context.mounted) {
           Navigator.popUntil(context, (route) => route.isFirst);
         }
@@ -83,42 +86,49 @@ class _ExchangePageState extends State<ExchangePage> {
         body: Stack(
           children: [
             // 背景装饰
-            Positioned.fill(
-              child: RepaintBoundary(
-                child: CustomPaint(
-                  painter: _GridPainter(),
-                ),
-              ),
+            const Positioned.fill(
+              child: CyberBackground(),
             ),
             
             SafeArea(
-              child: Column(
-                children: [
-                  const SizedBox(height: 40),
-                  _buildHeader(themeColor),
-                  const SizedBox(height: 12),
-                  _metaRow(themeColor),
-                  const SizedBox(height: 8),
-                  _hpRow(themeColor),
-                  const SizedBox(height: 48),
-                  Expanded(
-                    child: Center(
-                      child: _logicPanel(_buildLogicExchangeOptions(themeColor), themeColor),
-                    ),
-                  ),
-                  Padding(
-                      padding: const EdgeInsets.only(bottom: 40),
-                      child: Text(
-                        '请选择一个逻辑交易项以继续...',
-                        style: TextStyle(
-                          color: themeColor.withValues(alpha: 0.6),
-                          fontFamily: 'monospace',
-                          fontSize: 12,
-                          letterSpacing: 2,
-                        ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    physics: const ClampingScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 40),
+                          _buildHeader(themeColor),
+                          const SizedBox(height: 12),
+                          _metaRow(themeColor),
+                          const SizedBox(height: 8),
+                          _hpRow(themeColor),
+                          const SizedBox(height: 48),
+                          CyberLogicPanel(
+                            color: themeColor,
+                            label: "// LOGIC EXCHANGE",
+                            child: _buildLogicExchangeOptions(themeColor),
+                          ),
+                          const SizedBox(height: 48),
+                          Padding(
+                              padding: const EdgeInsets.only(bottom: 40),
+                              child: Text(
+                                '请选择一个逻辑交易项以继续...',
+                                style: TextStyle(
+                                  color: themeColor.withValues(alpha: 0.6),
+                                  fontFamily: 'monospace',
+                                  fontSize: 12,
+                                  letterSpacing: 2,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
-                ],
+                  );
+                },
               ),
             ),
           ],
@@ -174,7 +184,7 @@ class _ExchangePageState extends State<ExchangePage> {
                 Icon(Icons.memory, size: 14, color: color),
                 const SizedBox(width: 6),
                 Text(
-                  "NODE: ${widget.levelId ?? 'UNKNOWN'}",
+                  "NODE: $levelId",
                   style: TextStyle(
                     color: color,
                     fontSize: 10,
@@ -217,123 +227,11 @@ class _ExchangePageState extends State<ExchangePage> {
     );
   }
 
-  Future<bool> _confirmExit(BuildContext context) async {
-    final themeColor = GameState.getThemeColor();
-    final res = await showGeneralDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: "DISCONNECT_CONFIRM",
-      barrierColor: Colors.black.withValues(alpha: 0.8),
-      transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (ctx, anim1, anim2) {
-        return Center(
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              width: 320,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(
-                  color: const Color(0xFFFF6A6A).withValues(alpha: 0.8),
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFF6A6A).withValues(alpha: 0.2),
-                    blurRadius: 30,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: const CyberScanline(color: Color(0x11FF6A6A)),
-                    ),
-                  ),
-                  // 装饰边角
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: CyberCornerPainter(color: const Color(0x66FF6A6A)),
-                    ),
-                  ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons.warning_amber_rounded,
-                            color: Color(0xFFFF6A6A),
-                            size: 20,
-                          ),
-                          SizedBox(width: 10),
-                          Text(
-                            "DISCONNECT_REQUEST",
-                            style: TextStyle(
-                              color: Color(0xFFFF6A6A),
-                              fontSize: 10,
-                              fontFamily: 'monospace',
-                              letterSpacing: 2,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        '即将终止当前的尖塔渗透任务，未同步的数据流将会丢失。是否确认断开物理接入？',
-                        style: TextStyle(
-                          color: Color(0xFFE1E9FF),
-                          fontSize: 14,
-                          height: 1.6,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          CyberButton(
-                            width: 100,
-                            height: 36,
-                            fontSize: 12,
-                            label: '维持接入',
-                            color: themeColor,
-                            onPressed: () => Navigator.pop(ctx, false),
-                          ),
-                          const SizedBox(width: 16),
-                          CyberButton(
-                            width: 100,
-                            height: 36,
-                            fontSize: 12,
-                            label: '确认断开',
-                            color: const Color(0xFFFF6A6A),
-                            onPressed: () => Navigator.pop(ctx, true),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-    return Future.value(res ?? false);
-  }
-
   Widget _buildHeader(Color themeColor) {
     return Column(
       children: [
         Text(
-          '逻辑交易所',
+          levelTitle,
           style: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
@@ -385,73 +283,6 @@ class _ExchangePageState extends State<ExchangePage> {
     );
   }
 
-  Widget _logicPanel(Widget child, Color themeColor) {
-    final color = themeColor;
-    return RepaintBoundary(
-      child: Container(
-      width: 620,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
-        boxShadow: [
-          BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 24, spreadRadius: 2),
-          const BoxShadow(color: Colors.black, blurRadius: 10, offset: Offset(0, 4)),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(7),
-        child: Stack(
-          children: [
-            Positioned.fill(child: CyberScanline(color: color.withValues(alpha: 0.08))),
-            Positioned.fill(child: CustomPaint(painter: CyberCornerPainter(color: color.withValues(alpha: 0.5)))),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.memory, size: 16, color: color),
-                    const SizedBox(width: 8),
-                    Text(
-                      "// LOGIC_CHANNEL",
-                      style: TextStyle(
-                        color: color.withValues(alpha: 0.6),
-                        fontSize: 10,
-                        fontFamily: 'monospace',
-                        letterSpacing: 2,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      "SESSION",
-                      style: TextStyle(
-                        color: color.withValues(alpha: 0.6),
-                        fontSize: 10,
-                        fontFamily: 'monospace',
-                        letterSpacing: 2,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  height: 1,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [color.withValues(alpha: 0.8), color.withValues(alpha: 0.2), Colors.transparent]),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                child,
-              ],
-            ),
-          ],
-        ),
-      ),
-    ),
-    );
-  }
 
   Widget _optionTile({
     required String label,
@@ -628,7 +459,7 @@ class _ExchangePageState extends State<ExchangePage> {
                                   }
                                   return GestureDetector(
                                     onTap: () => Navigator.pop(ctx, id),
-                                    child: gameCardWidget(data),
+                                    child: ThemeConfig.buildCardWidget(data, width: 160, height: 240),
                                   );
                                 },
                               ),
@@ -648,374 +479,4 @@ class _ExchangePageState extends State<ExchangePage> {
       },
     );
   }
-
-  Widget gameCardWidget(CardData c, {VoidCallback? onTap}) {
-    final suiteColor = ThemeConfig.getSuiteColor(c.suite);
-    final rarityColor = ThemeConfig.getRarityColor(c.level, suite: c.suite);
-    final cardBgColor = ThemeConfig.getCardBgColor(c.suite).withValues(alpha: 0.9);
-    final content = RepaintBoundary(
-      child: Container(
-      width: 160,
-      height: 240,
-      decoration: BoxDecoration(
-        color: cardBgColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: suiteColor.withValues(alpha: 0.6), width: 1.5),
-        boxShadow: [BoxShadow(color: suiteColor.withValues(alpha: 0.2), blurRadius: 12, spreadRadius: 2), BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 6, offset: const Offset(3, 3))],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(7),
-        child: Stack(
-          children: [
-            Positioned.fill(child: CustomPaint(painter: SuiteTechPainter(c.suite, suiteColor.withValues(alpha: 0.1)))),
-            Positioned.fill(child: IgnorePointer(child: CyberScanline(color: suiteColor.withValues(alpha: 0.15), isGlitch: c.suite == CardSuite.overload))),
-            Positioned.fill(child: IgnorePointer(child: CustomPaint(painter: CyberCornerPainter(color: suiteColor.withValues(alpha: 0.2))))),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Builder(
-                          builder: (_) {
-                            final name = c.name;
-                            final base = 16.0;
-                            final shrink = name.length > 4 ? (base - (name.length - 4) * 0.8) : base;
-                            final titleFont = shrink.clamp(10.0, base);
-                            return Text(
-                              name,
-                              softWrap: true,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: titleFont,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white.withValues(alpha: 0.95),
-                                letterSpacing: 1,
-                                fontFamily: 'monospace',
-                                height: 1.1,
-                                shadows: [Shadow(color: suiteColor.withValues(alpha: 0.5), blurRadius: 4)],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: const Color(0xFF05060A), borderRadius: BorderRadius.circular(4), border: Border.all(color: suiteColor.withValues(alpha: 0.5), width: 1)),
-                        child: Row(
-                          children: [
-                            Icon(ThemeConfig.getSuiteIcon(c.suite), size: 14, color: suiteColor),
-                            const SizedBox(width: 4),
-                            Text("${c.cost}", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: suiteColor, fontFamily: 'monospace')),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    height: 2,
-                    decoration: BoxDecoration(gradient: LinearGradient(colors: [suiteColor, suiteColor.withValues(alpha: 0.2)])),
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(child: buildCardDescription(c, suiteColor)),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text("Lv${c.level} [${ThemeConfig.getTypeName(c.type)}]", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: rarityColor.withValues(alpha: 0.9), fontFamily: 'monospace', letterSpacing: 1)),
-                      smallTargetIcon(c.target, suiteColor),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      ),
-    );
-    return onTap != null ? GestureDetector(onTap: onTap, child: content) : content;
-  }
-
-  Widget smallTargetIcon(CardTarget target, Color color) {
-    IconData icon;
-    switch (target) {
-      case CardTarget.enemy: icon = Icons.gps_fixed; break;
-      case CardTarget.self: icon = Icons.shield; break;
-      case CardTarget.all: icon = Icons.grain; break;
-    }
-    return Icon(icon, size: 16, color: color.withValues(alpha: 0.6));
-  }
-
-  Widget buildCardDescription(CardData c, Color highlightColor) {
-    final text = c.description ?? "";
-    if (text.isEmpty) return const SizedBox.shrink();
-
-    const buffKeywords = {'防火墙加固', '算力', '系统修复', '能量', '能量点', '数据包', '带宽'};
-    const debuffKeywords = {'虚弱', '脆弱', '漏洞暴露', '恶意代码'};
-    const damageKeywords = {'冲击', '自损', '受损'};
-
-    final regex = RegExp(r'(\d+)|(冲击|防火墙加固|数据包|算力|虚弱|脆弱|恶意代码|自损|系统修复|能量|能量点|漏洞暴露|受损|带宽)');
-    final List<TextSpan> spans = [];
-    int lastMatchEnd = 0;
-
-    for (final match in regex.allMatches(text)) {
-      if (match.start > lastMatchEnd) {
-        spans.add(TextSpan(
-          text: text.substring(lastMatchEnd, match.start),
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 9),
-        ));
-      }
-
-      final isNumber = match.group(1) != null;
-      final matchText = match.group(0)!;
-      bool isBadEffect = false;
-      String associatedKeyword = "";
-      
-      if (isNumber) {
-        final afterText = text.substring(match.end, (match.end + 12).clamp(0, text.length));
-        final beforeText = text.substring((match.start - 12).clamp(0, text.length), match.start);
-        for (var k in [...buffKeywords, ...debuffKeywords, ...damageKeywords]) {
-          if (afterText.contains(k) || beforeText.contains(k)) {
-            associatedKeyword = k;
-            break;
-          }
-        }
-      } else {
-        associatedKeyword = matchText;
-      }
-
-      CardTarget target = c.target;
-      if (associatedKeyword == "自损" || associatedKeyword == "受损") target = CardTarget.self;
-
-      if (damageKeywords.contains(associatedKeyword)) {
-        isBadEffect = (target == CardTarget.self);
-      } else if (buffKeywords.contains(associatedKeyword)) {
-        isBadEffect = (target != CardTarget.self);
-      } else if (debuffKeywords.contains(associatedKeyword)) {
-        isBadEffect = (target == CardTarget.self);
-      }
-
-      Color displayColor = isBadEffect ? const Color(0xFFFF4444) : (isNumber ? Colors.white : highlightColor);
-
-      spans.add(TextSpan(
-        text: matchText,
-        style: TextStyle(
-          color: displayColor,
-          fontWeight: (isNumber || isBadEffect) ? FontWeight.w900 : FontWeight.bold,
-          fontSize: isNumber ? 11 : 10,
-          shadows: [Shadow(color: displayColor.withValues(alpha: 0.6), blurRadius: 4)],
-        ),
-      ));
-      lastMatchEnd = match.end;
-    }
-
-    if (lastMatchEnd < text.length) {
-      spans.add(TextSpan(
-        text: text.substring(lastMatchEnd),
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 9),
-      ));
-    }
-
-    return RichText(
-      text: TextSpan(children: spans, style: const TextStyle(fontFamily: 'monospace', height: 1.4)),
-    );
-  }
-}
-
-Widget gameCardWidget(CardData c, {VoidCallback? onTap}) {
-  final suiteColor = ThemeConfig.getSuiteColor(c.suite);
-  final rarityColor = ThemeConfig.getRarityColor(c.level, suite: c.suite);
-  final cardBgColor = ThemeConfig.getCardBgColor(c.suite).withValues(alpha: 0.9);
-  final content = Container(
-    width: 160,
-    height: 240,
-    decoration: BoxDecoration(
-      color: cardBgColor,
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: suiteColor.withValues(alpha: 0.6), width: 1.5),
-      boxShadow: [BoxShadow(color: suiteColor.withValues(alpha: 0.2), blurRadius: 12, spreadRadius: 2), BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 6, offset: const Offset(3, 3))],
-    ),
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(7),
-      child: Stack(
-        children: [
-          Positioned.fill(child: CustomPaint(painter: SuiteTechPainter(c.suite, suiteColor.withValues(alpha: 0.1)))),
-          Positioned.fill(child: IgnorePointer(child: CyberScanline(color: suiteColor.withValues(alpha: 0.15), isGlitch: c.suite == CardSuite.overload))),
-          Positioned.fill(child: IgnorePointer(child: CustomPaint(painter: CyberCornerPainter(color: suiteColor.withValues(alpha: 0.2))))),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Builder(
-                        builder: (_) {
-                          final name = c.name;
-                          final base = 16.0;
-                          final shrink = name.length > 4 ? (base - (name.length - 4) * 0.8) : base;
-                          final titleFont = shrink.clamp(10.0, base);
-                          return Text(
-                            name,
-                            softWrap: true,
-                            maxLines: 2,
-                            overflow: TextOverflow.visible,
-                            style: TextStyle(
-                              fontSize: titleFont,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white.withValues(alpha: 0.95),
-                              letterSpacing: 1,
-                              fontFamily: 'monospace',
-                              height: 1.1,
-                              shadows: [Shadow(color: suiteColor.withValues(alpha: 0.5), blurRadius: 4)],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: const Color(0xFF05060A), borderRadius: BorderRadius.circular(4), border: Border.all(color: suiteColor.withValues(alpha: 0.5), width: 1)),
-                      child: Row(
-                        children: [
-                          Icon(ThemeConfig.getSuiteIcon(c.suite), size: 14, color: suiteColor),
-                          const SizedBox(width: 4),
-                          Text("${c.cost}", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: suiteColor, fontFamily: 'monospace')),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  height: 2,
-                  decoration: BoxDecoration(gradient: LinearGradient(colors: [suiteColor, suiteColor.withValues(alpha: 0.2)])),
-                ),
-                const SizedBox(height: 8),
-                Expanded(child: buildCardDescription(c, suiteColor)),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text("Lv${c.level} [${ThemeConfig.getTypeName(c.type)}]", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: rarityColor.withValues(alpha: 0.9), fontFamily: 'monospace', letterSpacing: 1)),
-                    smallTargetIcon(c.target, suiteColor),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-  return onTap != null ? GestureDetector(onTap: onTap, child: content) : content;
-}
-
-Widget smallTargetIcon(CardTarget target, Color color) {
-  IconData icon;
-  switch (target) {
-    case CardTarget.enemy: icon = Icons.gps_fixed; break;
-    case CardTarget.self: icon = Icons.shield; break;
-    case CardTarget.all: icon = Icons.grain; break;
-  }
-  return Icon(icon, size: 16, color: color.withValues(alpha: 0.6));
-}
-
-final Map<String, List<InlineSpan>> _descCache = {};
-
-Widget buildCardDescription(CardData c, Color highlightColor) {
-  final text = c.description ?? "";
-  if (text.isEmpty) return const SizedBox.shrink();
-  final key = '${c.id}|$text';
-  final cached = _descCache[key];
-  if (cached != null) {
-    return Text.rich(
-      TextSpan(children: cached, style: const TextStyle(fontFamily: 'monospace', height: 1.4)),
-      maxLines: 5,
-      overflow: TextOverflow.ellipsis,
-      softWrap: true,
-    );
-  }
-  const buffKeywords = {'防火墙加固', '算力', '系统修复', '能量', '能量点', '数据包', '带宽'};
-  const debuffKeywords = {'虚弱', '脆弱', '漏洞暴露', '恶意代码'};
-  const damageKeywords = {'冲击', '自损', '受损'};
-  final regex = RegExp(r'(\d+)|(冲击|防火墙加固|数据包|算力|虚弱|脆弱|恶意代码|自损|系统修复|能量|能量点|漏洞暴露|受损|带宽)');
-  final List<TextSpan> spans = [];
-  int lastMatchEnd = 0;
-  for (final match in regex.allMatches(text)) {
-    if (match.start > lastMatchEnd) {
-      spans.add(TextSpan(text: text.substring(lastMatchEnd, match.start), style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 9)));
-    }
-    final isNumber = match.group(1) != null;
-    final matchText = match.group(0)!;
-    bool isBadEffect = false;
-    String associatedKeyword = "";
-    if (isNumber) {
-      final afterText = text.substring(match.end, (match.end + 12).clamp(0, text.length));
-      final beforeText = text.substring((match.start - 12).clamp(0, text.length), match.start);
-      for (var k in [...buffKeywords, ...debuffKeywords, ...damageKeywords]) {
-        if (afterText.contains(k) || beforeText.contains(k)) {
-          associatedKeyword = k;
-          break;
-        }
-      }
-    } else {
-      associatedKeyword = matchText;
-    }
-    CardTarget target = c.target;
-    if (associatedKeyword == "自损" || associatedKeyword == "受损") target = CardTarget.self;
-    if (damageKeywords.contains(associatedKeyword)) {
-      isBadEffect = (target == CardTarget.self);
-    } else if (buffKeywords.contains(associatedKeyword)) {
-      isBadEffect = (target != CardTarget.self);
-    } else if (debuffKeywords.contains(associatedKeyword)) {
-      isBadEffect = (target == CardTarget.self);
-    }
-    Color displayColor = isBadEffect ? const Color(0xFFFF4444) : (isNumber ? Colors.white : highlightColor);
-    spans.add(TextSpan(text: matchText, style: TextStyle(color: displayColor, fontWeight: (isNumber || isBadEffect) ? FontWeight.w900 : FontWeight.bold, fontSize: isNumber ? 11 : 10, shadows: [Shadow(color: displayColor.withValues(alpha: 0.6), blurRadius: 4)])));
-    lastMatchEnd = match.end;
-  }
-  if (lastMatchEnd < text.length) {
-    spans.add(TextSpan(text: text.substring(lastMatchEnd), style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 9)));
-  }
-  _descCache[key] = spans;
-  return Text.rich(
-    TextSpan(children: spans, style: const TextStyle(fontFamily: 'monospace', height: 1.4)),
-    maxLines: 5,
-    overflow: TextOverflow.ellipsis,
-    softWrap: true,
-  );
-}
-
-// ----------------------------------------------------------------------------
-// Painter
-// ----------------------------------------------------------------------------
-
-class _GridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final themeColor = GameState.getThemeColor();
-    final paint = Paint()
-      ..color = themeColor.withValues(alpha: 0.05)
-      ..strokeWidth = 1;
-
-    const spacing = 30.0;
-    for (double x = 0; x < size.width; x += spacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += spacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

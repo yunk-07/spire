@@ -17,10 +17,9 @@ import 'character_data.dart';
 // import 'slash_painter.dart';
 import 'animation_constants.dart';
 // import 'effect_styles.dart';
-import 'scanline_jitter_painter.dart';
+import 'theme_config.dart';
 import 'effects_widgets.dart';
 import 'brainchip_data.dart';
-import 'theme_config.dart';
 
 // ============================================================================
 // 文件说明 / 主要函数说明及键的作用
@@ -104,35 +103,6 @@ import 'theme_config.dart';
 //    - 阶段3：扫描进度>80%时卡牌内容淡入
 //    - 阶段4：扫描完成，卡牌完全显示
 // ============================================================================
-
-class GridPainter extends CustomPainter {
-  final Color color;
-
-  GridPainter(this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = color.withValues(alpha: 0.5)
-          ..strokeWidth = 1;
-
-    // 绘制水平网格线
-    for (double y = 0; y < size.height; y += 12) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-
-    // 绘制垂直网格线
-    for (double x = 0; x < size.width; x += 12) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return false;
-  }
-}
 
 /// 游戏阶段枚举
 enum GamePhase {
@@ -230,20 +200,6 @@ class BlockGainPopup {
 }
 
 /// 关键区域：背景网格脉冲效果
-class GridPulse {
-  final Offset center;
-  final DateTime startTime;
-  GridPulse(this.center) : startTime = DateTime.now();
-}
-
-/// 关键区域：角色专属特效
-class RoleEffect {
-  final CharacterClass role;
-  final Offset pos;
-  final DateTime startTime;
-  RoleEffect(this.role, this.pos) : startTime = DateTime.now();
-}
-
 /// 关键区域：系统修复弹窗
 class HealPopup {
   final int value;
@@ -530,350 +486,12 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// 套装背景画笔：为不同套装提供独特的背景纹理
-class SuiteTechPainter extends CustomPainter {
-  final CardSuite suite;
-  final Color color;
-  SuiteTechPainter(this.suite, this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 0.5;
-
-    switch (suite) {
-      case CardSuite.classic:
-        // 经典：平行的 45 度斜线
-        for (double i = -size.height; i < size.width; i += 15) {
-          canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), paint);
-        }
-        break;
-      case CardSuite.overload:
-        // 过载：不规则的水平短促故障线
-        final random = Random(42);
-        for (int i = 0; i < 15; i++) {
-          final y = random.nextDouble() * size.height;
-          final x = random.nextDouble() * size.width;
-          final len = random.nextDouble() * 20 + 5;
-          canvas.drawLine(Offset(x, y), Offset(x + len, y), paint..strokeWidth = 1.0);
-        }
-        break;
-      case CardSuite.secure:
-        // 矩阵：垂直的虚线
-        for (double x = 5; x < size.width; x += 12) {
-          for (double y = 0; y < size.height; y += 8) {
-            if ((x + y) % 16 < 8) {
-              canvas.drawCircle(Offset(x, y), 0.5, paint);
-            }
-          }
-        }
-        break;
-      case CardSuite.industrial:
-        // 工业：交叉的网格
-        for (double i = 0; i < size.width; i += 15) {
-          canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-        }
-        for (double i = 0; i < size.height; i += 15) {
-          canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
-        }
-        break;
-      case CardSuite.quantum:
-        // 量子：同心圆弧片段
-        for (int i = 0; i < 3; i++) {
-          canvas.drawCircle(
-            Offset(size.width * 0.8, size.height * 0.2),
-            20.0 + i * 15,
-            paint..style = PaintingStyle.stroke,
-          );
-        }
-        break;
-      case CardSuite.demon:
-        // 恶魔：放射状的尖锐线条
-        final center = Offset(size.width * 0.5, size.height * 0.5);
-        for (int i = 0; i < 8; i++) {
-          final angle = i * pi / 4;
-          canvas.drawLine(
-            center,
-            center + Offset(cos(angle) * 30, sin(angle) * 30),
-            paint..strokeWidth = 2.0,
-          );
-        }
-        break;
-      case CardSuite.holy:
-        // 神圣：发散的十字星与圆环
-        final center = Offset(size.width * 0.5, size.height * 0.4);
-        canvas.drawCircle(center, 15, paint..style = PaintingStyle.stroke);
-        canvas.drawLine(center - const Offset(20, 0), center + const Offset(20, 0), paint);
-        canvas.drawLine(center - const Offset(0, 20), center + const Offset(0, 20), paint);
-        break;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
 // 已迁移激光与斩击画笔到独立文件，移除旧定义
 
 /// 关键区域：角色专属特效绘制（海浪线条等）
-class RoleEffectPainter extends CustomPainter {
-  final List<RoleEffect> effects;
-  RoleEffectPainter(this.effects);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final now = DateTime.now();
-    for (final effect in effects) {
-      final elapsed = now.difference(effect.startTime).inMilliseconds;
-      final progress = (elapsed / 1500).clamp(0.0, 1.0);
-
-      switch (effect.role) {
-        case CharacterClass.langchao:
-          _drawLangWave(canvas, size, effect.pos, progress);
-          break;
-        case CharacterClass.xueye:
-          break;
-        case CharacterClass.lin:
-          _drawLinShieldEffect(canvas, size, effect.pos, progress);
-          break;
-        case CharacterClass.jianren:
-          break;
-        case CharacterClass.yanxin:
-          _drawFireParticles(canvas, size, effect.pos, progress);
-          break;
-        case CharacterClass.yingshi:
-          _drawShadowFade(canvas, size, effect.pos, progress);
-          break;
-        case CharacterClass.jihe:
-          _drawHexGrid(canvas, size, effect.pos, progress);
-          break;
-        case CharacterClass.xuxing:
-          _drawGlitchSquares(canvas, size, effect.pos, progress);
-          break;
-        case CharacterClass.fa:
-          // _drawFaWaves(canvas, size, progress);
-          break;
-      }
-    }
-  }
-
-  // 林：粉紫色光辉汇聚为护盾
-  void _drawLinShieldEffect(Canvas canvas, Size size, Offset center, double progress) {
-    final pink = const Color(0xFFC3A6FF);
-    final purple = const Color(0xFF7A3BFF);
-    final a = (1.0 - progress).clamp(0.0, 1.0);
-    final edgeColor = Color.lerp(purple, pink, 0.5)!.withValues(alpha: 0.5 * a);
-    final topRect = Rect.fromLTWH(0, 0, size.width, size.height * 0.14);
-    final bottomRect = Rect.fromLTWH(0, size.height * 0.86, size.width, size.height * 0.14);
-    final leftRect = Rect.fromLTWH(0, 0, size.width * 0.10, size.height);
-    final rightRect = Rect.fromLTWH(size.width * 0.90, 0, size.width * 0.10, size.height);
-    final topShader = const LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [Color(0xFFC3A6FF), Color(0x00C3A6FF)],
-    ).createShader(topRect);
-    final bottomShader = const LinearGradient(
-      begin: Alignment.bottomCenter,
-      end: Alignment.topCenter,
-      colors: [Color(0xFFC3A6FF), Color(0x00C3A6FF)],
-    ).createShader(bottomRect);
-    final leftShader = const LinearGradient(
-      begin: Alignment.centerLeft,
-      end: Alignment.centerRight,
-      colors: [Color(0xFFC3A6FF), Color(0x00C3A6FF)],
-    ).createShader(leftRect);
-    final rightShader = const LinearGradient(
-      begin: Alignment.centerRight,
-      end: Alignment.centerLeft,
-      colors: [Color(0xFFC3A6FF), Color(0x00C3A6FF)],
-    ).createShader(rightRect);
-    canvas.drawRect(topRect, Paint()..shader = topShader..colorFilter = ColorFilter.mode(edgeColor, BlendMode.srcIn));
-    canvas.drawRect(bottomRect, Paint()..shader = bottomShader..colorFilter = ColorFilter.mode(edgeColor, BlendMode.srcIn));
-    canvas.drawRect(leftRect, Paint()..shader = leftShader..colorFilter = ColorFilter.mode(edgeColor, BlendMode.srcIn));
-    canvas.drawRect(rightRect, Paint()..shader = rightShader..colorFilter = ColorFilter.mode(edgeColor, BlendMode.srcIn));
-  }
-  void _drawLangWave(Canvas canvas, Size size, Offset center, double progress) {
-    final base = const Color(0xFF4DCCFF);
-    final p = progress.clamp(0.0, 1.0);
-    final h = size.height * p;
-    final shader = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [
-        base.withValues(alpha: 0.28 * (1.0 - p)),
-        base.withValues(alpha: 0.18 * (1.0 - p)),
-        Colors.transparent,
-      ],
-      stops: const [0.0, 0.8, 1.0],
-    ).createShader(Rect.fromLTWH(0, 0, size.width, h));
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, h), Paint()..shader = shader);
-    final crestY = h + 6.0;
-    for (int i = 0; i < 2; i++) {
-      final amp = 14.0 - i * 4.0;
-      final freq = 0.010 + i * 0.003;
-      final phase = p * 10.0 + i * 1.7;
-      final path = Path()..moveTo(0, crestY + amp * sin(phase));
-      for (double x = 0; x <= size.width; x += 6) {
-        final y = crestY + amp * sin(x * freq + phase);
-        path.lineTo(x, y);
-      }
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = base.withValues(alpha: 0.22 * (1.0 - p))
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.0 - i * 0.4,
-      );
-    }
-  }
-
-
-  // 焰心：上升的火焰粒子
-  void _drawFireParticles(Canvas canvas, Size size, Offset center, double progress) {
-    final random = Random(123);
-    for (int i = 0; i < 20; i++) {
-      final paint = Paint()
-        ..color = Color.lerp(const Color(0xFFFFD700), const Color(0xFFFF4500), random.nextDouble())!
-            .withValues(alpha: (1.0 - progress) * 0.8);
-      
-      final x = center.dx + (random.nextDouble() - 0.5) * size.width * 0.6;
-      final y = center.dy + (random.nextDouble() - 0.5) * 50 - (progress * 200); // 向上升
-      
-      canvas.drawCircle(Offset(x, y), 2 + random.nextDouble() * 4, paint);
-    }
-  }
-
-  // 影蚀：深紫色阴影扩张
-  void _drawShadowFade(Canvas canvas, Size size, Offset center, double progress) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final paint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          const Color(0xFF1A0033).withValues(alpha: 0.0),
-          const Color(0xFF1A0033).withValues(alpha: (1.0 - progress) * 0.4),
-        ],
-        stops: [0.6, 1.0],
-      ).createShader(rect);
-
-    canvas.drawRect(rect, paint);
-  }
-
-  // 几何：青色六边形网格脉冲
-  void _drawHexGrid(Canvas canvas, Size size, Offset center, double progress) {
-    final paint = Paint()
-      ..color = const Color(0xFF00FFFF).withValues(alpha: (1.0 - progress) * 0.4)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-
-    final hexSize = 40.0;
-    final rowHeight = hexSize * 1.5;
-    final colWidth = hexSize * sqrt(3);
-    final radius = (progress * size.width).clamp(0.0, size.width);
-    final band = 60.0;
-    final minY = (center.dy - radius - band).clamp(0.0, size.height);
-    final maxY = (center.dy + radius + band).clamp(0.0, size.height);
-    final startRow = (minY / rowHeight).floor();
-    final endRow = (maxY / rowHeight).ceil();
-    final rows = endRow.clamp(0, (size.height / rowHeight).ceil());
-    final startCol = ((center.dx - radius - band) / colWidth).floor().clamp(0, (size.width / colWidth).ceil());
-    final endCol = ((center.dx + radius + band) / colWidth).ceil().clamp(0, (size.width / colWidth).ceil());
-
-    for (int r = startRow; r < rows; r++) {
-      for (int c = startCol; c < endCol; c++) {
-        final x = c * colWidth + (r % 2 == 0 ? 0 : colWidth / 2);
-        final y = r * rowHeight;
-        
-        final dist = (Offset(x, y) - center).distance;
-        if ((dist - radius).abs() < band) {
-          _drawHex(canvas, Offset(x, y), hexSize, paint);
-        }
-      }
-    }
-  }
-
-  void _drawHex(Canvas canvas, Offset center, double size, Paint paint) {
-    final path = Path();
-    for (int i = 0; i < 6; i++) {
-      final angle = pi / 3 * i;
-      final x = center.dx + size * cos(angle);
-      final y = center.dy + size * sin(angle);
-      if (i == 0) path.moveTo(x, y);
-      else path.lineTo(x, y);
-    }
-    path.close();
-    canvas.drawPath(path, paint);
-  }
-
-  // 虚行：紫色数字故障方块
-  void _drawGlitchSquares(Canvas canvas, Size size, Offset center, double progress) {
-    final random = Random(777);
-    final paint = Paint()..style = PaintingStyle.fill;
-    
-    for (int i = 0; i < 12; i++) {
-      final color = random.nextBool() ? const Color(0xFF9933FF) : const Color(0xFF00CCFF);
-      paint.color = color.withValues(alpha: (1.0 - progress) * 0.6);
-      
-      final w = 10.0 + random.nextDouble() * 30;
-      final h = 2.0 + random.nextDouble() * 5;
-      final x = center.dx + (random.nextDouble() - 0.5) * size.width * 0.8 + (progress * 50 * (random.nextBool() ? 1 : -1));
-      final y = center.dy + (random.nextDouble() - 0.5) * size.height * 0.4;
-      
-      canvas.drawRect(Rect.fromLTWH(x, y, w, h), paint);
-    }
-  }
 
 
 
-  @override
-  bool shouldRepaint(RoleEffectPainter oldDelegate) => true;
-}
-
-class _HpBarBackgroundPainter extends CustomPainter {
-  final Color color;
-  _HpBarBackgroundPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1;
-
-    const double spacing = 6;
-    for (double i = -size.height; i < size.width; i += spacing) {
-      canvas.drawLine(
-        Offset(i, size.height),
-        Offset(i + size.height, 0),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _TopBarGridPainter extends CustomPainter {
-  final Color color;
-  final double progress;
-  _TopBarGridPainter({required this.color, required this.progress});
-  @override
-  void paint(Canvas canvas, Size size) {
-    final base = color.withValues(alpha: 0.04 + 0.08 * Curves.easeOut.transform(progress.clamp(0.0, 1.0)));
-    final p = Paint()
-      ..color = base
-      ..strokeWidth = 1.0;
-    final spacing = 24.0 - 8.0 * Curves.easeOut.transform(progress.clamp(0.0, 1.0));
-    for (double x = -size.height; x < size.width; x += spacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x + size.height, size.height), p);
-    }
-    for (double x = size.width + size.height; x > 0; x -= spacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x - size.height, size.height), p);
-    }
-  }
-  @override
-  bool shouldRepaint(covariant _TopBarGridPainter oldDelegate) => oldDelegate.color != color || oldDelegate.progress != progress;
-}
 
 /// 关键区域：全局主题
 ThemeData _darkTheme() {
@@ -995,7 +613,10 @@ class _HoloGridOverlay extends StatelessWidget {
               IgnorePointer(
                 child: RepaintBoundary(
                   child: CustomPaint(
-                    painter: _HoloGridPainter(progress: t),
+                    painter: CyberHoloGridPainter(
+                      progress: t,
+                      direction: CyberHoloDirection.vertical,
+                    ),
                     child: const SizedBox.expand(),
                   ),
                 ),
@@ -1007,118 +628,8 @@ class _HoloGridOverlay extends StatelessWidget {
   }
 }
 
-class _HoloGridPainter extends CustomPainter {
-  final double progress;
 
-  _HoloGridPainter({required this.progress});
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (progress <= 0 || progress >= 1.05) {
-      return;
-    }
-    final p = progress.clamp(0.0, 1.0);
-
-    double regionTop;
-    double regionBottom;
-    if (p < 0.7) {
-      final appear = p / 0.7;
-      regionTop = 0;
-      regionBottom = size.height * appear;
-    } else {
-      final disappear = (p - 0.7) / 0.3;
-      regionTop = size.height * disappear;
-      regionBottom = size.height;
-    }
-
-    if (regionBottom <= regionTop) {
-      return;
-    }
-
-    final themeColor = GameState.getThemeColor();
-    final gridColor = themeColor.withValues(alpha: 0.2);
-    final gridPaint =
-        Paint()
-          ..color = gridColor
-          ..strokeWidth = 1;
-
-    const cell = 16.0;
-    for (double y = regionTop; y <= regionBottom; y += cell) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-    for (double x = 0; x <= size.width; x += cell) {
-      canvas.drawLine(Offset(x, regionTop), Offset(x, regionBottom), gridPaint);
-    }
-
-    const bandHeight = 24.0;
-    final bandTop = (regionBottom - bandHeight).clamp(regionTop, regionBottom);
-    final bandBottom = regionBottom;
-    if (bandBottom <= bandTop) {
-      return;
-    }
-    final bandRect = Rect.fromLTRB(0, bandTop, size.width, bandBottom);
-    final bandPaint =
-        Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [themeColor.withValues(alpha: 0.0), themeColor.withValues(alpha: 0.26)],
-          ).createShader(bandRect);
-    canvas.drawRect(bandRect, bandPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _HoloGridPainter oldDelegate) {
-    return oldDelegate.progress != progress;
-  }
-}
-
-class _ScreenGlowPainter extends CustomPainter {
-  final double alpha;
-  _ScreenGlowPainter({required this.alpha});
-  @override
-  void paint(Canvas canvas, Size size) {
-    final red = const Color(0xFFFF4D4D).withValues(alpha: alpha);
-    // Top glow
-    Rect top = Rect.fromLTWH(0, 0, size.width, size.height * 0.08);
-    Paint pt = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFFFF4D4D), Color(0x00FF4D4D)],
-      ).createShader(top);
-    canvas.drawRect(top, pt..colorFilter = ColorFilter.mode(red, BlendMode.srcIn));
-    // Bottom glow
-    Rect bottom = Rect.fromLTWH(0, size.height * 0.92, size.width, size.height * 0.08);
-    Paint pb = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.bottomCenter,
-        end: Alignment.topCenter,
-        colors: [Color(0xFFFF4D4D), Color(0x00FF4D4D)],
-      ).createShader(bottom);
-    canvas.drawRect(bottom, pb..colorFilter = ColorFilter.mode(red, BlendMode.srcIn));
-    // Left glow
-    Rect left = Rect.fromLTWH(0, 0, size.width * 0.06, size.height);
-    Paint pl = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-        colors: [Color(0xFFFF4D4D), Color(0x00FF4D4D)],
-      ).createShader(left);
-    canvas.drawRect(left, pl..colorFilter = ColorFilter.mode(red, BlendMode.srcIn));
-    // Right glow
-    Rect right = Rect.fromLTWH(size.width * 0.94, 0, size.width * 0.06, size.height);
-    Paint pr = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.centerRight,
-        end: Alignment.centerLeft,
-        colors: [Color(0xFFFF4D4D), Color(0x00FF4D4D)],
-      ).createShader(right);
-    canvas.drawRect(right, pr..colorFilter = ColorFilter.mode(red, BlendMode.srcIn));
-  }
-  @override
-  bool shouldRepaint(covariant _ScreenGlowPainter oldDelegate) => oldDelegate.alpha != alpha;
-}
 /// =====================
 /// 战斗页面
 /// =====================
@@ -1720,6 +1231,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
     if (energy < effectiveCost) {
       // 显示带宽不足提示
+
       _showStatusTip("带宽不足，无法使用该卡牌", Colors.redAccent);
       return;
     }
@@ -1760,11 +1272,11 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       }
     }
 
-    // 关键区域：浪潮职业被动【涌动】—— 手牌为空时恢复宽带并摸牌
+    // 关键区域：浪潮职业被动【涌动】—— 手牌为空时恢复能量并摸牌
     if (characterData.characterClass == CharacterClass.langchao && hand.isEmpty) {
       energy = (energy + 2).clamp(0, 99);
       drawCards(2);
-      _showStatusTip("【涌动】宽带回收 +2，下行摸牌 +2", const Color(0xFF4DCCFF));
+      _showStatusTip("【涌动】能量回收 +2，下行摸牌 +2", const Color(0xFF4DCCFF));
       
       // 触发海浪线条特效
       final ctx = context;
@@ -1775,7 +1287,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       }
     }
 
-    // 关键区域：几何职业被动【结构链路】—— 连续使用同类别卡牌获得宽带并摸牌
+    // 关键区域：几何职业被动【结构链路】—— 连续使用同类别卡牌获得能量并摸牌
     if (characterData.characterClass == CharacterClass.jihe) {
       if (_lastUsedSuite != null && card.suite == _lastUsedSuite) {
         energy = (energy + 1).clamp(0, 99);
@@ -2529,7 +2041,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        final shouldExit = await _onWillPopConfirm();
+        final shouldExit = await showCyberConfirmExit(context);
         if (shouldExit && context.mounted) {
           // 返回到开始页面（根路由）
           Navigator.popUntil(context, (route) => route.isFirst);
@@ -2557,7 +2069,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       child: IgnorePointer(
                         child: RepaintBoundary(
                           child: CustomPaint(
-                            painter: _WaveIdlePainter(repaint: _waveCtrl),
+                            painter: CyberWaveIdlePainter(repaint: _waveCtrl),
                           ),
                         ),
                       ),
@@ -2567,7 +2079,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       child: IgnorePointer(
                         child: RepaintBoundary(
                           child: CustomPaint(
-                            painter: _FireOverlayPainter(anim.fireOverlayStart!),
+                            painter: CyberFireOverlayPainter(anim.fireOverlayStart!),
                           ),
                         ),
                       ),
@@ -2577,7 +2089,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                     child: IgnorePointer(
                       child: RepaintBoundary(
                         child: CustomPaint(
-                          painter: RoleEffectPainter(anim.roleEffects),
+                          painter: CyberRoleEffectPainter(anim.roleEffects),
                         ),
                       ),
                     ),
@@ -2627,7 +2139,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       builder: (context, _) {
                         final v = _hpPulseCtrl.value;
                         final a = (0.35 * (0.25 + 0.75 * sin(v * pi))).clamp(0.0, 0.6);
-                        return CustomPaint(painter: _ScreenGlowPainter(alpha: a));
+                        return CustomPaint(painter: CyberScreenGlowPainter(alpha: a));
                       },
                     ),
                   ),
@@ -2822,9 +2334,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     required int current,
     required int maxHp,
     required double width,
-    double height = 20,
+    double height = 24,
     Color? color,
-    String label = "ITG",
+    String label = "SYS.UNIT",
     IconData? suiteIcon,
   }) {
     final barColor = color ?? _getThemeColor();
@@ -2840,25 +2352,47 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           height: height,
           decoration: BoxDecoration(
             color: const Color(0xFF05060A),
-            borderRadius: BorderRadius.circular(2),
-            border: Border.all(
-              color: isLowHp ? Colors.red.withValues(alpha: 0.5) : barColor.withValues(alpha: 0.3),
-              width: 1,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(4),
+              bottomRight: Radius.circular(12),
             ),
+            border: Border.all(
+              color: isLowHp ? Colors.red.withValues(alpha: 0.6) : barColor.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: (isLowHp ? Colors.red : barColor).withValues(alpha: 0.1),
+                blurRadius: 10,
+              ),
+            ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(1),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(3),
+              bottomRight: Radius.circular(10),
+            ),
             child: Stack(
               children: [
                 // 动态背景斜纹
                 Positioned.fill(
                   child: CustomPaint(
-                    painter: _HpBarBackgroundPainter(color: barColor.withValues(alpha: 0.08)),
+                    painter: CyberHpBarBackgroundPainter(color: barColor.withValues(alpha: 0.08)),
+                  ),
+                ),
+                // 装饰性小网格
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: 0.1,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: List.generate((width / 15).toInt(), (i) => Container(width: 1, color: barColor)),
+                    ),
                   ),
                 ),
                 TweenAnimationBuilder<double>(
-                  duration: const Duration(milliseconds: 600),
-                  curve: Curves.easeOutCubic,
+                  duration: const Duration(milliseconds: 800),
+                  curve: Curves.easeOutExpo,
                   tween: Tween(begin: 0, end: percent),
                   builder: (context, value, child) {
                     if (value <= 0) return const SizedBox.shrink();
@@ -2871,31 +2405,30 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
                             colors: [
-                              isLowHp ? Colors.red.withValues(alpha: 0.4) : barColor.withValues(alpha: 0.4),
-                              isLowHp ? Colors.red.withValues(alpha: 0.8) : barColor.withValues(alpha: 0.8),
+                              isLowHp ? Colors.red.withValues(alpha: 0.3) : barColor.withValues(alpha: 0.3),
+                              isLowHp ? Colors.red.withValues(alpha: 0.7) : barColor.withValues(alpha: 0.7),
                               isLowHp ? Colors.red : barColor,
                             ],
-                            stops: const [0.0, 0.7, 1.0],
+                            stops: const [0.0, 0.6, 1.0],
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: (isLowHp ? Colors.red : barColor).withValues(alpha: 0.3),
-                              blurRadius: 4,
-                            ),
-                          ],
                         ),
                         child: Stack(
                           children: [
                             // 进度条内部扫描光
-                            CyberScanline(color: Colors.white.withValues(alpha: 0.15)),
+                            CyberScanline(color: Colors.white.withValues(alpha: 0.2)),
                             // 右侧发光线
                             Positioned(
                               top: 0,
                               right: 0,
                               bottom: 0,
-                              width: 2,
+                              width: 3,
                               child: Container(
-                                color: Colors.white.withValues(alpha: 0.4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  boxShadow: [
+                                    BoxShadow(color: (isLowHp ? Colors.red : barColor), blurRadius: 10, spreadRadius: 2),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
@@ -2914,14 +2447,18 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             animation: _hpPulseCtrl,
             builder: (context, _) {
               final val = _hpPulseCtrl.value;
-              final a = (0.4 * (0.3 + 0.7 * sin(val * pi))).clamp(0.0, 1.0);
+              final a = (0.5 * (0.3 + 0.7 * sin(val * pi))).clamp(0.0, 1.0);
               return Container(
                 width: width,
                 height: height,
                 decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(4),
+                    bottomRight: Radius.circular(12),
+                  ),
                   border: Border.all(
                     color: Colors.red.withValues(alpha: a),
-                    width: 1.5,
+                    width: 2,
                   ),
                 ),
               );
@@ -2930,7 +2467,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         // 数值和标签
         Positioned.fill(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -2942,17 +2479,20 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (suiteIcon != null) ...[
-                          Icon(suiteIcon, size: 10, color: isLowHp ? Colors.red : barColor.withValues(alpha: 0.8)),
-                          const SizedBox(width: 4),
+                          Icon(suiteIcon, size: 12, color: isLowHp ? Colors.red : barColor),
+                          const SizedBox(width: 6),
                         ],
                         Text(
                           label,
                           style: TextStyle(
-                            color: isLowHp ? Colors.red : barColor.withValues(alpha: 0.9),
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
+                            color: isLowHp ? Colors.red : barColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
                             fontFamily: 'monospace',
-                            letterSpacing: 1,
+                            letterSpacing: 1.5,
+                            shadows: [
+                              Shadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 2),
+                            ],
                           ),
                         ),
                       ],
@@ -2964,14 +2504,16 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerRight,
                     child: Text(
-                      "$current/$maxHp",
+                      "$current / $maxHp",
                       style: TextStyle(
                         color: isLowHp ? Colors.red : Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
                         fontFamily: 'monospace',
+                        letterSpacing: 0.5,
                         shadows: [
-                          Shadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 4),
+                          Shadow(color: Colors.black, blurRadius: 4),
+                          Shadow(color: (isLowHp ? Colors.red : barColor).withValues(alpha: 0.5), blurRadius: 8),
                         ],
                       ),
                     ),
@@ -3019,7 +2561,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
               child: AnimatedBuilder(
                 animation: _chipDeployCtrl,
                 builder: (context, _) {
-                  return CustomPaint(painter: _TopBarGridPainter(color: themeColor, progress: _chipDeployCtrl.value));
+                  return CustomPaint(painter: CyberTopBarGridPainter(color: themeColor, progress: _chipDeployCtrl.value));
                 },
               ),
             ),
@@ -3030,28 +2572,60 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             // 元数据标签
             Row(
               children: [
+                Icon(Icons.link, size: 10, color: themeColor.withValues(alpha: 0.5)),
+                const SizedBox(width: 4),
                 Text(
-                  "// SYSTEM_INTEGRITY_LINK",
+                  "SYS.INTEGRITY_LINK",
                   style: TextStyle(
                     color: themeColor.withValues(alpha: 0.6),
-                    fontSize: 7,
+                    fontSize: 8,
                     letterSpacing: 1.5,
                     fontFamily: 'monospace',
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  "NODE: ${widget.levelId ?? 'UNKNOWN'}",
-                  style: TextStyle(
-                    color: themeColor.withValues(alpha: 0.6),
-                    fontSize: 7,
-                    letterSpacing: 1,
-                    fontFamily: 'monospace',
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [themeColor.withValues(alpha: 0.15), themeColor.withValues(alpha: 0.05)],
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(2),
+                      bottomRight: Radius.circular(6),
+                    ),
+                    border: Border.all(color: themeColor.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 4,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: themeColor,
+                          shape: BoxShape.circle,
+                          boxShadow: [BoxShadow(color: themeColor, blurRadius: 4)],
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        "NODE: ${widget.levelId ?? 'UNKNOWN'}",
+                        style: TextStyle(
+                          color: themeColor.withValues(alpha: 0.9),
+                          fontSize: 8,
+                          letterSpacing: 0.8,
+                          fontFamily: 'monospace',
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -3070,17 +2644,21 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                         );
                       },
                       child: Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(8),
                         margin: const EdgeInsets.only(right: 12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0A0F16),
-                          borderRadius: BorderRadius.circular(4),
+                          color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(8),
+                            bottomRight: Radius.circular(8),
+                          ),
                           border: Border.all(
-                            color: themeColor.withValues(alpha: 0.75),
+                            color: themeColor.withValues(alpha: 0.6),
+                            width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: themeColor.withValues(alpha: 0.25),
+                              color: themeColor.withValues(alpha: 0.2),
                               blurRadius: 10,
                             ),
                           ],
@@ -3148,7 +2726,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                     // 防火墙 FWL 容器
                     TweenAnimationBuilder<double>(
                       key: ValueKey("block_${player.block}"),
-                      duration: const Duration(milliseconds: 400),
+                      duration: const Duration(milliseconds: 500),
+                      curve: Curves.elasticOut,
                       tween: Tween(begin: 1.2, end: 1.0),
                       builder: (context, scale, child) {
                         final bool hasBlock = player.block > 0;
@@ -3162,54 +2741,81 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                             height: 24,
                             padding: const EdgeInsets.symmetric(horizontal: 10),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
+                              gradient: LinearGradient(
+                                colors: [
+                                  const Color(0xFF0A0F16).withValues(alpha: 0.95),
+                                  const Color(0xFF101722).withValues(alpha: 0.95),
+                                ],
+                              ),
                               borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(8),
-                                bottomRight: Radius.circular(8),
+                                topLeft: Radius.circular(2),
+                                bottomRight: Radius.circular(10),
                               ),
                               border: Border.all(
-                                color: blockColor,
-                                width: hasBlock ? 1.5 : 1,
+                                color: blockColor.withValues(alpha: hasBlock ? 0.6 : 0.2),
+                                width: hasBlock ? 1.2 : 0.8,
                               ),
                               boxShadow: [
                                 if (hasBlock)
                                   BoxShadow(
-                                    color: blockColor.withValues(alpha: 0.3),
-                                    blurRadius: 10,
+                                    color: blockColor.withValues(alpha: 0.15),
+                                    blurRadius: 8,
                                     spreadRadius: 1,
                                   ),
                               ],
                             ),
-                            child: Row(
+                            clipBehavior: Clip.antiAlias,
+                            child: Stack(
+                              alignment: Alignment.center,
                               children: [
-                                Icon(
-                                  Icons.shield_outlined,
-                                  size: 14,
-                                  color: blockColor,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  "FWL",
-                                  style: TextStyle(
-                                    color: blockColor.withValues(alpha: 0.7),
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: 'monospace',
+                                Positioned.fill(
+                                  child: Opacity(
+                                    opacity: 0.05,
+                                    child: CyberScanline(color: blockColor),
                                   ),
                                 ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  "${player.block}",
-                                  style: TextStyle(
-                                    color: blockColor,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w900,
-                                    fontFamily: 'monospace',
-                                    shadows: [
-                                      if (hasBlock)
-                                        Shadow(color: blockColor.withValues(alpha: 0.5), blurRadius: 4),
-                                    ],
-                                  ),
+                                Row(
+                                  children: [
+                                    TweenAnimationBuilder<double>(
+                                      tween: Tween(begin: 0.0, end: 1.0),
+                                      duration: const Duration(milliseconds: 1500),
+                                      builder: (context, val, child) {
+                                        return Opacity(
+                                          opacity: hasBlock ? (0.8 + 0.2 * sin(val * pi)) : 0.4,
+                                          child: Icon(
+                                            hasBlock ? Icons.shield : Icons.shield_outlined,
+                                            size: 11,
+                                            color: blockColor,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      "FWL.PROT",
+                                      style: TextStyle(
+                                        color: blockColor.withValues(alpha: 0.6),
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.w900,
+                                        fontFamily: 'monospace',
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      "${player.block}",
+                                      style: TextStyle(
+                                        color: hasBlock ? Colors.white : blockColor.withValues(alpha: 0.5),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w900,
+                                        fontFamily: 'monospace',
+                                        shadows: [
+                                          if (hasBlock)
+                                            Shadow(color: blockColor.withValues(alpha: 0.5), blurRadius: 6),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -3219,22 +2825,48 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                     ),
                   ],
                 ),
-                // 右侧：设置按钮
-                IconButton(
-                icon: Icon(
-                  Icons.power_settings_new,
-                  size: 18,
-                  color: themeColor.withValues(alpha: 0.8),
-                ),
-                onPressed: () async {
-                  final shouldExit = await _onWillPopConfirm();
-                  if (shouldExit && context.mounted) {
-                    // 返回到开始页面（根路由）
-                    Navigator.popUntil(context, (route) => route.isFirst);
+                // 右侧：退出按钮
+                GestureDetector(
+                  onTap: () async {
+                    final shouldExit = await showCyberConfirmExit(context);
+                    if (shouldExit && context.mounted) {
+                      Navigator.popUntil(context, (route) => route.isFirst);
                     }
                   },
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A0A0A).withValues(alpha: 0.8),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(4),
+                        bottomRight: Radius.circular(12),
+                      ),
+                      border: Border.all(
+                        color: Colors.redAccent.withValues(alpha: 0.4),
+                        width: 1.2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.redAccent.withValues(alpha: 0.1),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Opacity(
+                          opacity: 0.1,
+                          child: CyberScanline(color: Colors.redAccent),
+                        ),
+                        const Icon(
+                          Icons.power_settings_new,
+                          size: 18,
+                          color: Colors.redAccent,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -3280,78 +2912,188 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           context: context,
           barrierDismissible: true,
           barrierLabel: "BRAIN_CHIP_INFO",
-          barrierColor: Colors.black.withValues(alpha: 0.8),
-          transitionDuration: const Duration(milliseconds: 150),
+          barrierColor: Colors.black.withValues(alpha: 0.85),
+          transitionDuration: const Duration(milliseconds: 250),
           pageBuilder: (ctx, a1, a2) {
             return Center(
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  width: 320,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: col.withValues(alpha: 0.6)),
-                    boxShadow: [BoxShadow(color: col.withValues(alpha: 0.1), blurRadius: 20)],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                child: Material(
+                  color: Colors.transparent,  
+                  child: Container(
+                    width: 340,
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [col.withValues(alpha: 0.5), col.withValues(alpha: 0.1)],
+                      ),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(4),
+                        bottomRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0A0F16).withValues(alpha: 0.98),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Stack(
                         children: [
-                          Icon(IconData(chip.suiteIconCode, fontFamily: 'MaterialIcons'), color: col, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
+                          // 背景装饰装饰线
+                          Positioned(
+                            top: 0, right: 40,
+                            child: Container(width: 2, height: 20, color: col.withValues(alpha: 0.3)),
+                          ),
+                          Positioned(
+                            top: 15, right: 0,
+                            child: Container(width: 30, height: 2, color: col.withValues(alpha: 0.3)),
+                          ),
+                          
+                          Padding(
+                            padding: const EdgeInsets.all(20),
                             child: Column(
+                              mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(chip.name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                                Text(chip.suiteName, style: TextStyle(color: col.withValues(alpha: 0.7), fontSize: 10, letterSpacing: 1)),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: col.withValues(alpha: 0.1),
+                                        borderRadius: const BorderRadius.only(
+                                          topLeft: Radius.circular(4),
+                                          bottomRight: Radius.circular(12),
+                                        ),
+                                        border: Border.all(color: col.withValues(alpha: 0.3)),
+                                        boxShadow: [
+                                          BoxShadow(color: col.withValues(alpha: 0.1), blurRadius: 10),
+                                        ],
+                                      ),
+                                      child: Icon(IconData(chip.suiteIconCode, fontFamily: 'MaterialIcons'), color: col, size: 28),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            chip.name,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 1.2,
+                                              fontFamily: 'monospace',
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              Text(
+                                                chip.suiteName,
+                                                style: TextStyle(
+                                                  color: col.withValues(alpha: 0.8),
+                                                  fontSize: 11,
+                                                  letterSpacing: 1,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                width: 4, height: 4,
+                                                decoration: BoxDecoration(shape: BoxShape.circle, color: col.withValues(alpha: 0.5)),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                "VER 2.0.${chip.level}",
+                                                style: TextStyle(
+                                                  color: col.withValues(alpha: 0.6),
+                                                  fontSize: 10,
+                                                  fontFamily: 'monospace',
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 24),
+                                // 效果区域
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: col.withValues(alpha: 0.05),
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(4),
+                                      bottomRight: Radius.circular(15),
+                                    ),
+                                    border: Border.all(color: col.withValues(alpha: 0.15)),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.terminal, color: col, size: 14),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            "SYSTEM_EFFECT_LOG",
+                                            style: TextStyle(
+                                              color: col.withValues(alpha: 0.7),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              fontFamily: 'monospace',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const Divider(height: 20, thickness: 0.5, color: Colors.white12),
+                                      Text(
+                                        chip.description,
+                                        style: const TextStyle(
+                                          color: Color(0xFFE0E6ED),
+                                          fontSize: 14,
+                                          height: 1.5,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    // 装饰性的小元素
+                                    Row(
+                                      children: List.generate(3, (i) => Container(
+                                        margin: const EdgeInsets.only(right: 4),
+                                        width: 12, height: 2,
+                                        color: col.withValues(alpha: 0.2 + (i * 0.2)),
+                                      )),
+                                    ),
+                                    CyberButton(
+                                      label: "关闭",
+                                      width: 100,
+                                      height: 36,
+                                      fontSize: 12,
+                                      color: col,
+                                      onPressed: () => Navigator.pop(ctx),
+                                    ),
+                                  ],
+                                ),
                               ],
                             ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: col.withValues(alpha: 0.5)),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                            child: Text("LV.${chip.level}", style: TextStyle(color: col, fontSize: 10, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: col.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: col.withValues(alpha: 0.1)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.bolt, color: col, size: 14),
-                                const SizedBox(width: 4),
-                                Text("核心效果", style: TextStyle(color: col, fontSize: 11, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(chip.description, style: const TextStyle(color: Color(0xFFE0E6ED), fontSize: 13, height: 1.4)),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: CyberButton(label: "确认", width: 80, height: 32, fontSize: 12, color: col, onPressed: () => Navigator.pop(ctx)),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -3360,29 +3102,93 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        height: 38,
+        padding: const EdgeInsets.all(1),
         decoration: BoxDecoration(
-          color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: col.withValues(alpha: 0.6)),
+          gradient: LinearGradient(
+            colors: [col.withValues(alpha: 0.8), col.withValues(alpha: 0.1)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(4),
+            bottomRight: Radius.circular(15),
+          ),
           boxShadow: [
-            BoxShadow(color: col.withValues(alpha: 0.2), blurRadius: 8, spreadRadius: -2),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(IconData(chip.suiteIconCode, fontFamily: 'MaterialIcons'), size: 14, color: col),
-            const SizedBox(width: 6),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(chip.name.toUpperCase(), style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                Text(chip.suiteName, style: TextStyle(color: col.withValues(alpha: 0.7), fontSize: 7, fontWeight: FontWeight.bold)),
-              ],
+            BoxShadow(
+              color: col.withValues(alpha: 0.15),
+              blurRadius: 8,
+              spreadRadius: 1,
             ),
           ],
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(3),
+              bottomRight: Radius.circular(14),
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: CyberScanline(color: col.withValues(alpha: 0.1)),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 1500),
+                      builder: (context, value, child) {
+                        return Opacity(
+                          opacity: 0.7 + (0.3 * sin(value * pi)),
+                          child: Icon(
+                            IconData(chip.suiteIconCode, fontFamily: 'MaterialIcons'),
+                            size: 16,
+                            color: col,
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "CHIP_LINK_ACTIVE",
+                          style: TextStyle(
+                            color: col.withValues(alpha: 0.5),
+                            fontSize: 7,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'monospace',
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        Text(
+                          chip.name,
+                          style: TextStyle(
+                            color: col,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            fontFamily: 'monospace',
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 12),
+                    Icon(Icons.info_outline_rounded, size: 10, color: col.withValues(alpha: 0.4)),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -3420,7 +3226,18 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   }
 
   Widget _playerTarget() {
-    return _playerWidget(player);
+    final themeColor = _getThemeColor();
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        _playerWidget(player),
+        Positioned(
+          top: -90,
+          left: -10,
+          child: _energyCoreWidget(themeColor),
+        ),
+      ],
+    );
   }
 
   Widget _playerWidget(Entity e, {bool isHighlighted = false}) {
@@ -3869,7 +3686,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
               children: [
                 Container(color: Colors.red.withValues(alpha: 0.03 * alpha)),
                 Positioned.fill(
-                  child: CustomPaint(painter: ScanlineJitterPainter(strength: 2.0 * (1.0 - t))),
+                  child: CustomPaint(painter: CyberScanlineJitterPainter(strength: 2.0 * (1.0 - t))),
                 ),
               ],
             );
@@ -3985,90 +3802,416 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     final availableChips = brainChipPool.where((c) => c.id != GameState.selectedBrainChipId).toList();
     if (availableChips.isEmpty) return;
     final newChip = availableChips[random.nextInt(availableChips.length)];
-    final chipColor = Color(newChip.themeColor);
+    // 确保颜色不为黑色，避免与背景重叠
+    Color chipColor = Color(newChip.themeColor);
+    if (chipColor.computeLuminance() < 0.05) {
+      chipColor = Colors.blueAccent; // 默认为蓝色
+    }
 
     showGeneralDialog(
       context: context,
-      barrierDismissible: true,
+      barrierDismissible: false,
       barrierLabel: "BRAIN_CHIP_CONFIRM",
-      barrierColor: Colors.black.withValues(alpha: 0.8),
-      transitionDuration: const Duration(milliseconds: 200),
+      barrierColor: Colors.black.withValues(alpha: 0.9),
+      transitionDuration: const Duration(milliseconds: 300),
+      transitionBuilder: (context, a1, a2, child) {
+        return Transform.scale(
+          scale: 0.9 + 0.1 * a1.value,
+          child: Opacity(opacity: a1.value, child: child),
+        );
+      },
       pageBuilder: (ctx, a1, a2) {
         return Center(
           child: Material(
             color: Colors.transparent,
-            child: Container(
-              width: 320,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0A0F16),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: chipColor.withValues(alpha: 0.6)),
-                boxShadow: [BoxShadow(color: chipColor.withValues(alpha: 0.15), blurRadius: 20)],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Icon(IconData(newChip.suiteIconCode, fontFamily: 'MaterialIcons'), color: chipColor, size: 20),
-                      const SizedBox(width: 8),
-                      Text("// ${newChip.suiteName}", style: TextStyle(color: chipColor, fontSize: 12, fontFamily: 'monospace')),
-                      const Spacer(),
-                      Text("LV.${newChip.level}", style: TextStyle(color: chipColor, fontSize: 10, fontWeight: FontWeight.bold)),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // 1. 外部装饰边框
+                Positioned(
+                  top: -10, left: -10, right: -10, bottom: -10,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: chipColor.withValues(alpha: 0.1), width: 1),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(4),
+                        bottomRight: Radius.circular(30),
+                      ),
+                    ),
+                  ),
+                ),
+                // 2. 主容器
+                Container(
+                  width: 380,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF05060A),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(2),
+                      bottomRight: Radius.circular(24),
+                    ),
+                    border: Border.all(color: chipColor.withValues(alpha: 0.4), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(color: chipColor.withValues(alpha: 0.15), blurRadius: 40, spreadRadius: 5),
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 20),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  const Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent, size: 36),
-                  const SizedBox(height: 12),
-                  const Text(
-                    "警告：脑机热拔插",
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  RichText(
-                    textAlign: TextAlign.center,
-                    text: TextSpan(
-                      style: const TextStyle(color: Color(0xFF8FA3C0), fontSize: 13, height: 1.5),
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(2),
+                      bottomRight: Radius.circular(24),
+                    ),
+                    child: Stack(
                       children: [
-                        const TextSpan(text: "接入新脑机 "),
-                        TextSpan(text: "[${newChip.name}]", style: TextStyle(color: chipColor, fontWeight: FontWeight.bold)),
-                        const TextSpan(text: " 将会强行销毁当前脑机。由于数据接口不匹配，你的系统最大完整度将下降 2 点。\n\n是否执行此高风险操作？"),
+                        // 背景网格装饰
+                        Positioned.fill(
+                          child: Opacity(
+                            opacity: 0.15,
+                            child: CustomPaint(
+                              painter: CyberGridPainter(
+                                color: chipColor,
+                                opacity: 0.1,
+                                spacing: 20.0,
+                                showChars: false,
+                              ),
+                            ),
+                          ),
+                        ),
+                        // 扫描线
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: CyberScanline(color: chipColor.withValues(alpha: 0.05)),
+                          ),
+                        ),
+                        
+                        Padding(
+                          padding: const EdgeInsets.all(28),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // 头部：系统状态标签
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _metaLabel("SYSTEM_INTEGRATION", chipColor),
+                                  _metaLabel("ID: ${newChip.id.toUpperCase()}", chipColor.withValues(alpha: 0.5)),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+
+                              // 警告区域：架构冲突
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.redAccent.withValues(alpha: 0.1),
+                                  border: Border(
+                                    left: BorderSide(color: Colors.redAccent, width: 3),
+                                    right: BorderSide(color: Colors.redAccent.withValues(alpha: 0.3), width: 1),
+                                  ),
+                                  gradient: LinearGradient(
+                                    colors: [Colors.redAccent.withValues(alpha: 0.15), Colors.transparent],
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.report_problem_rounded, color: Colors.redAccent, size: 18),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          "CRITICAL_SYSTEM_CONFLICT",
+                                          style: TextStyle(
+                                            color: Colors.redAccent,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w900,
+                                            fontFamily: 'monospace',
+                                            letterSpacing: 1.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      "检测到架构冲突：最大完整度将下降 2 点",
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              
+                              const SizedBox(height: 32),
+
+                              // 脑机核心图标与信息
+                              Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  // 背景发光
+                                  Container(
+                                    width: 100, height: 100,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(color: chipColor.withValues(alpha: 0.15), blurRadius: 40, spreadRadius: 10),
+                                      ],
+                                    ),
+                                  ),
+                                  // 图标外框
+                                  Container(
+                                    width: 86, height: 86,
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: chipColor.withValues(alpha: 0.3), width: 1),
+                                      borderRadius: const BorderRadius.only(
+                                        topLeft: Radius.circular(2),
+                                        bottomRight: Radius.circular(20),
+                                      ),
+                                    ),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: chipColor.withValues(alpha: 0.05),
+                                        borderRadius: const BorderRadius.only(
+                                          topLeft: Radius.circular(2),
+                                          bottomRight: Radius.circular(16),
+                                        ),
+                                        border: Border.all(color: chipColor.withValues(alpha: 0.5), width: 1.5),
+                                      ),
+                                      child: Icon(
+                                        IconData(newChip.suiteIconCode, fontFamily: 'MaterialIcons'),
+                                        color: chipColor,
+                                        size: 44,
+                                        shadows: [Shadow(color: chipColor.withValues(alpha: 0.5), blurRadius: 15)],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 24),
+                              
+                              Text(
+                                newChip.name.toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w900,
+                                  fontFamily: 'monospace',
+                                  letterSpacing: 2,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: chipColor.withValues(alpha: 0.1),
+                                      border: Border.all(color: chipColor.withValues(alpha: 0.5), width: 1),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                    child: Text(
+                                      "Lv.${newChip.level}",
+                                      style: TextStyle(
+                                        color: chipColor,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w900,
+                                        fontFamily: 'monospace',
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "MOD_SPECIFICATION_v4.2",
+                                    style: TextStyle(
+                                      color: chipColor.withValues(alpha: 0.4),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              
+                              const SizedBox(height: 20),
+                              
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: chipColor.withValues(alpha: 0.03),
+                                  border: Border.all(color: chipColor.withValues(alpha: 0.1), width: 0.5),
+                                ),
+                                child: Text(
+                                  newChip.description,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontSize: 14,
+                                    height: 1.5,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 40),
+
+                              // 交互按钮
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _dialogButton(
+                                      label: "放弃接入",
+                                      color: Colors.grey.shade700,
+                                      onTap: () async {
+                                        final confirm = await showGeneralDialog<bool>(
+                                          context: ctx,
+                                          barrierDismissible: true,
+                                          barrierLabel: "ABANDON_CONFIRM",
+                                          barrierColor: Colors.black.withValues(alpha: 0.8),
+                                          transitionDuration: const Duration(milliseconds: 200),
+                                          pageBuilder: (pCtx, a1, a2) {
+                                            return Center(
+                                              child: Material(
+                                                color: Colors.transparent,
+                                                child: Container(
+                                                  width: 280,
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFF0D1117),
+                                                    border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5), width: 1),
+                                                  ),
+                                                  child: Stack(
+                                                    children: [
+                                                      // 背景网格
+                                                      Positioned.fill(
+                                                        child: CustomPaint(
+                                                          painter: CyberGridPainter(
+                                                            color: Colors.redAccent,
+                                                            opacity: 0.1,
+                                                            spacing: 20.0,
+                                                            showChars: false,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      // 四角装饰
+                                                      Positioned.fill(
+                                                        child: CustomPaint(
+                                                          painter: CyberCornerPainter(
+                                                            color: Colors.redAccent.withValues(alpha: 0.3),
+                                                            cornerSize: 15,
+                                                            strokeWidth: 1.5,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      Padding(
+                                                        padding: const EdgeInsets.all(24),
+                                                        child: Column(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 32),
+                                                            const SizedBox(height: 16),
+                                                            const Text(
+                                                              "确认放弃脑机接入？",
+                                                              style: TextStyle(
+                                                                color: Colors.white,
+                                                                fontSize: 16,
+                                                                fontWeight: FontWeight.bold,
+                                                                letterSpacing: 1,
+                                                              ),
+                                                            ),
+                                                            const SizedBox(height: 8),
+                                                            const Text(
+                                                              "放弃后该奖励将永久失效",
+                                                              style: TextStyle(
+                                                                color: Colors.white60,
+                                                                fontSize: 12,
+                                                              ),
+                                                            ),
+                                                            const SizedBox(height: 24),
+                                                            Row(
+                                                              mainAxisAlignment: MainAxisAlignment.end,
+                                                              children: [
+                                                                _dialogButton(
+                                                                  label: "取消",
+                                                                  color: Colors.white54,
+                                                                  onTap: () => Navigator.pop(pCtx, false),
+                                                                ),
+                                                                const SizedBox(width: 12),
+                                                                _dialogButton(
+                                                                  label: "确认放弃",
+                                                                  color: Colors.redAccent,
+                                                                  onTap: () => Navigator.pop(pCtx, true),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        );
+
+                                        if (confirm == true) {
+                                          Navigator.pop(ctx);
+                                          setState(() {
+                                            _bossRewardSelected = true;
+                                            _statusTip = "放弃了新的脑机接入";
+                                            _statusTipColor = Colors.grey;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: _dialogButton(
+                                      label: "安装模块",
+                                      color: chipColor,
+                                      onTap: () {
+                                        Navigator.pop(ctx);
+                                        setState(() {
+                                          GameState.playerMaxHp = (GameState.playerMaxHp - 2).clamp(1, 999);
+                                          GameState.playerHp = min(GameState.playerHp, GameState.playerMaxHp);
+                                          GameState.selectedBrainChipId = newChip.id;
+                                          _bossRewardSelected = true;
+                                          _statusTip = "脑机已更换，最大完整度 -2";
+                                          _statusTipColor = Colors.orangeAccent;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // 角落装饰
+                        Positioned(
+                          top: 0, left: 0,
+                          child: CustomPaint(
+                            size: const Size(40, 40),
+                            painter: CyberCornerPainter(
+                              color: chipColor.withValues(alpha: 0.8),
+                              cornerSize: 15,
+                              strokeWidth: 1.5,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      CyberButton(
-                        label: "放弃", 
-                        width: 100, 
-                        height: 40, 
-                        color: Colors.grey, 
-                        onPressed: () => Navigator.pop(ctx)
-                      ),
-                      CyberButton(
-                        label: "确认接入", 
-                        width: 100, 
-                        height: 40, 
-                        color: _getThemeColor(), 
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          setState(() {
-                            GameState.playerMaxHp = (GameState.playerMaxHp - 2).clamp(1, 999);
-                            GameState.playerHp = min(GameState.playerHp, GameState.playerMaxHp);
-                            GameState.selectedBrainChipId = newChip.id;
-                            _bossRewardSelected = true;
-                            _statusTip = "脑机已更换，最大完整度 -2";
-                            _statusTipColor = Colors.orangeAccent;
-                          });
-                        }
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
@@ -4100,6 +4243,62 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       _statusTip = "神圣指令 [${card.name}] 已注入指令集";
       _statusTipColor = const Color(0xFFFFD700);
     });
+  }
+
+  Widget _metaLabel(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 0.5),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: 8,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1,
+          fontFamily: 'monospace',
+        ),
+      ),
+    );
+  }
+
+  Widget _dialogButton({required String label, required Color color, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 36, // 减小高度，使其更修长
+        padding: const EdgeInsets.symmetric(horizontal: 20), // 增加左右间距，强化长方形感
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          border: Border.all(color: color.withValues(alpha: 0.5), width: 1),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(1),
+            bottomRight: Radius.circular(8),
+          ),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              right: 3, bottom: 3,
+              child: Container(width: 3, height: 3, color: color.withValues(alpha: 0.5)),
+            ),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 11, // 稍微缩小字号
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.5,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _overlayButton(
@@ -4268,134 +4467,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           ),
         );
       }).toList(),
-    );
-  }
-
-  Future<bool> _onWillPopConfirm() async {
-    final res = await showGeneralDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: "DISCONNECT_CONFIRM",
-      barrierColor: Colors.black.withValues(alpha: 0.8),
-      transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (ctx, anim1, anim2) {
-        return Center(
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              width: 320,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(
-                  color: const Color(0xFFFF6A6A).withValues(alpha: 0.8),
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFF6A6A).withValues(alpha: 0.2),
-                    blurRadius: 30,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  // 内部扫描线
-                  Positioned.fill(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: CyberScanline(color: const Color(0x11FF6A6A)),
-                    ),
-                  ),
-                  // 装饰边角
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: CyberCornerPainter(color: const Color(0x66FF6A6A)),
-                    ),
-                  ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.warning_amber_rounded, color: Color(0xFFFF6A6A), size: 20),
-                          SizedBox(width: 10),
-                          Text(
-                            "DISCONNECT_REQUEST",
-                            style: TextStyle(
-                              color: Color(0xFFFF6A6A),
-                              fontSize: 10,
-                              fontFamily: 'monospace',
-                              letterSpacing: 2,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        '即将终止当前的数据尖塔渗透任务，未同步的数据流将会丢失。是否确认断开物理接入？',
-                        style: TextStyle(
-                          color: Color(0xFFE1E9FF),
-                          fontSize: 14,
-                          height: 1.6,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          _dialogButton(
-                            ctx, 
-                            '维持接入', 
-                            _getThemeColor(), 
-                            () => Navigator.pop(ctx, false)
-                          ),
-                          const SizedBox(width: 16),
-                          _dialogButton(
-                            ctx, 
-                            '确认断开', 
-                            const Color(0xFFFF6A6A), 
-                            () => Navigator.pop(ctx, true)
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-    return Future.value(res ?? false);
-  }
-
-  Widget _dialogButton(BuildContext context, String text, Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          border: Border.all(color: color.withValues(alpha: 0.5)),
-          borderRadius: BorderRadius.circular(2),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'monospace',
-            letterSpacing: 1,
-          ),
-        ),
-      ),
     );
   }
 
@@ -4690,32 +4761,42 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                 Positioned(
                   top: -65 * s,
                   child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 4 * s),
+                    padding: EdgeInsets.symmetric(horizontal: 10 * s, vertical: 4 * s),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0A0F16).withValues(alpha: 0.8),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: (intentColor ?? themeColor).withValues(alpha: 0.4),
-                        width: 1,
+                      color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(2),
+                        bottomRight: Radius.circular(8),
                       ),
+                      border: Border.all(
+                        color: (intentColor ?? themeColor).withValues(alpha: 0.5),
+                        width: 1.2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (intentColor ?? themeColor).withValues(alpha: 0.2),
+                          blurRadius: 8 * s,
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           intentIcon,
-                          size: 16 * s,
+                          size: 14 * s,
                           color: intentColor,
                         ),
                         if (intentValueText != null) ...[
-                          const SizedBox(width: 4),
+                          const SizedBox(width: 6),
                           Text(
                             intentValueText,
                             style: TextStyle(
-                              fontSize: (14 * s).clamp(10, 14),
+                              fontSize: (13 * s).clamp(10, 13),
                               fontWeight: FontWeight.w900,
                               color: intentColor,
                               fontFamily: 'monospace',
+                              letterSpacing: -0.5,
                             ),
                           ),
                         ],
@@ -4806,31 +4887,29 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color:
-                          isDead
-                              ? const Color(0xFF252525)
-                              : const Color(0xFF101722),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color:
-                            isDead
-                                ? const Color(0xFF444444)
-                                : themeColor,
+                      gradient: LinearGradient(
+                        colors: [
+                          isDead ? const Color(0xFF252525) : themeColor.withValues(alpha: 0.2),
+                          const Color(0xFF101722),
+                        ],
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3.clamp(0.0, 1.0)),
-                          blurRadius: 6,
-                          spreadRadius: 2,
-                        ),
-                      ],
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(4),
+                        bottomRight: Radius.circular(10),
+                      ),
+                      border: Border.all(
+                        color: isDead ? const Color(0xFF444444) : themeColor,
+                        width: 1,
+                      ),
                     ),
                     child: Text(
                       statusText,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFFE1E9FF),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        color: isDead ? Colors.white38 : Colors.white,
+                        fontFamily: 'monospace',
+                        letterSpacing: 1,
                       ),
                     ),
                   ),
@@ -4849,45 +4928,76 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         width: 56,
         height: 56,
         decoration: BoxDecoration(
-          color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.5), width: 1.5),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF0A0F16).withValues(alpha: 0.9),
+              const Color(0xFF1A1F26).withValues(alpha: 0.9),
+            ],
+          ),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(2),
+            bottomRight: Radius.circular(16),
+          ),
+          border: Border.all(color: color.withValues(alpha: 0.4), width: 1.2),
           boxShadow: [
             BoxShadow(
-              color: color.withValues(alpha: 0.2),
-              blurRadius: 10,
+              color: color.withValues(alpha: 0.15),
+              blurRadius: 12,
               spreadRadius: 1,
             ),
           ],
         ),
+        clipBehavior: Clip.antiAlias,
         child: Stack(
           children: [
             // 内部动态扫描线
             Positioned.fill(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(7),
-                child: CyberScanline(color: color.withValues(alpha: 0.3)),
+              child: Opacity(
+                opacity: 0.1,
+                child: CyberScanline(color: color),
               ),
             ),
-            // 装饰边角
-            Positioned.fill(
-              child: CustomPaint(
-                painter: CyberCornerPainter(color: color.withValues(alpha: 0.4)),
+            // 装饰性微光
+            Positioned(
+              top: -10,
+              left: -10,
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.05),
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(icon, color: color, size: 20),
-                  const SizedBox(height: 2),
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: const Duration(milliseconds: 2000),
+                    builder: (context, val, child) {
+                      return Opacity(
+                        opacity: 0.7 + 0.3 * sin(val * pi),
+                        child: Icon(icon, color: color, size: 18),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 1),
                   Text(
                     count.toString(),
                     style: TextStyle(
-                      color: color,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
+                      color: color.withValues(alpha: 0.9),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
                       fontFamily: 'monospace',
+                      letterSpacing: -0.5,
+                      shadows: [
+                        Shadow(color: color.withValues(alpha: 0.5), blurRadius: 4),
+                      ],
                     ),
                   ),
                 ],
@@ -4902,54 +5012,93 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   /// 带宽核心组件：科技感十足的数字仪表
   Widget _energyCoreWidget(Color color) {
     return SizedBox(
-      width: 60,
-      height: 60,
+      width: 70,
+      height: 70,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // 核心外框：简化为一个统一的科幻容器
+          // 1. 核心底座：非对称科幻容器
           Container(
-            width: 55,
-            height: 55,
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
-              color: const Color(0xFF0A0E14).withValues(alpha: 0.9),
-              borderRadius: BorderRadius.circular(4),
+              color: const Color(0xFF0A0E14).withValues(alpha: 0.95),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(6),
+                bottomRight: Radius.circular(20),
+              ),
               border: Border.all(
-                color: color.withValues(alpha: 0.6),
+                color: color.withValues(alpha: 0.5),
                 width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: color.withValues(alpha: 0.15),
+                  color: color.withValues(alpha: 0.2),
                   blurRadius: 15,
-                  spreadRadius: 1,
+                  spreadRadius: 2,
                 ),
               ],
             ),
             child: Stack(
               children: [
-                // 内部扫描线
+                // 内部动态扫描线
                 Positioned.fill(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(3),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(5),
+                      bottomRight: Radius.circular(19),
+                    ),
                     child: CyberScanline(color: color.withValues(alpha: 0.2)),
                   ),
                 ),
-                // 装饰边角
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: CyberCornerPainter(color: color.withValues(alpha: 0.4)),
+                // 装饰性：系统状态小字
+                Positioned(
+                  top: 6, left: 6,
+                  child: Text(
+                    "PWR_CORE",
+                    style: TextStyle(
+                      color: color.withValues(alpha: 0.4),
+                      fontSize: 6,
+                      fontFamily: 'monospace',
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
+                ),
+                Positioned(
+                  bottom: 4, right: 8,
+                  child: Icon(Icons.settings_input_component, size: 8, color: color.withValues(alpha: 0.3)),
                 ),
               ],
             ),
           ),
-          // 内部内容
+          
+          // 2. 动态呼吸发光环
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(seconds: 2),
+            curve: Curves.easeInOut,
+            builder: (context, value, child) {
+              final opacity = 0.1 + (0.2 * (1.0 - (value - 0.5).abs() * 2));
+              return Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: color.withValues(alpha: opacity),
+                    width: 1,
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // 3. 核心数值显示
           TweenAnimationBuilder<double>(
             key: ValueKey("energy_$energy"),
             duration: const Duration(milliseconds: 600),
             curve: Curves.elasticOut,
-            tween: Tween(begin: 1.3, end: 1.0),
+            tween: Tween(begin: 1.4, end: 1.0),
             builder: (context, scale, child) {
               return Transform.scale(
                 scale: scale,
@@ -4957,16 +5106,16 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      "BANDWIDTH",
+                      "BW.AVAIL",
                       style: TextStyle(
-                        color: color.withValues(alpha: (0.5 + (scale - 1.0) * 2).clamp(0.0, 1.0)),
-                        fontSize: 7,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
+                        color: color.withValues(alpha: (0.6 + (scale - 1.0) * 2).clamp(0.0, 1.0)),
+                        fontSize: 8,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
                         fontFamily: 'monospace',
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 1),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -4974,26 +5123,30 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       children: [
                         Icon(
                           Icons.bolt_rounded,
-                          color: color.withValues(alpha: (0.8 + (scale - 1.0) * 0.5).clamp(0.0, 1.0)),
-                          size: 14,
+                          color: color.withValues(alpha: (0.9 + (scale - 1.0) * 0.5).clamp(0.0, 1.0)),
+                          size: 16,
+                          shadows: [
+                            Shadow(color: color, blurRadius: 10 * scale),
+                          ],
                         ),
                         Text(
                           "$energy",
                           style: TextStyle(
                             color: color,
-                            fontSize: 24,
+                            fontSize: 28,
                             fontWeight: FontWeight.w900,
                             fontFamily: 'monospace',
                             height: 1.0,
+                            letterSpacing: -1,
                             shadows: [
                               Shadow(
-                                color: color.withValues(alpha: 0.8),
-                                blurRadius: 10 * scale,
+                                color: color.withValues(alpha: 0.9),
+                                blurRadius: 12 * scale,
                               ),
                               if (scale > 1.0)
                                 Shadow(
-                                  color: color.withValues(alpha: 0.3),
-                                  blurRadius: 20 * scale,
+                                  color: color.withValues(alpha: 0.4),
+                                  blurRadius: 25 * scale,
                                 ),
                             ],
                           ),
@@ -5419,7 +5572,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         if (n == 0) {
           return Stack(
             children: [
-              Positioned(left: 10, top: 10, child: _energyCoreWidget(themeColor)),
               if (characterData.characterClass == CharacterClass.yanxin)
                 Positioned(left: 78, top: 16, child: _heatBurstButton()),
               const Center(
@@ -5440,14 +5592,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
         final children = <Widget>[];
 
-        // 1. 能量核心：固定在左上角
-        children.add(
-          Positioned(
-            left: 10,
-            top: 10,
-            child: _energyCoreWidget(themeColor),
-          ),
-        );
+        // 1. 核心操作：热能爆破
         if (characterData.characterClass == CharacterClass.yanxin) {
           children.add(
             Positioned(
@@ -5585,7 +5730,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
               if (n == 0) {
                 return Stack(
                   children: [
-                    Positioned(left: 10, top: 10, child: _energyCoreWidget(themeColor)),
                     if (characterData.characterClass == CharacterClass.yanxin)
                       Positioned(left: 78, top: 16, child: _heatBurstButton()),
                     const Center(
@@ -5606,14 +5750,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
               final children = <Widget>[];
 
-              // 1. 能量核心
-              children.add(
-                Positioned(
-                  left: 10,
-                  top: 10,
-                  child: _energyCoreWidget(themeColor),
-                ),
-              );
+              // 1. 核心操作
               if (characterData.characterClass == CharacterClass.yanxin) {
                 children.add(
                   Positioned(
@@ -5917,7 +6054,15 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                         ],
                       ),
                     ),
-                    child: CustomPaint(painter: GridPainter(scanColor)),
+                    child: CustomPaint(
+                      painter: CyberGridPainter(
+                        color: scanColor,
+                        opacity: 0.5,
+                        spacing: 12.0,
+                        showChars: false,
+                        strokeWidth: 1.0,
+                      ),
+                    ),
                   ),
                   // 扫描线
                   Positioned(
@@ -6012,7 +6157,15 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                         ],
                       ),
                     ),
-                    child: CustomPaint(painter: GridPainter(scanColor)),
+                    child: CustomPaint(
+                      painter: CyberGridPainter(
+                        color: scanColor,
+                        opacity: 0.5,
+                        spacing: 12.0,
+                        showChars: false,
+                        strokeWidth: 1.0,
+                      ),
+                    ),
                   ),
                   // 扫描线 - 从上往下移动
                   Positioned(
@@ -6115,307 +6268,26 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     }
   }
 
-  /// 构建卡牌描述文本，智能识别正面/负面效果并着色
-  Widget _buildCardDescription(CardData c, Color highlightColor) {
-    final String text = c.description ?? "";
-    if (text.isEmpty) return const SizedBox.shrink();
-
-    // 关键词分类
-    const buffKeywords = {'防火墙加固', '算力', '系统修复', '能量', '能量点', '数据包', '带宽'};
-    const debuffKeywords = {'虚弱', '脆弱', '漏洞暴露', '恶意代码'};
-    const damageKeywords = {'冲击', '自损', '受损'};
-
-    // 匹配数字和关键效果词汇
-    final regex = RegExp(r'(\d+)|(冲击|防火墙加固|数据包|算力|虚弱|脆弱|恶意代码|自损|系统修复|能量|能量点|漏洞暴露|受损|带宽)');
-    final List<TextSpan> spans = [];
-    int lastMatchEnd = 0;
-    final double fontScale = text.length > 28 ? (28.0 / text.length).clamp(0.7, 1.0) : 1.0;
-
-    for (final match in regex.allMatches(text)) {
-      // 1. 添加普通文本（淡化）
-      if (match.start > lastMatchEnd) {
-        spans.add(TextSpan(
-          text: text.substring(lastMatchEnd, match.start),
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 8 * fontScale),
-        ));
-      }
-
-      final isNumber = match.group(1) != null;
-      final matchText = match.group(0)!;
-      
-      // 2. 智能判定该项是“好”还是“坏”
-      bool isBadEffect = false;
-      
-      // 确定该项关联的关键字和目标
-      String associatedKeyword = "";
-      if (isNumber) {
-        // 数字寻找最近的关键字（前后探测）
-        final afterText = text.substring(match.end, (match.end + 12).clamp(0, text.length));
-        final beforeText = text.substring((match.start - 12).clamp(0, text.length), match.start);
-        
-        for (var k in [...buffKeywords, ...debuffKeywords, ...damageKeywords]) {
-          if (afterText.contains(k) || beforeText.contains(k)) {
-            associatedKeyword = k;
-            break;
-          }
-        }
-      } else {
-        associatedKeyword = matchText;
-      }
-
-      // 确定目标
-      CardTarget target = c.target;
-      if (associatedKeyword == "自损" || associatedKeyword == "受损") {
-        target = CardTarget.self;
-      }
-
-      // 应用判定矩阵
-      if (damageKeywords.contains(associatedKeyword)) {
-        // 伤害：对自己是坏，对敌人是好
-        isBadEffect = (target == CardTarget.self);
-      } else if (buffKeywords.contains(associatedKeyword)) {
-        // Buff：对自己是好，对敌人是坏
-        isBadEffect = (target != CardTarget.self);
-      } else if (debuffKeywords.contains(associatedKeyword)) {
-        // Debuff：对自己是坏，对敌人是好
-        isBadEffect = (target == CardTarget.self);
-      }
-
-      // 3. 添加高亮项
-      Color displayColor = isBadEffect ? const Color(0xFFFF4444) : (isNumber ? Colors.white : highlightColor);
-      
-      spans.add(TextSpan(
-        text: matchText,
-        style: TextStyle(
-          color: displayColor,
-          fontWeight: (isNumber || isBadEffect) ? FontWeight.w900 : FontWeight.bold,
-          fontSize: (isNumber ? 10 : 9) * fontScale,
-          shadows: [
-            Shadow(color: displayColor.withValues(alpha: 0.6), blurRadius: 4),
-          ],
-        ),
-      ));
-
-      lastMatchEnd = match.end;
-    }
-
-    if (lastMatchEnd < text.length) {
-      spans.add(TextSpan(
-        text: text.substring(lastMatchEnd),
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 8 * fontScale),
-      ));
-    }
-
-    return RichText(
-      text: TextSpan(children: spans, style: const TextStyle(fontFamily: 'monospace', height: 1.3)),
-      maxLines: 4,
-      overflow: TextOverflow.ellipsis,
-    );
-  }
-
   Widget _cardWidget(
     CardData c, {
     bool dragging = false,
     bool showCompleteAnimation = false,
   }) {
-    final suiteColor = ThemeConfig.getSuiteColor(c.suite);
-    final rarityColor = ThemeConfig.getRarityColor(c.level, suite: c.suite);
-    final cardBgColor = ThemeConfig.getCardBgColor(c.suite).withValues(alpha: 0.9);
-    
-    Widget cardBody(double scale) {
-      return Transform.scale(
-        scale: scale,
-        child: Container(
-          width: 84,
-          height: 112,
-          margin: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: cardBgColor,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: dragging ? Colors.white : suiteColor.withValues(alpha: 0.6),
-              width: dragging ? 1.5 : 1.0,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: suiteColor.withValues(alpha: dragging ? 0.5 : 0.2),
-                blurRadius: dragging ? 15 : 8,
-                spreadRadius: dragging ? 2 : 1,
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5),
-                blurRadius: 4,
-                offset: const Offset(2, 2),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: Stack(
-              children: [
-                // 1. 背景纹理：不同套装使用不同画笔
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: SuiteTechPainter(c.suite, suiteColor.withValues(alpha: 0.1)),
-                  ),
-                ),
-                // 2. 动态扫描线
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: CyberScanline(
-                      color: suiteColor.withValues(alpha: 0.15),
-                      isGlitch: c.suite == CardSuite.overload, // 过载套装带故障效果
-                    ),
-                  ),
-                ),
-                // 3. 科技感边角装饰
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: CustomPaint(
-                      painter: CyberCornerPainter(color: suiteColor.withValues(alpha: 0.15)),
-                    ),
-                  ),
-                ),
-                // 4. 内容层
-                Padding(
-                  padding: const EdgeInsets.all(6),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 标题和费用
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Builder(
-                              builder: (_) {
-                                final name = c.name;
-                                final base = 9.0;
-                                final shrink = name.length > 4 ? (base - (name.length - 4) * 0.5) : base;
-                                final titleFont = shrink.clamp(6.5, base);
-                                return Text(
-                                  name,
-                                  softWrap: true,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.visible,
-                                  style: TextStyle(
-                                    fontSize: titleFont,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white.withValues(alpha: 0.95),
-                                    letterSpacing: 0.5,
-                                    fontFamily: 'monospace',
-                                    height: 1.1,
-                                    shadows: [
-                                      Shadow(color: suiteColor.withValues(alpha: 0.5), blurRadius: 4),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 0),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF05060A),
-                              borderRadius: BorderRadius.circular(2),
-                              border: Border.all(color: suiteColor.withValues(alpha: 0.5), width: 0.5),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  ThemeConfig.getSuiteIcon(c.suite),
-                                  size: 8,
-                                  color: suiteColor,
-                                ),
-                                Text(
-                                  "${c.cost}",
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w900,
-                                    color: suiteColor,
-                                    fontFamily: 'monospace',
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      // 标题下方的彩色横线：使用卡组风格颜色
-                      Container(
-                        width: double.infinity,
-                        height: 1.5,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              suiteColor,
-                              suiteColor.withValues(alpha: 0.2),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      // 描述文字
-                      Expanded(
-                        child: _buildCardDescription(c, suiteColor),
-                      ),
-                      // 底部标识
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            (c.suite == CardSuite.demon || c.suite == CardSuite.holy) ? "Lv ?" : "Lv${c.level}",
-                            style: TextStyle(
-                              fontSize: 6,
-                              fontWeight: FontWeight.bold,
-                              color: rarityColor.withValues(alpha: 0.9),
-                              fontFamily: 'monospace',
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          _smallTargetIcon(c.target, suiteColor),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
     if (showCompleteAnimation) {
       return TweenAnimationBuilder<double>(
         duration: const Duration(milliseconds: 500),
         tween: Tween(begin: 1.5, end: 1.0),
         curve: Curves.bounceOut,
-        builder: (context, scale, child) => cardBody(scale),
+        builder: (context, scale, child) => Transform.scale(
+          scale: scale,
+          child: ThemeConfig.buildCardWidget(c, dragging: dragging),
+        ),
       );
     } else {
-      return cardBody(1.0);
+      return ThemeConfig.buildCardWidget(c, dragging: dragging);
     }
   }
 
-
-  // 更加科幻的微型目标图标
-  Widget _smallTargetIcon(CardTarget target, Color color) {
-    IconData icon;
-    switch (target) {
-      case CardTarget.enemy:
-        icon = Icons.gps_fixed;
-        break;
-      case CardTarget.self:
-        icon = Icons.shield;
-        break;
-      case CardTarget.all:
-        icon = Icons.grain;
-        break;
-    }
-    return Icon(icon, size: 10, color: color.withValues(alpha: 0.6));
-  }
 
   // 关键区域：攻击特效分发中心
   Widget _attackEffect(AttackEffect e) {
@@ -6623,51 +6495,86 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         });
       },
       child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.8, end: 1.0),
-        duration: const Duration(seconds: 1),
-        curve: Curves.easeInOut,
-        builder: (context, val, child) {
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: const Duration(milliseconds: 1500),
+        builder: (context, animVal, child) {
           final isHighlighted = _activeBuffName == tooltip;
+          
           return ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 22),
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 24),
             child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-            decoration: BoxDecoration(
-              color: isHighlighted 
-                  ? color.withValues(alpha: 0.2) 
-                  : const Color(0xFF0A0F16).withValues(alpha: 0.8),
-              borderRadius: BorderRadius.circular(2),
-              border: Border.all(
-                color: isHighlighted ? color : color.withValues(alpha: 0.5), 
-                width: isHighlighted ? 1.2 : 0.8
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    color.withValues(alpha: isHighlighted ? 0.3 : 0.1),
+                    color.withValues(alpha: 0.02),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(2),
+                  bottomRight: Radius.circular(10),
+                ),
+                border: Border.all(
+                  color: isHighlighted ? color : color.withValues(alpha: 0.3),
+                  width: isHighlighted ? 1.5 : 0.8,
+                ),
+                boxShadow: [
+                  if (isHighlighted)
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      spreadRadius: 1,
+                    ),
+                ],
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: (isHighlighted ? 0.3 : 0.1 * val).clamp(0.0, 1.0)),
-                  blurRadius: isHighlighted ? 8 : 4,
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Transform.scale(
-                  scale: val,
-                  child: Icon(icon, size: 10, color: color),
-                ),
-                const SizedBox(width: 3),
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: color.withValues(alpha: 0.9),
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'monospace',
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: Opacity(
+                      opacity: 0.05,
+                      child: CyberScanline(color: color),
+                    ),
                   ),
-                ),
-              ],
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.0, end: 1.0),
+                        duration: const Duration(milliseconds: 1500),
+                        builder: (context, val, child) {
+                          return Opacity(
+                            opacity: isHighlighted ? 1.0 : (0.7 + 0.3 * sin(val * pi)),
+                            child: Icon(icon, size: 12, color: color),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        value,
+                        style: TextStyle(
+                          color: color.withValues(alpha: 0.9),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          fontFamily: 'monospace',
+                          letterSpacing: -0.5,
+                          shadows: [
+                            Shadow(
+                              color: color.withValues(alpha: 0.5),
+                              blurRadius: isHighlighted ? 4 : 2,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ));
+          );
         },
       ),
     );
@@ -6747,16 +6654,24 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     if (effects.isEmpty) return const SizedBox.shrink();
     return Align(
       alignment: Alignment.centerLeft,
-      child: SizedBox(
-        height: 24,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: effects
-                .map((w) => Padding(padding: const EdgeInsets.only(right: 6), child: w))
-                .toList(),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        ),
+        child: SizedBox(
+          height: 26,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: effects
+                  .map((w) => Padding(padding: const EdgeInsets.only(right: 6), child: w))
+                  .toList(),
+            ),
           ),
         ),
       ),
@@ -6882,125 +6797,151 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       context: context,
       barrierDismissible: true,
       barrierLabel: "Dismiss",
-      barrierColor: Colors.black.withValues(alpha: 0.75),
-      transitionDuration: const Duration(milliseconds: 400),
+      barrierColor: Colors.black.withValues(alpha: 0.85),
+      transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, anim1, anim2) {
         return Center(
           child: Container(
-            width: MediaQuery.of(context).size.width * 0.9,
-            height: MediaQuery.of(context).size.height * 0.8,
-            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+            width: MediaQuery.of(context).size.width * 0.95,
+            height: MediaQuery.of(context).size.height * 0.85,
             child: Material(
               color: Colors.transparent,
               child: Stack(
                 children: [
-                  // 1. 背景层：模糊与网格
-                  RepaintBoundary(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(15),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0A0F16).withValues(alpha: 0.8),
-                            border: Border.all(
-                              color: color.withValues(alpha: 0.3),
-                              width: 1,
-                            ),
+                  // 1. 基础背景层：极简深色与高强度模糊
+                  ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(4),
+                      bottomRight: Radius.circular(30),
+                    ),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              const Color(0xFF05070A).withValues(alpha: 0.95),
+                              const Color(0xFF0A0F16).withValues(alpha: 0.95),
+                            ],
+                          ),
+                          border: Border.all(
+                            color: color.withValues(alpha: 0.4),
+                            width: 1.5,
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                  
-                  
-                  
-                  // 3. 装饰性边角
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: RepaintBoundary(
-                        child: CustomPaint(
-                          painter: CyberCornerPainter(color: color),
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  // 4. 内容层
-                  Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 标题栏
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: Stack(
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "// DATA_STREAM_VISUALIZER",
-                                  style: TextStyle(
-                                    color: color.withValues(alpha: 0.5),
-                                    fontSize: 10,
-                                    letterSpacing: 2,
-                                    fontFamily: 'monospace',
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  title,
-                                  style: TextStyle(
-                                    color: color,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 2,
-                                    fontSize: 22,
-                                    shadows: [
-                                      Shadow(
-                                        color: color.withValues(alpha: 0.5),
-                                        blurRadius: 10,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: color.withValues(alpha: 0.5)),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                "ENTRIES: ${cards.length}",
-                                style: TextStyle(
-                                  color: color,
-                                  fontSize: 12,
-                                  fontFamily: 'monospace',
-                                ),
+                            Positioned.fill(
+                              child: Opacity(
+                                opacity: 0.03,
+                                child: CyberScanline(color: color),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 20),
-                        
-                        // 分割线
-                        Container(
-                          height: 1,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                color.withValues(alpha: 0.8),
-                                color.withValues(alpha: 0.2),
-                                Colors.transparent,
+                      ),
+                    ),
+                  ),
+
+                  // 2. 装饰性：数字网格背景 (科幻感核心)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: Opacity(
+                        opacity: 0.05,
+                        child: CustomPaint(
+                          painter: CyberGridPainter(color: color),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // 3. 装饰性：角落系统编号
+                  Positioned(
+                    top: 10, left: 20,
+                    child: Text(
+                      "MEM_ADDR: 0x${cards.hashCode.toRadixString(16).toUpperCase()}",
+                      style: TextStyle(color: color.withValues(alpha: 0.3), fontSize: 8, fontFamily: 'monospace'),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 10, right: 20,
+                    child: Text(
+                      "BUFFER_STATUS: SECURE",
+                      style: TextStyle(color: color.withValues(alpha: 0.3), fontSize: 8, fontFamily: 'monospace'),
+                    ),
+                  ),
+
+                  // 4. 内容层
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 标题栏：HUD 风格
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.terminal, color: color, size: 14),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      "SYSTEM.FILE_VISUALIZER // V4.02",
+                                      style: TextStyle(
+                                        color: color.withValues(alpha: 0.5),
+                                        fontSize: 9,
+                                        letterSpacing: 2,
+                                        fontFamily: 'monospace',
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Stack(
+                                  children: [
+                                    Text(
+                                      title.toUpperCase(),
+                                      style: TextStyle(
+                                        color: color.withValues(alpha: 0.1),
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 6,
+                                        fontSize: 26,
+                                        fontFamily: 'monospace',
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 2, left: 2),
+                                      child: Text(
+                                        title.toUpperCase(),
+                                        style: TextStyle(
+                                          color: color,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 6,
+                                          fontSize: 24,
+                                          fontFamily: 'monospace',
+                                          shadows: [
+                                            Shadow(color: color.withValues(alpha: 0.5), blurRadius: 15),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ],
                             ),
-                          ),
+                            
+                          ],
                         ),
-                        const SizedBox(height: 20),
                         
+                        const SizedBox(height: 30),
+
                         // 卡牌列表
                         Expanded(
                           child: cards.isEmpty
@@ -7008,14 +6949,15 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.wifi_off, color: color.withValues(alpha: 0.3), size: 48),
-                                      const SizedBox(height: 16),
+                                      Icon(Icons.layers_clear, color: color.withValues(alpha: 0.2), size: 80),
+                                      const SizedBox(height: 20),
                                       Text(
-                                        "当前数据链路为空",
+                                        "NULL_POINTER // 无可用指令",
                                         style: TextStyle(
-                                          color: color.withValues(alpha: 0.5),
-                                          fontSize: 18,
-                                          letterSpacing: 2,
+                                          color: color.withValues(alpha: 0.4),
+                                          fontSize: 14,
+                                          letterSpacing: 5,
+                                          fontFamily: 'monospace',
                                         ),
                                       ),
                                     ],
@@ -7024,57 +6966,84 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                               : Theme(
                                   data: ThemeData.dark().copyWith(
                                     scrollbarTheme: ScrollbarThemeData(
-                                      thumbColor: WidgetStateProperty.all(color.withValues(alpha: 0.5)),
-                                      radius: const Radius.circular(10),
+                                      thumbColor: WidgetStateProperty.all(color.withValues(alpha: 0.3)),
+                                      thickness: WidgetStateProperty.all(2),
+                                      radius: Radius.zero,
                                     ),
                                   ),
-                                  child: GridView.builder(
-                                    padding: const EdgeInsets.only(right: 8),
-                                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 2,
-                                      childAspectRatio: 0.72,
-                                      crossAxisSpacing: 20,
-                                      mainAxisSpacing: 20,
+                                  child: Scrollbar(
+                                    child: GridView.builder(
+                                      padding: const EdgeInsets.only(right: 16),
+                                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: 2,
+                                        childAspectRatio: 0.7,
+                                        crossAxisSpacing: 24,
+                                        mainAxisSpacing: 24,
+                                      ),
+                                      itemCount: cards.length,
+                                      itemBuilder: (context, index) {
+                                        final card = cards[index].data;
+                                        if (card == null) return const SizedBox.shrink();
+                                        return _cardWidget(card);
+                                      },
                                     ),
-                                    cacheExtent: 600,
-                                    addAutomaticKeepAlives: true,
-                                    addRepaintBoundaries: true,
-                                    itemCount: cards.length,
-                                    itemBuilder: (context, index) {
-                                      final card = cards[index].data;
-                                      if (card == null) return const SizedBox.shrink();
-                                      return RepaintBoundary(child: _cardWidget(card));
-                                    },
                                   ),
                                 ),
                         ),
                         
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 30),
                         
-                        // 底部按钮
+                        // 底部关闭按钮：改为更像系统指令
                         Center(
                           child: GestureDetector(
                             onTap: () => Navigator.pop(context),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                              width: 220,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               decoration: BoxDecoration(
-                                color: color.withValues(alpha: 0.1),
-                                border: Border.all(color: color.withValues(alpha: 0.6)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: color.withValues(alpha: 0.2),
-                                    blurRadius: 8,
-                                    spreadRadius: 1,
+                                gradient: LinearGradient(
+                                  colors: [
+                                    color.withValues(alpha: 0.1),
+                                    color.withValues(alpha: 0.02),
+                                  ],
+                                ),
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(2),
+                                  bottomRight: Radius.circular(12),
+                                ),
+                                border: Border.all(
+                                  color: color.withValues(alpha: 0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Opacity(
+                                    opacity: 0.05,
+                                    child: CyberScanline(color: color),
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        "> DISCONNECT_STREAM",
+                                        style: TextStyle(
+                                          color: color,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 2,
+                                          fontSize: 11,
+                                          fontFamily: 'monospace',
+                                          shadows: [
+                                            Shadow(color: color.withValues(alpha: 0.3), blurRadius: 4),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _BlinkingCursor(color: color),
+                                    ],
                                   ),
                                 ],
-                              ),
-                              child: Text(
-                                "关闭会话 [ESC]",
-                                style: TextStyle(
-                                  color: color,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 4,
-                                ),
                               ),
                             ),
                           ),
@@ -7091,12 +7060,12 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       transitionBuilder: (context, anim1, anim2, child) {
         return FadeTransition(
           opacity: anim1,
-          child: ScaleTransition(
-            scale: CurvedAnimation(
-              parent: anim1,
-              curve: Curves.easeOutBack,
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: (1 - anim1.value) * 10, sigmaY: (1 - anim1.value) * 10),
+            child: ScaleTransition(
+              scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic),
+              child: child,
             ),
-            child: child,
           ),
         );
       },
@@ -7128,7 +7097,7 @@ class _BattleBackground extends StatelessWidget {
         // 网格层
         Positioned.fill(
           child: CustomPaint(
-            painter: _GridPainter(pulses: pulses, gridColor: gridColor),
+            painter: CyberBattleGridPainter(pulses: pulses, gridColor: gridColor),
           ),
         ),
       ],
@@ -7136,170 +7105,33 @@ class _BattleBackground extends StatelessWidget {
   }
 }
 
-/// 背景网格绘制
-class _GridPainter extends CustomPainter {
-  final List<GridPulse> pulses;
-  final Color gridColor;
-  _GridPainter({required this.pulses, required this.gridColor});
 
+
+/// 闪烁光标
+class _BlinkingCursor extends StatefulWidget {
+  final Color color;
+  const _BlinkingCursor({required this.color});
   @override
-  void paint(Canvas canvas, Size size) {
-    final now = DateTime.now();
-    const spacing = 40.0;
-    const maxRadius = 1000.0;
-    final pulseDurationMs = AnimDurations.gridPulse.inMilliseconds;
-    final isGold = gridColor.value == const Color(0xFFFFD700).value;
-    final baseAlpha = isGold ? 0.05 : 0.02;
-    final pulseAlpha = isGold ? 0.22 : 0.10;
-    final ringAlpha = isGold ? 0.30 : 0.15;
-    final baseStroke = isGold ? 1.4 : 1.0;
-    final pulseStroke = isGold ? 2.0 : 1.5;
-    final ringStroke = isGold ? 2.4 : 2.0;
-    final ringBlur = isGold ? 16.0 : 10.0;
-
-    // 绘制基础弱网格
-    final basePaint = Paint()
-      ..color = gridColor.withValues(alpha: baseAlpha)
-      ..strokeWidth = baseStroke;
-
-    for (double i = 0; i < size.width; i += spacing) {
-      canvas.drawLine(Offset(i, 0), Offset(i, size.height), basePaint);
-    }
-    for (double i = 0; i < size.height; i += spacing) {
-      canvas.drawLine(Offset(0, i), Offset(size.width, i), basePaint);
-    }
-
-    // 绘制扩散脉冲效果
-    for (final pulse in pulses) {
-      final elapsed = now.difference(pulse.startTime).inMilliseconds;
-      if (elapsed > pulseDurationMs) continue;
-
-      final progress = elapsed / pulseDurationMs;
-      final currentRadius = maxRadius * progress;
-      final fadeOut = (1.0 - progress).clamp(0.0, 1.0);
-
-      // 仅在高亮范围内绘制增强网格
-      final pulsePaint = Paint()
-        ..color = gridColor.withValues(alpha: pulseAlpha * fadeOut)
-        ..strokeWidth = pulseStroke
-        ..maskFilter = isGold ? const MaskFilter.blur(BlurStyle.normal, 6) : null;
-
-      // 绘制受脉冲影响的横线
-      for (double y = 0; y <= size.height; y += spacing) {
-        final distToY = (y - pulse.center.dy).abs();
-        if (distToY < currentRadius) {
-          // 计算该行在圆内的范围
-          final halfWidth = sqrt(pow(currentRadius, 2) - pow(distToY, 2));
-          final startX = (pulse.center.dx - halfWidth).clamp(0.0, size.width);
-          final endX = (pulse.center.dx + halfWidth).clamp(0.0, size.width);
-          if (startX < endX) {
-            canvas.drawLine(Offset(startX, y), Offset(endX, y), pulsePaint);
-          }
-        }
-      }
-
-      // 绘制受脉冲影响的竖线
-      for (double x = 0; x <= size.width; x += spacing) {
-        final distToX = (x - pulse.center.dx).abs();
-        if (distToX < currentRadius) {
-          final halfHeight = sqrt(pow(currentRadius, 2) - pow(distToX, 2));
-          final startY = (pulse.center.dy - halfHeight).clamp(0.0, size.height);
-          final endY = (pulse.center.dy + halfHeight).clamp(0.0, size.height);
-          if (startY < endY) {
-            canvas.drawLine(Offset(x, startY), Offset(x, endY), pulsePaint);
-          }
-        }
-      }
-      
-      // 绘制一个淡淡的扩散圆环
-      final ringPaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = ringStroke
-        ..color = gridColor.withValues(alpha: ringAlpha * fadeOut)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, ringBlur);
-      
-      canvas.drawCircle(pulse.center, currentRadius, ringPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _GridPainter oldDelegate) => pulses.isNotEmpty || oldDelegate.pulses.isNotEmpty;
+  _BlinkingCursorState createState() => _BlinkingCursorState();
 }
- 
-class _FireOverlayPainter extends CustomPainter {
-  final DateTime start;
-  _FireOverlayPainter(this.start);
-  Size? _lastSize;
-  List<Rect>? _stripes;
-  List<Color>? _stripeColors;
+
+class _BlinkingCursorState extends State<_BlinkingCursor> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
   @override
-  void paint(Canvas canvas, Size size) {
-    final elapsed = DateTime.now().difference(start).inMilliseconds;
-    final dur = 1600.0;
-    final p = (elapsed / dur).clamp(0.0, 1.0);
-    final grad = LinearGradient(
-      begin: Alignment.bottomCenter,
-      end: Alignment.topCenter,
-      colors: [
-        const Color(0xFFFF8C00).withValues(alpha: 0.35 * (1.0 - p)),
-        const Color(0xFFFF4500).withValues(alpha: 0.25 * (1.0 - p)),
-        Colors.transparent,
-      ],
-      stops: const [0.0, 0.4, 1.0],
-    ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Paint()..shader = grad,
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 500))..repeat(reverse: true);
+  }
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _controller,
+      child: Container(width: 8, height: 16, color: widget.color),
     );
-    if (_lastSize != size || _stripes == null || _stripeColors == null) {
-      _lastSize = size;
-      final rnd = Random(777);
-      _stripes = List.generate(24, (_) {
-        final x = rnd.nextDouble() * size.width;
-        final h = size.height * (0.2 + rnd.nextDouble() * 0.5);
-        final w = 2.0 + rnd.nextDouble() * 3.0;
-        return Rect.fromLTWH(x, 0, w, h);
-      });
-      _stripeColors = List.generate(24, (_) =>
-        Color.lerp(const Color(0xFFFFD700), const Color(0xFFFF4500), rnd.nextDouble())!.withValues(alpha: 0.18)
-      );
-    }
-    final yTop = size.height * (1.0 - p);
-    for (int i = 0; i < (_stripes!.length); i++) {
-      final base = _stripes![i];
-      final rect = Rect.fromLTWH(base.left, yTop, base.width, base.height);
-      final col = _stripeColors![i].withValues(alpha: 0.18 * (1.0 - p));
-      canvas.drawRect(rect, Paint()..color = col);
-    }
   }
-  @override
-  bool shouldRepaint(covariant _FireOverlayPainter oldDelegate) => true;
-}
- 
-class _WaveIdlePainter extends CustomPainter {
-  _WaveIdlePainter({Listenable? repaint}) : super(repaint: repaint);
-  @override
-  void paint(Canvas canvas, Size size) {
-    final base = const Color(0xFF4DCCFF);
-    final t = DateTime.now().millisecondsSinceEpoch / 1000.0;
-    for (int i = 0; i < 2; i++) {
-      final amp = 10.0 - i * 3.0;
-      final freq = 0.010 + i * 0.004;
-      final phase = t * (1.2 + i * 0.6);
-      final path = Path()..moveTo(0, size.height * 0.15 + i * 12 + amp * sin(phase));
-      for (double x = 0; x <= size.width; x += 6) {
-        final y = size.height * 0.15 + i * 12 + amp * sin(x * freq + phase);
-        path.lineTo(x, y);
-      }
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = base.withValues(alpha: 0.12 - i * 0.03)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.8 - i * 0.4,
-      );
-    }
-  }
-  @override
-  bool shouldRepaint(covariant _WaveIdlePainter oldDelegate) => true;
 }
