@@ -8,8 +8,14 @@ import 'brainchip_data.dart';
 class GameState {
   static int playerMaxHp = 80; // 最大完整度 (Max Integrity)
   static int playerHp = 80;    // 当前完整度 (Current Integrity)
-  static int playerBlock = 0;  // 防火墙强度 (Firewall Strength)
-  static int playerStrength = 0; // 算力加成 (Strength)
+  static int playerBlock = 0;  // 临时防火墙强度 (Temporary Firewall Strength)
+  static int playerStrength = 0; // 临时算力加成 (Temporary Strength)
+  
+  // 永久初始属性 (Permanent Initial Attributes)
+  static int permanentStrength = 0; // 初始算力 (Initial Strength)
+  static int permanentBlock = 0;    // 初始防火墙 (Initial Firewall)
+  
+  static int playerGold = 0;    // 信用点/金币 (Gold)
   static String selectedCharacterId = "ironclad"; // 默认选择铁甲战士
   
   // 数据包（抽牌堆，跨关卡持久化）
@@ -36,6 +42,8 @@ class GameState {
   static void reset() {
     playerBlock = 0;
     playerStrength = 0;
+    permanentStrength = 0;
+    permanentBlock = 0;
     heatProgress = 0;
     drawPile.clear();
   }

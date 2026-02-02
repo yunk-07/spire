@@ -21,6 +21,7 @@ class CharacterData {
   final CharacterClass characterClass;
   final IconData icon;
   final int maxHp;
+  final int initialGold; // 初始金币 (Initial Gold)
   final List<String> startingDeck;
   final int minDrawPerTurn;
   final int maxDrawPerTurn;
@@ -33,6 +34,7 @@ class CharacterData {
     required this.characterClass,
     required this.icon,
     required this.maxHp,
+    this.initialGold = 99,
     required this.startingDeck,
     required this.minDrawPerTurn,
     required this.maxDrawPerTurn,
@@ -52,6 +54,7 @@ const Map<String, CharacterData> characterDatabase = {
     characterClass: CharacterClass.xueye,
     icon: Icons.favorite,
     maxHp: 100,
+    initialGold: 99,
     startingDeck: [
       "xueye_strike",
       "xueye_strike",
@@ -84,6 +87,7 @@ const Map<String, CharacterData> characterDatabase = {
     characterClass: CharacterClass.lin,
     icon: Icons.account_tree,
     maxHp: 120,
+    initialGold: 120,
     startingDeck: [
       "lin_strike",
       "lin_strike",
@@ -115,6 +119,7 @@ const Map<String, CharacterData> characterDatabase = {
     characterClass: CharacterClass.langchao,
     icon: Icons.waves,
     maxHp: 95,
+    initialGold: 150,
     startingDeck: [
       "langchao_strike",
       "langchao_strike",
@@ -145,6 +150,7 @@ const Map<String, CharacterData> characterDatabase = {
     characterClass: CharacterClass.jianren,
     icon: Icons.colorize,
     maxHp: 166,
+    initialGold: 80,
     startingDeck: [
       "jianren_strike",
       "jianren_strike",
@@ -178,6 +184,7 @@ const Map<String, CharacterData> characterDatabase = {
     characterClass: CharacterClass.yanxin,
     icon: Icons.local_fire_department,
     maxHp: 82,
+    initialGold: 110,
     startingDeck: [
       "yanxin_strike",
       "yanxin_strike",
@@ -210,6 +217,7 @@ const Map<String, CharacterData> characterDatabase = {
     characterClass: CharacterClass.yingshi,
     icon: Icons.visibility_off,
     maxHp: 80,
+    initialGold: 130,
     startingDeck: [
       "yingshi_strike",
       "yingshi_strike",
@@ -243,6 +251,7 @@ const Map<String, CharacterData> characterDatabase = {
     characterClass: CharacterClass.jihe,
     icon: Icons.category,
     maxHp: 90,
+    initialGold: 105,
     startingDeck: [
       "jihe_strike",
       "jihe_strike",
@@ -274,6 +283,7 @@ const Map<String, CharacterData> characterDatabase = {
     characterClass: CharacterClass.xuxing,
     icon: Icons.blur_on,
     maxHp: 94,
+    initialGold: 140,
     startingDeck: [
       "xuxing_strike",
       "xuxing_strike",
@@ -305,6 +315,7 @@ const Map<String, CharacterData> characterDatabase = {
     characterClass: CharacterClass.fa,
     icon: Icons.gavel,
     maxHp: 95,
+    initialGold: 115,
     startingDeck: [
       "data_broadcast",
       "matrix_sweep",

@@ -56,34 +56,53 @@ class MaintenanceBayScreen extends StatelessWidget {
                               label: "// MAINTENANCE_BAY",
                               child: Padding(
                                 padding: const EdgeInsets.all(16.0),
-                                child: CyberButton(
-                                  width: 360,
-                                  height: 80,
-                                  fontSize: 14,
-                                  label: '维保检修：随机提供一张牌（可选），接受则修复10',
-                                  color: themeColor,
-                                  onPressed: () async {
-                                    final random = Random();
-                                    // 关键区域：排除恶魔和神圣系列卡牌（仅限Boss奖励）
-                                    final availableCards = cardDatabase.values.where((c) => c.suite != CardSuite.demon && c.suite != CardSuite.holy).toList();
-                                    if (availableCards.isEmpty) {
-                                      CyberToast.show(context, '数据库暂无可用卡牌');
-                                      return;
-                                    }
-                                    final card = availableCards[random.nextInt(availableCards.length)];
-                                    final cardId = card.id;
-                                    final accepted = await _showOfferDialog(context, cardId, card.name, card.description ?? '', themeColor);
-                                    if (accepted == true) {
-                                      if (!GameState.drawPile.contains(cardId)) {
-                                        GameState.drawPile.add(cardId);
-                                      }
-                                      GameState.heal(10);
-                                    }
-                                    GameProgress.markDefeated(levelId);
-                                    if (context.mounted) {
-                                      Navigator.pushReplacement(context, createHoloRoute(const MapScreen(canSelect: true)));
-                                    }
-                                  },
+                                child: Column(
+                                  children: [
+                                    CyberButton(
+                                      width: 360,
+                                      height: 60,
+                                      fontSize: 14,
+                                      label: '维保检修：随机一张牌，接受则修复10',
+                                      color: themeColor,
+                                      onPressed: () async {
+                                        final random = Random();
+                                        final availableCards = cardDatabase.values.where((c) => c.suite != CardSuite.demon && c.suite != CardSuite.holy).toList();
+                                        if (availableCards.isEmpty) {
+                                          CyberToast.show(context, '数据库暂无可用卡牌');
+                                          return;
+                                        }
+                                        final card = availableCards[random.nextInt(availableCards.length)];
+                                        final cardId = card.id;
+                                        final accepted = await _showOfferDialog(context, cardId, card.name, card.description ?? '', themeColor);
+                                        if (accepted == true) {
+                                          if (!GameState.drawPile.contains(cardId)) {
+                                            GameState.drawPile.add(cardId);
+                                          }
+                                          GameState.heal(10);
+                                        }
+                                        GameProgress.markDefeated(levelId);
+                                        if (context.mounted) {
+                                          Navigator.pushReplacement(context, createHoloRoute(const MapScreen(canSelect: true)));
+                                        }
+                                      },
+                                    ),
+                                    const SizedBox(height: 16),
+                                    CyberButton(
+                                      width: 360,
+                                      height: 60,
+                                      fontSize: 14,
+                                      label: '系统强化：永久增加 1 点算力',
+                                      color: const Color(0xFF6CFF9E),
+                                      onPressed: () {
+                                        GameState.permanentStrength += 1;
+                                        GameProgress.markDefeated(levelId);
+                                        if (context.mounted) {
+                                          CyberToast.show(context, '维保完成：永久算力 +1');
+                                          Navigator.pushReplacement(context, createHoloRoute(const MapScreen(canSelect: true)));
+                                        }
+                                      },
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),

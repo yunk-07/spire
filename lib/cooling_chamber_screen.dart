@@ -57,11 +57,11 @@ class CoolingChamberScreen extends StatelessWidget {
                                   width: 320,
                                   height: 60,
                                   fontSize: 14,
-                                  label: '深度冷却：恢复 30 + 初始防火墙 +15',
+                                  label: '深度冷却：恢复 30 + 永久防火墙 +5',
                                   color: GameState.getThemeColor(),
                                   onPressed: () {
                                     GameState.heal(30);
-                                    GameState.playerBlock = 15;
+                                    GameState.permanentBlock += 5;
                                     GameProgress.markDefeated(levelId);
                                     Navigator.pushReplacement(context, createHoloRoute(const MapScreen(canSelect: true)));
                                   },

@@ -66,6 +66,14 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
     _finishRest();
   }
 
+  void _onUpgradeBlock() async {
+    if (_isProcessing) return;
+    setState(() => _isProcessing = true);
+    await Future.delayed(const Duration(milliseconds: 1000));
+    GameState.permanentBlock += 2;
+    _finishRest();
+  }
+
   void _onTimeJump() async {
     if (_isProcessing) return;
     Navigator.push(
@@ -200,6 +208,15 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
             icon: Icons.history_edu,
             color: color,
             onTap: _onHeal,
+          ),
+          const SizedBox(height: 20),
+          _buildCyberOption(
+            title: "防火墙强化",
+            subtitle: "FIREWALL_STRENGTHEN",
+            desc: "永久增加 2 点基础防火墙强度",
+            icon: Icons.shield_outlined,
+            color: const Color(0xFF6CFF9E),
+            onTap: _onUpgradeBlock,
           ),
           const SizedBox(height: 20),
           _buildCyberOption(

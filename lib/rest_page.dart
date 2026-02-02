@@ -83,6 +83,40 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
     }
   }
 
+  void _onUpgradeStrength() {
+    GameState.permanentStrength += 1;
+    GameProgress.markDefeated(levelId);
+    if (mounted) {
+      CyberToast.show(context, '系统升级：永久算力 +1');
+      Navigator.pushReplacement(
+        context,
+        createHoloRoute(
+          const MapScreen(
+            canReturnToGame: true,
+            canSelect: true,
+          ),
+        ),
+      );
+    }
+  }
+
+  void _onUpgradeBlock() {
+    GameState.permanentBlock += 2;
+    GameProgress.markDefeated(levelId);
+    if (mounted) {
+      CyberToast.show(context, '系统升级：永久防火墙 +2');
+      Navigator.pushReplacement(
+        context,
+        createHoloRoute(
+          const MapScreen(
+            canReturnToGame: true,
+            canSelect: true,
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -269,6 +303,20 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
                 title: '执行底层修复',
                 description: '恢复 20 点生命',
                 onTap: _onRest,
+              ),
+              const SizedBox(height: 16),
+              _optionButton(
+                icon: Icons.add_moderator,
+                title: '永久增加防火墙',
+                description: '基础护盾永久增加 2 点',
+                onTap: _onUpgradeBlock,
+              ),
+              const SizedBox(height: 16),
+              _optionButton(
+                icon: Icons.trending_up,
+                title: '永久提升算力',
+                description: '基础攻击伤害永久增加 1 点',
+                onTap: _onUpgradeStrength,
               ),
               const SizedBox(height: 16),
               _optionButton(

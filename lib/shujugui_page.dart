@@ -19,6 +19,7 @@ class ShujuguiPage extends StatefulWidget {
 
 class _ShujuguiPageState extends State<ShujuguiPage> {
   late final List<CardData> _cards;
+  late final List<int> _prices;
 
   LevelInfo? get node => widget.level;
   String get levelId => node?.id ?? 'UNKNOWN';
@@ -32,10 +33,17 @@ class _ShujuguiPageState extends State<ShujuguiPage> {
     final high = cardDatabase.values.where((c) => c.level >= 4 && c.suite != CardSuite.demon && c.suite != CardSuite.holy).toList();
     final pool = List<CardData>.from(high);
     final picked = <CardData>[];
+    final prices = <int>[];
     while (picked.length < 2 && pool.isNotEmpty) {
-      picked.add(pool.removeAt(random.nextInt(pool.length)));
+      final card = pool.removeAt(random.nextInt(pool.length));
+      picked.add(card);
+      // 价格逻辑：基础价格(等级*20 + 30) + 随机浮动(-10到20)
+      int basePrice = card.level * 20 + 30;
+      int offset = random.nextInt(31) - 10;
+      prices.add(basePrice + offset);
     }
     _cards = picked;
+    _prices = prices;
   }
 
   @override
@@ -78,15 +86,17 @@ class _ShujuguiPageState extends State<ShujuguiPage> {
                               child: SingleChildScrollView(
                                 scrollDirection: Axis.horizontal,
                                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                                child: Row(children: _cards.map((c) => _cardTile(c)).toList()),
+                                child: Row(children: List.generate(_cards.length, (i) => _cardTile(_cards[i], _prices[i]))),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 40),
+                          const SizedBox(height: 20),
+                          _buildGoldDisplay(color),
+                          const SizedBox(height: 20),
                           Padding(
                             padding: const EdgeInsets.only(bottom: 40),
                             child: Text(
-                              '请选择一张数据柜卡牌以继续...',
+                              '请消耗信用点选择一张数据柜卡牌以继续...',
                               style: TextStyle(
                                 color: color.withValues(alpha: 0.6),
                                 fontFamily: 'monospace',
@@ -104,6 +114,33 @@ class _ShujuguiPageState extends State<ShujuguiPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildGoldDisplay(Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.monetization_on, color: Color(0xFFFFD700), size: 18),
+          const SizedBox(width: 8),
+          Text(
+            '当前信用点: ${GameState.playerGold}',
+            style: const TextStyle(
+              color: Color(0xFFFFD700),
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'monospace',
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -141,7 +178,7 @@ class _ShujuguiPageState extends State<ShujuguiPage> {
   }
 
 
-  Widget _cardTile(CardData c) {
+  Widget _cardTile(CardData c, int price) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: SizedBox(
@@ -156,7 +193,7 @@ class _ShujuguiPageState extends State<ShujuguiPage> {
               right: 0,
               bottom: 0,
               child: GestureDetector(
-                onTap: () => _select(c),
+                onTap: () => _select(c, price),
                 child: ThemeConfig.buildCardWidget(c, width: 160, height: 240),
               ),
             ),
@@ -182,12 +219,12 @@ class _ShujuguiPageState extends State<ShujuguiPage> {
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(Icons.storage, size: 11, color: Color(0xFFE26CFF)),
-                    SizedBox(width: 4),
+                  children: [
+                    const Icon(Icons.storage, size: 11, color: Color(0xFFE26CFF)),
+                    const SizedBox(width: 4),
                     Text(
-                      '封存',
-                      style: TextStyle(
+                      '封存 $price',
+                      style: const TextStyle(
                         color: Color(0xFFE26CFF),
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
@@ -205,13 +242,29 @@ class _ShujuguiPageState extends State<ShujuguiPage> {
     );
   }
 
-  Future<void> _select(CardData c) async {
+  Future<void> _select(CardData c, int price) async {
+    if (GameState.playerGold < price) {
+      // 关键区域：检查是否买不起任何商品
+      bool canAffordAny = _prices.any((p) => GameState.playerGold >= p);
+      if (!canAffordAny) {
+        if (mounted) {
+          CyberToast.show(context, '你什么也买不起，被赏了20');
+          GameState.playerGold += 20;
+          GameProgress.markDefeated(levelId);
+          Navigator.pushReplacement(context, createHoloRoute(const MapScreen(canSelect: true)));
+        }
+        return;
+      }
+      CyberToast.show(context, '信用点不足，无法获取此卡牌');
+      return;
+    }
+    GameState.playerGold -= price;
     if (!GameState.drawPile.contains(c.id)) {
       GameState.drawPile.add(c.id);
     }
     GameProgress.markDefeated(levelId);
     if (mounted) {
-      CyberToast.show(context, '已从数据柜获取卡牌 [${c.name}]');
+      CyberToast.show(context, '已消耗 $price 信用点获取卡牌 [${c.name}]');
       Navigator.pushReplacement(context, createHoloRoute(const MapScreen(canSelect: true)));
     }
   }

@@ -522,25 +522,75 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                                           ),
                                         ),
                                         const Spacer(),
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                        Row(
                                           children: [
-                                            Text(
-                                              "ITG_SYNC",
-                                              style: TextStyle(
-                                                color: isSelected ? ThemeConfig.getClassColor(character.characterClass).withValues(alpha: 0.5) : Colors.white10,
-                                                fontSize: 7,
-                                                fontFamily: 'monospace',
-                                              ),
+                                            Column(
+                                              crossAxisAlignment: CrossAxisAlignment.end,
+                                              children: [
+                                                Text(
+                                                  "HP_CAP",
+                                                  style: TextStyle(
+                                                    color: isSelected ? ThemeConfig.getClassColor(character.characterClass).withValues(alpha: 0.5) : Colors.white10,
+                                                    fontSize: 7,
+                                                    fontFamily: 'monospace',
+                                                  ),
+                                                ),
+                                                Text(
+                                                  '${character.maxHp}',
+                                                  style: TextStyle(
+                                                    color: isSelected ? ThemeConfig.getClassColor(character.characterClass) : const Color(0xFF8FA3C0),
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w900,
+                                                    fontFamily: 'monospace',
+                                                  ),
+                                                ),
+                                              ],
                                             ),
-                                            Text(
-                                              '${character.maxHp}',
-                                              style: TextStyle(
-                                                color: isSelected ? ThemeConfig.getClassColor(character.characterClass) : const Color(0xFF8FA3C0),
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w900,
-                                                fontFamily: 'monospace',
-                                              ),
+                                            const SizedBox(width: 12),
+                                            Column(
+                                              crossAxisAlignment: CrossAxisAlignment.end,
+                                              children: [
+                                                Text(
+                                                  "INIT_CREDITS",
+                                                  style: TextStyle(
+                                                    color: isSelected ? const Color(0xFFFFD700).withValues(alpha: 0.5) : Colors.white10,
+                                                    fontSize: 7,
+                                                    fontFamily: 'monospace',
+                                                  ),
+                                                ),
+                                                Text(
+                                                  '${character.initialGold}',
+                                                  style: TextStyle(
+                                                    color: isSelected ? const Color(0xFFFFD700) : const Color(0xFF8FA3C0),
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w900,
+                                                    fontFamily: 'monospace',
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Column(
+                                              crossAxisAlignment: CrossAxisAlignment.end,
+                                              children: [
+                                                Text(
+                                                  "DECK_SIZE",
+                                                  style: TextStyle(
+                                                    color: isSelected ? Colors.blueAccent.withValues(alpha: 0.5) : Colors.white10,
+                                                    fontSize: 7,
+                                                    fontFamily: 'monospace',
+                                                  ),
+                                                ),
+                                                Text(
+                                                  '${character.startingDeck.length}',
+                                                  style: TextStyle(
+                                                    color: isSelected ? Colors.blueAccent : const Color(0xFF8FA3C0),
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w900,
+                                                    fontFamily: 'monospace',
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ],
                                         ),
@@ -653,6 +703,7 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                           final character = characterDatabase[selectedCharacterId!]!;
                           GameState.playerMaxHp = character.maxHp;
                           GameState.playerHp = character.maxHp;
+                          GameState.playerGold = character.initialGold;
                           // 初始化持久化牌组
                           GameState.drawPile = List.from(character.startingDeck);
                           Navigator.push(

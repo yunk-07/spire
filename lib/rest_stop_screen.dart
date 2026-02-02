@@ -57,11 +57,11 @@ class RestStopScreen extends StatelessWidget {
                                   width: 280,
                                   height: 60,
                                   fontSize: 14,
-                                  label: '短暂歇脚：恢复 20 + 初始算力 +1',
+                                  label: '短暂歇脚：恢复 20 + 永久算力 +1',
                                   color: GameState.getThemeColor(),
                                   onPressed: () {
                                     GameState.heal(20);
-                                    GameState.playerStrength += 1;
+                                    GameState.permanentStrength += 1;
                                     GameProgress.markDefeated(levelId);
                                     Navigator.pushReplacement(context, createHoloRoute(const MapScreen(canSelect: true)));
                                   },

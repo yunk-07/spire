@@ -19,6 +19,7 @@ import 'shujugui_page.dart';
 import 'jiaohuan_zhan_page.dart';
 import 'theme_config.dart';
 import 'program_data.dart';
+import 'character_data.dart';
 import 'campfire_screen.dart';
 import 'rest_stop_screen.dart';
 import 'maintenance_bay_screen.dart';
@@ -219,6 +220,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     Row(
                       children: [
                         _hudStatusItem("MAP_PROTOCOL", "V4.2.0", themeColor),
+                        const SizedBox(width: 16),
+                        _hudStatusItem("OPERATOR", characterDatabase[GameState.selectedCharacterId]?.name ?? "UNKNOWN", themeColor),
+                        const SizedBox(width: 16),
+                        _hudStatusItem("ITG", "${GameState.playerHp}/${GameState.playerMaxHp}", GameState.playerHp / GameState.playerMaxHp < 0.3 ? Colors.redAccent : themeColor),
+                        const SizedBox(width: 16),
+                        _hudStatusItem("CREDITS", GameState.playerGold.toString(), const Color(0xFFFFD700)),
                         const Spacer(),
                         _hudStatusItem("LOC_NODE", GameProgress.currentLevelId?.substring(0, 8) ?? "N/A", themeColor),
                       ],

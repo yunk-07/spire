@@ -249,6 +249,15 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
                   ),
                   const SizedBox(height: 16),
                   _optionCard(
+                    title: "强化",
+                    subtitle: "STRENGTHEN",
+                    desc: "永久增加 1 点算力",
+                    color: const Color(0xFF6CFF9E),
+                    icon: Icons.trending_up,
+                    onTap: _onUpgradeStrength,
+                  ),
+                  const SizedBox(height: 16),
+                  _optionCard(
                     title: "锻造",
                     subtitle: "PURGE_CARD",
                     desc: "移除一张牌，优化指令集",
@@ -420,6 +429,14 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
       GameState.drawPile.remove(removed);
       _finish();
     }
+  }
+
+  void _onUpgradeStrength() async {
+    if (_isProcessing) return;
+    setState(() => _isProcessing = true);
+    await Future.delayed(const Duration(milliseconds: 600));
+    GameState.permanentStrength += 1;
+    _finish();
   }
 
   Future<String?> _showRemoveDialog(BuildContext context, List<String> ids) async {

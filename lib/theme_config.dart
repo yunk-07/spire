@@ -8,6 +8,9 @@ import 'animation_constants.dart';
 
 /// 统一管理卡牌样式、配色和系列相关配置
 class ThemeConfig {
+  /// 默认卡牌基础颜色 (青色)
+  static const Color defaultCardColor = Color(0xFF6CE4FF);
+
   /// 根据职业获取颜色
   static Color getClassColor(CharacterClass characterClass) {
     switch (characterClass) {
@@ -42,7 +45,7 @@ class ThemeConfig {
   static Color getSuiteColor(CardSuite suite) {
     switch (suite) {
       case CardSuite.classic:
-        return GameState.getThemeColor();
+        return defaultCardColor;
       case CardSuite.overload:
         return const Color(0xFFFF4444); // 红色
       case CardSuite.secure:
@@ -67,7 +70,7 @@ class ThemeConfig {
       case 1:
         return const Color(0xFF44FF44); // 绿色
       case 2:
-        return GameState.getThemeColor(); // 主题蓝/青
+        return defaultCardColor; // 主题蓝/青
       case 3:
         return const Color(0xFFE26CFF); // 粉紫色
       case 4:
@@ -478,11 +481,30 @@ class SuiteTechPainter extends CustomPainter {
         }
         break;
       case CardSuite.holy:
-        // 神圣：发散的十字星与圆环
-        final center = Offset(size.width * 0.5, size.height * 0.4);
-        canvas.drawCircle(center, 15, paint..style = PaintingStyle.stroke);
-        canvas.drawLine(center - const Offset(20, 0), center + const Offset(20, 0), paint);
-        canvas.drawLine(center - const Offset(0, 20), center + const Offset(0, 20), paint);
+        // 神圣：大型十字架背景
+        final centerX = size.width * 0.5;
+        final centerY = size.height * 0.5;
+        final crossWidth = size.width * 0.5;
+        final crossHeight = size.height * 0.7;
+        final barThickness = 4.0;
+        
+        // 垂直条
+        canvas.drawRect(
+          Rect.fromLTWH(centerX - barThickness / 2, centerY - crossHeight * 0.5, barThickness, crossHeight),
+          paint..style = PaintingStyle.fill,
+        );
+        // 水平条 (位置稍高，形成拉丁十字)
+        canvas.drawRect(
+          Rect.fromLTWH(centerX - crossWidth * 0.5, centerY - crossHeight * 0.2, crossWidth, barThickness),
+          paint..style = PaintingStyle.fill,
+        );
+        
+        // 周围的发光圆环
+        canvas.drawCircle(
+          Offset(centerX, centerY - crossHeight * 0.2), 
+          12, 
+          paint..style = PaintingStyle.stroke..strokeWidth = 0.5
+        );
         break;
     }
   }

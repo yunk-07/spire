@@ -715,7 +715,7 @@ const Map<String, CardData> cardDatabase = {
     cost: 2,
     level: 3,
     effect: 'strength 5; self_damage 1',
-    description: '强行开启无限循环模式，提升 5 点算力，但导致系统严重过热受损 1 点。',
+    description: '提升 5 点算力，但导致系统严重过热受损 1 点。',
   ),
   'system_reboot': CardData(
     id: 'system_reboot',
