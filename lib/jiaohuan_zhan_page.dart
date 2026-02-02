@@ -218,7 +218,25 @@ class _JiaohuanZhanPageState extends State<JiaohuanZhanPage> {
   Future<void> _select(CardData c, int price) async {
     final hp = GameState.playerHp;
     if (hp < price) {
-      CyberToast.show(context, '生命不足，无法交换');
+      // 关键区域：生命值不足的惩罚逻辑
+      if (GameState.drawPile.isNotEmpty) {
+        final random = Random();
+        final removedIdx = random.nextInt(GameState.drawPile.length);
+        final removedCardId = GameState.drawPile.removeAt(removedIdx);
+        final removedCardName = cardDatabase[removedCardId]?.name ?? removedCardId;
+        CyberToast.show(context, '你什么也交换不了，随机删除了一张牌 [$removedCardName]');
+      } else {
+        CyberToast.show(context, '你什么也交换不了，但你已经没有牌可以删除了...');
+      }
+      
+      GameProgress.markDefeated(levelId);
+      if (mounted) {
+        // 延迟一下让玩家看清提示，然后结束当前页面返回地图
+        await Future.delayed(const Duration(milliseconds: 1500));
+        if (mounted) {
+          Navigator.pushReplacement(context, createHoloRoute(const MapScreen(canSelect: true)));
+        }
+      }
       return;
     }
     GameState.playerHp = (hp - price).clamp(0, GameState.playerMaxHp);

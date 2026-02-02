@@ -978,7 +978,7 @@ const Map<String, CardData> cardDatabase = {
     cost: 3,
     level: 999, // Lv 为 ? 在显示逻辑中处理
     effect: 'damage 66; curse 3; weak 3',
-    description: '释放来自深渊的威压。对全体造成 66 点伤害，施加 3 层恶意代码和虚弱。',
+    description: '对全体造成 66 点伤害，施加 3 层恶意代码和虚弱。',
   ),
   'demon_embrace': CardData(
     id: 'demon_embrace',
@@ -1000,7 +1000,7 @@ const Map<String, CardData> cardDatabase = {
     cost: 0,
     level: 999,
     effect: 'energy 3; draw 5; max_hp_down 2',
-    description: '签署不可逆的契约。获得 3 点能量并摸 5 张牌，但永久失去 2 点生命上限。',
+    description: '获得 3 点能量并摸 5 张牌，但永久失去 2 点生命上限。',
   ),
 
   // --- 独特：神圣系列 ---

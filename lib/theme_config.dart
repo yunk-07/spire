@@ -142,11 +142,11 @@ class ThemeConfig {
     if (text.isEmpty) return const SizedBox.shrink();
 
     // 关键词分类
-    const buffKeywords = {'防火墙加固', '算力', '系统修复', '能量', '能量点', '数据包', '带宽', '接入点'};
+    const buffKeywords = {'防火墙加固', '算力', '系统修复', '能量', '能量点', '数据包', '带宽', '接入点', '两次'};
     const debuffKeywords = {'虚弱', '脆弱', '漏洞暴露', '恶意代码'};
     const damageKeywords = {'冲击', '自损', '受损', '过载伤害'};
 
-    final regex = RegExp(r'(\d+)|(冲击|防火墙加固|数据包|算力|虚弱|脆弱|恶意代码|自损|系统修复|能量|能量点|漏洞暴露|受损|带宽|过载伤害|接入点)');
+    final regex = RegExp(r'(\d+)|(冲击|防火墙加固|数据包|算力|虚弱|脆弱|恶意代码|自损|系统修复|能量|能量点|漏洞暴露|受损|带宽|过载伤害|接入点|两次)');
     final List<TextSpan> spans = [];
     int lastMatchEnd = 0;
 

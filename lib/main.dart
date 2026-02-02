@@ -137,9 +137,10 @@ void main() {
     int sturdy = 0;
 
   // 状态效果
-  int vulnerable = 0; // 脆弱：受到额外冲击
+  int vulnerable = 0; // 漏洞暴露：受到额外冲击
   int weak = 0; // 虚弱：造成冲击减少
   int strength = 0; // 算力：增加造成的冲击
+  int bloodStrength = 0; // 血液算力：专门记录血液被动的加成
   int curse = 0; // 诅咒：恶意代码层数
 
   Entity(this.name, this.hp, {int? maxHp}) : maxHp = maxHp ?? hp;
@@ -156,6 +157,7 @@ enum PopupType {
   heal,        // 恢复生命 (绿色)
   gold,        // 获得金币 (金色)
   crit,        // 暴击伤害 (橙红色，更大)
+  blockTip,    // 格挡文字提示 (青色)
 }
 
 class GamePopup {
@@ -289,6 +291,14 @@ class _GamePopupWidgetState extends State<GamePopupWidget> with SingleTickerProv
               Shadow(color: const Color(0xFFFFD700).withValues(alpha: 0.8), blurRadius: 10),
             ];
             break;
+          case PopupType.blockTip:
+            textColor = const Color(0xFF00F0FF); // 赛博青
+            prefix = "";
+            shadows = [
+              const Shadow(color: Colors.black, blurRadius: 4),
+              Shadow(color: const Color(0xFF00F0FF).withValues(alpha: 0.8), blurRadius: 15),
+            ];
+            break;
         }
 
         return Positioned(
@@ -403,6 +413,8 @@ class AnimationService extends ChangeNotifier {
   }
 
   void showDamage(Entity target, int value, {bool isCrit = false}) {
+    if (value <= 0) return; // 仅显示大于 0 的伤害
+
     final ctx = target.key.currentContext;
     if (ctx == null) return;
 
@@ -443,6 +455,29 @@ class AnimationService extends ChangeNotifier {
       glitching.remove(target); // 停止效果
       notifyListeners();
     });
+
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      gamePopups.remove(p);
+      notifyListeners();
+    });
+  }
+
+  void showBlockTip(Entity target) {
+    final ctx = target.key.currentContext;
+    if (ctx == null) return;
+
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final pos = box.localToGlobal(const Offset(50, -10)); // 位置稍高
+
+    final p = GamePopup(
+      value: "格挡",
+      pos: pos,
+      type: PopupType.blockTip,
+    );
+    gamePopups.add(p);
+    notifyListeners();
+    _ensurePump();
 
     Future.delayed(const Duration(milliseconds: 1200), () {
       gamePopups.remove(p);
@@ -499,6 +534,7 @@ class AnimationService extends ChangeNotifier {
   }
 
   void showBlockDamage(Entity target, int value) {
+    if (value <= 0) return;
     final ctx = target.key.currentContext;
     if (ctx == null) return;
     final box = ctx.findRenderObject() as RenderBox?;
@@ -535,6 +571,7 @@ class AnimationService extends ChangeNotifier {
   }
 
   void showBlockGain(Entity target, int value) {
+    if (value <= 0) return;
     final ctx = target.key.currentContext;
     if (ctx == null) return;
     final box = ctx.findRenderObject() as RenderBox?;
@@ -563,6 +600,7 @@ class AnimationService extends ChangeNotifier {
   }
 
   void showHeal(Entity target, int value) {
+    if (value <= 0) return;
     final ctx = target.key.currentContext;
     if (ctx == null) return;
     final box = ctx.findRenderObject() as RenderBox?;
@@ -583,6 +621,7 @@ class AnimationService extends ChangeNotifier {
   }
 
   void showGold(Entity target, int value) {
+    if (value <= 0) return;
     final ctx = target.key.currentContext;
     if (ctx == null) return;
     final box = ctx.findRenderObject() as RenderBox?;
@@ -889,9 +928,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     "算力": "每层算力使攻击造成的伤害增加 1 点。",
     "临时算力": "每层临时算力使攻击造成的伤害增加 1 点，回合开始时 -5。",
     "血液算力": "血液被动的额外算力，基于损失生命值计算。",
-    "虚弱": "每层使攻击伤害递减 25%（逐层依次计算）。",
-    "脆弱": "脆弱状态下，受到攻击时受到的伤害增加 10%/层。",
-    "恶意代码": "每层恶意代码使受到攻击时额外受到的伤害增加 2 点。",
+    "虚弱": "虚弱状态下，造成的冲击伤害降低 25%。(层数代表持续回合)",
+    "漏洞暴露": "漏洞暴露状态下，受到攻击时受到的伤害增加 50%。(层数代表持续回合)",
+    "恶意代码": "每层恶意代码使受到攻击时额外受到的伤害增加 2 点。(每回合 -1 层)",
     "火焰": "回合结束后造成等于层数的伤害；护盾清零；每回合层数 -1。",
     "坚固": "拥有该状态时回合结束护盾不清零，每回合 -1。",
   };
@@ -1315,11 +1354,33 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         case 'self_damage':
           if (parts.length > 1) {
             final value = int.tryParse(parts[1]) ?? 1;
-            // 修复：自损不应该受算力加成，直接扣除生命值
+            // 自损不应该受算力加成，直接扣除生命值
             player.hp = max(0, player.hp - value);
             anim.showDamage(player, value);
             _playHitSound();
             GameState.playerHp = player.hp;
+
+            // 关键区域：血液职业处理
+            if (characterData.characterClass == CharacterClass.xueye) {
+              // 1. 触发【生命回收】：自损伤害/10 恢复生命值（四舍五入）
+              final healAmount = (value / 10.0).round();
+              if (healAmount > 0) {
+                player.hp = min(player.maxHp, player.hp + healAmount);
+                anim.showHeal(player, healAmount);
+                GameState.playerHp = player.hp;
+              }
+              // 2. 同步更新血液算力：损失生命/10（四舍五入）
+              player.bloodStrength = ((player.maxHp - player.hp) / 10.0).round();
+              
+              // 触发视觉特效
+              final ctx = context;
+              final box = ctx.findRenderObject() as RenderBox?;
+              if (box != null) {
+                final center = box.size.center(Offset.zero);
+                anim.playRoleEffect(CharacterClass.xueye, center);
+              }
+            }
+
             checkBattleResult();
           }
           break;
@@ -1431,21 +1492,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
     // 使用后的卡牌进入弃牌堆
     discardPile.add(instance);
-
-    // 关键区域：血液职业被动【生命回收】
-    if (characterData.characterClass == CharacterClass.xueye) {
-      player.hp = (player.hp + 1).clamp(0, player.maxHp);
-      anim.showHeal(player, 1);
-      GameState.playerHp = player.hp;
-      
-      // 触发血液脉冲特效
-      final ctx = context;
-      final box = ctx.findRenderObject() as RenderBox?;
-      if (box != null) {
-        final center = box.size.center(Offset.zero);
-        anim.playRoleEffect(CharacterClass.xueye, center);
-      }
-    }
 
     // 关键区域：浪潮职业被动【涌动】—— 手牌为空时恢复能量并摸牌
     if (characterData.characterClass == CharacterClass.langchao && hand.isEmpty) {
@@ -1625,7 +1671,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
      double finalDamage = baseValue.toDouble();
      
       if (!isFinal) {
-        // 关键区域：攻击者状态影响
+         // 关键区域：攻击者状态影响
         if (attacker != null) {
           // 算力加成：直接增加基础冲击力
           int effectiveStrength = attacker.strength;
@@ -1633,10 +1679,13 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           
           // 关键区域：血液职业被动【血债血偿】
           if (attacker == player && characterData.characterClass == CharacterClass.xueye) {
-            // 每损失 8 点生命值增加 1 点算力
+            // 每损失 10 点生命值增加 1 点算力（四舍五入）
             final lostHp = attacker.maxHp - attacker.hp;
-           effectiveStrength += (lostHp ~/ 8);
-         }
+            attacker.bloodStrength = (lostHp / 10.0).round();
+            effectiveStrength += attacker.bloodStrength;
+          } else {
+            attacker.bloodStrength = 0;
+          }
          
          finalDamage += effectiveStrength;
           if (attacker == player && characterData.characterClass == CharacterClass.jianren &&
@@ -1644,17 +1693,15 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             finalDamage = (finalDamage * 1.24).ceilToDouble();
           }
          
-         // 虚弱状态：输出降低 25%
+         // 虚弱状态：输出降低 25% (统一逻辑：层数代表持续时间，效果固定为 0.75x)
         if (attacker.weak > 0) {
-          for (int i = 0; i < attacker.weak; i++) {
-            finalDamage *= 0.75;
-          }
+          finalDamage *= 0.75;
         }
        }
        
-       // 关键区域：受击者状态影响
+      // 关键区域：受击者状态影响 (统一逻辑：层数代表持续时间，效果固定为 1.5x)
        if (target.vulnerable > 0) {
-         finalDamage *= (1.0 + 0.1 * target.vulnerable);
+         finalDamage *= 1.5;
        }
        
        // 诅咒/恶意代码：每层额外增加冲击
@@ -1677,6 +1724,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         }
         if (target.block == 0 && absorbed > 0) {
           anim.playShieldBreak(target);
+          anim.showBlockTip(target); // 弹出“格挡”提示
           if (identical(target, player) && characterData.characterClass == CharacterClass.yingshi) {
             player.tempStrength += 16;
           }
@@ -1717,6 +1765,24 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       player.hp = min(player.maxHp, player.hp + 50);
       anim.showHeal(player, 50);
       GameState.playerHp = player.hp;
+    }
+
+    // 关键区域：血液职业被动【生命回收】—— 造成伤害/10 恢复生命值（四舍五入）
+    if (attacker == player && characterData.characterClass == CharacterClass.xueye && remaining > 0) {
+      final healAmount = (remaining / 10.0).round();
+      if (healAmount > 0) {
+        player.hp = min(player.maxHp, player.hp + healAmount);
+        anim.showHeal(player, healAmount);
+        GameState.playerHp = player.hp;
+        
+        // 触发血液脉冲特效
+        final ctx = context;
+        final box = ctx.findRenderObject() as RenderBox?;
+        if (box != null) {
+          final center = box.size.center(Offset.zero);
+          anim.playRoleEffect(CharacterClass.xueye, center);
+        }
+      }
     }
   }
 
@@ -1839,6 +1905,23 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     // 同步阶段开始时自动抽牌：随机获取数据包
     _randomDrawCards(bonus: drawBonus);
     hasDrawnCards = true;
+
+    // 关键区域：同步阶段开始时结算玩家状态
+    if (player.vulnerable > 0) player.vulnerable--;
+    if (player.weak > 0) player.weak--;
+    if (player.sturdy > 0) player.sturdy--;
+    if (player.curse > 0) player.curse--;
+    
+    // 关键区域：结算玩家身上的火焰（持续伤害）
+    if (player.hp > 0 && player.fire > 0) {
+      if (player.block > 0) {
+        player.block = 0;
+        anim.playShieldBreak(player);
+      }
+      _applyDamage(player, player, player.fire, isFinal: true);
+      player.fire = max(0, player.fire - 1);
+    }
+
     _rollSystemIntents(isTurnStart: true);
 
     setState(() {});
@@ -1954,6 +2037,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         if (program.vulnerable > 0) program.vulnerable--;
         if (program.weak > 0) program.weak--;
         if (program.sturdy > 0) program.sturdy--;
+        if (program.curse > 0) program.curse--;
         
         // 关键区域：每个怪物行动完后更新UI
         setState(() {});
@@ -1983,16 +2067,27 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
   /// 怪物冲击接入单元
   Future<void> _systemAttackPlayer(Entity program, {int? predicted}) async {
-    final random = Random();
-    int totalDamage =
-        predicted ??
-        (program.baseDamage + (turnCount ~/ 3) + random.nextInt(3));
+    // 使用预测值（即 intentValue），它已经包含了算力、虚弱、漏洞暴露和诅咒的计算
+    int totalDamage = predicted ?? program.intentValue;
+    
+    // 如果没有预测值且 intentValue 为 0，则进行保底计算（通常不应发生）
+    if (totalDamage <= 0) {
+      final random = Random();
+      double dmg = (program.baseDamage + (turnCount ~/ 3) + random.nextInt(3)).toDouble();
+      dmg += program.strength;
+      if (program.weak > 0) dmg *= 0.75;
+      if (player.vulnerable > 0) dmg *= 1.5;
+      dmg += player.curse * 2;
+      totalDamage = dmg.floor();
+    }
+
     // 关键区域：怪物攻击动画
     anim.playAttack(program, player);
 
     // 等待攻击动画冲击点
     await Future.delayed(const Duration(milliseconds: 300));
-    _applyDamage(program, player, totalDamage);
+    // 使用 isFinal: true，因为所有状态影响已经在计算 totalDamage 时处理过了
+    _applyDamage(program, player, totalDamage, isFinal: true);
     
     // 等待动画收回
     await Future.delayed(const Duration(milliseconds: 300));
@@ -2023,30 +2118,34 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         continue;
       }
 
-      // 如果不是回合开始，只有30%的概率改变意图
-      if (!isTurnStart && m.intent != null) {
-        if (random.nextDouble() > 0.3) {
-          continue; // 保持原有意图
+      // 决定意图类型
+      bool shouldChangeIntentType = isTurnStart || m.intent == null || random.nextDouble() < 0.3;
+      
+      if (shouldChangeIntentType) {
+        final lowHp = m.hp < m.maxHp * 0.3;
+        final p = random.nextDouble();
+        if (lowHp && p < 0.4) {
+          m.intent = SystemIntent.repair;
+        } else if (p < 0.25) {
+          m.intent = SystemIntent.encrypt;
+        } else {
+          m.intent = SystemIntent.impact;
         }
       }
 
-      final lowHp = m.hp < m.maxHp * 0.3;
-      final p = random.nextDouble();
-      if (lowHp && p < 0.4) {
-        m.intent = SystemIntent.repair;
+      // 无论意图类型是否改变，都重新计算意图数值以反映最新的状态效果
+      if (m.intent == SystemIntent.repair) {
         m.intentValue = random.nextInt(5) + 3;
-      } else if (p < 0.25) {
-        m.intent = SystemIntent.encrypt;
+      } else if (m.intent == SystemIntent.encrypt) {
         m.intentValue = 3 + (turnCount ~/ 3) + random.nextInt(4);
-      } else {
-        m.intent = SystemIntent.impact;
+      } else if (m.intent == SystemIntent.impact) {
         double dmg = (m.baseDamage + (turnCount ~/ 3) + random.nextInt(3)).toDouble();
         
-        // 考虑怪物的算力和虚弱
+        // 考虑怪物的算力和虚弱 (统一逻辑)
         dmg += m.strength;
         if (m.weak > 0) dmg *= 0.75;
         
-        // 考虑玩家的脆弱和诅咒
+        // 考虑玩家的漏洞暴露(vulnerable)和诅咒
         if (player.vulnerable > 0) dmg *= 1.5;
         dmg += player.curse * 2;
         
@@ -3154,10 +3253,10 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       child: Center(
         child: _buildSciFiButton(
           heroTag: 'main_action_button',
-          text: "同步当前周期",
+          text: "确认执行同步", // 修改文案，更清晰
           onTap: startDiscardPhase,
           color: themeColor,
-          icon: Icons.power_settings_new,
+          icon: Icons.sync, // 换一个更有同步感的图标
         ),
       ),
     );
@@ -3686,62 +3785,112 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       onTap: onTap,
       child: Container(
         width: width,
+        height: 54, // 固定高度更显专业
         decoration: BoxDecoration(
-          color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(4),
+          color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(4),
+            bottomRight: Radius.circular(16),
+          ),
           border: Border.all(
-            color: color.withValues(alpha: 0.5),
+            color: color.withValues(alpha: 0.6),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
               color: color.withValues(alpha: 0.2),
               blurRadius: 15,
-              spreadRadius: 1,
+              spreadRadius: 2,
+            ),
+            // 内发光效果
+            BoxShadow(
+              color: color.withValues(alpha: 0.05),
+              blurRadius: 2,
+              spreadRadius: -1,
+              offset: const Offset(0, 0),
             ),
           ],
         ),
         child: Stack(
           alignment: Alignment.center,
           children: [
+            // 背景渐变
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      color.withValues(alpha: 0.1),
+                      Colors.transparent,
+                      color.withValues(alpha: 0.05),
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(3),
+                    bottomRight: Radius.circular(15),
+                  ),
+                ),
+              ),
+            ),
             // 内部动态扫描线
             Positioned.fill(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(3),
-                child: CyberScanline(color: color.withValues(alpha: 0.2)),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(3),
+                  bottomRight: Radius.circular(15),
+                ),
+                child: CyberScanline(color: color.withValues(alpha: 0.25)),
               ),
             ),
             // 装饰边角
             Positioned.fill(
               child: CustomPaint(
-                painter: CyberCornerPainter(color: color.withValues(alpha: 0.4)),
+                painter: CyberCornerPainter(color: color.withValues(alpha: 0.6)),
+              ),
+            ),
+            // 侧边装饰条
+            Positioned(
+              left: 0,
+              top: 10,
+              bottom: 10,
+              width: 3,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: const BorderRadius.horizontal(right: Radius.circular(2)),
+                  boxShadow: [
+                    BoxShadow(color: color, blurRadius: 4),
+                  ],
+                ),
               ),
             ),
             // 按钮内容
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), // 减小水平内边距，原为 20
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (icon != null) ...[
-                      Icon(icon, color: color, size: 18),
-                      const SizedBox(width: 8),
-                    ],
-                    Text(
-                      text,
-                      style: TextStyle(
-                        color: color.withValues(alpha: 0.9),
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
-                        fontFamily: 'monospace',
-                      ),
-                    ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon, color: color, size: 20),
+                    const SizedBox(width: 12),
                   ],
-                ),
+                  Text(
+                    text,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.95),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 2.5,
+                      fontFamily: 'monospace',
+                      shadows: [
+                        Shadow(color: color.withValues(alpha: 0.8), blurRadius: 8),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -3880,7 +4029,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                     if (isVictory) ...[
                                       _overlayButton(
                                         Icons.map,
-                                        GameProgress.isCurrentNationFinished() ? "同步完成：查看拓扑图" : "拓扑网络",
+                                        GameProgress.isCurrentNationFinished() ? "同步完成" : "拓扑网络",
                                         () {
                                           // 胜利后，标记当前关卡已击败
                                           if (widget.levelId != null) {
@@ -4424,12 +4573,14 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                         );
 
                                         if (confirm == true) {
-                                          Navigator.pop(ctx);
+                                          // 不再关闭整个对话框，只更新状态让奖励选择消失
+                                          // Navigator.pop(ctx); 
                                           setState(() {
                                             _bossRewardSelected = true;
                                             _statusTip = "放弃了新的脑机接入";
                                             _statusTipColor = Colors.grey;
                                           });
+                                          Navigator.pop(ctx); // 关闭 showGeneralDialog 的那个 ctx
                                         }
                                       },
                                     ),
@@ -5444,7 +5595,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           Positioned(
             left: 0,
             right: 0,
-            bottom: 140 + (hand.length <= 6 ? 0 : (hand.length > 10 ? 140 : 70)),
+            bottom: 160 + (hand.length <= 6 ? 0 : (hand.length > 10 ? 140 : 70)),
             child: _judgementArea(themeColor),
           ),
         if (characterData.characterClass == CharacterClass.yanxin && gamePhase != GamePhase.gameOver)
@@ -5883,7 +6034,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           Positioned(
             left: 0,
             right: 0,
-            top: max(0.0, anchorTopY - 32),
+            top: max(0.0, anchorTopY - 52),
             child: Center(child: _handCountWidget(themeColor)),
           ),
         );
@@ -6038,7 +6189,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                 Positioned(
                   left: 0,
                   right: 0,
-                  top: max(0.0, baseY - 28),
+                  top: max(0.0, baseY - 48),
                   child: Center(child: _handCountWidget(themeColor)),
                 ),
               );
@@ -6694,10 +6845,12 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     final effects = <Widget>[];
 
     final int normalStrength = e.strength;
-    int bloodBonus = 0;
+    int bloodBonus = e.bloodStrength;
 
+    // 自动更新血液算力数值（仅限玩家血液角色）：损失生命/10（四舍五入）
     if (e == player && characterData.characterClass == CharacterClass.xueye) {
-      bloodBonus = (e.maxHp - e.hp) ~/ 8;
+      bloodBonus = ((e.maxHp - e.hp) / 10.0).round();
+      e.bloodStrength = bloodBonus;
     }
 
     if (normalStrength > 0) {
@@ -6741,7 +6894,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           Icons.heart_broken,
           "${e.vulnerable}",
           Colors.redAccent,
-          "脆弱",
+          "漏洞暴露",
         ),
       );
     }
