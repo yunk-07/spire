@@ -98,10 +98,10 @@ const Map<String, SecurityProgram> systemDatabase = {
     baseDamage: 15,
     damageMin: 13,
     damageMax: 18,
-    description: "拥有高强度外壳的防御程序，是保护核心的第一道坚实防线",
+    description: "配备了厚重防御装甲的安保程序，是任何渗透者的噩梦",
     skills: [
-      MonsterSkill(id: "isolate", name: "强力阻截", chance: 0.35, buff: BuffKind.weak, stacks: 2),
-      MonsterSkill(id: "blast", name: "冲击波", chance: 0.25),
+      MonsterSkill(id: "crush", name: "指令碾压", chance: 0.3, buff: BuffKind.vulnerable, stacks: 2),
+      MonsterSkill(id: "fortify", name: "系统加固", chance: 0.2, buff: BuffKind.sturdy, stacks: 1),
     ],
   ),
   "dark_mage": SecurityProgram(
@@ -220,6 +220,34 @@ const Map<String, SecurityProgram> systemDatabase = {
       MonsterSkill(id: "format", name: "全域重构", chance: 0.25, buff: BuffKind.curse, stacks: 3),
       MonsterSkill(id: "reboot", name: "强制归零", chance: 0.3, buff: BuffKind.weak, stacks: 2),
       MonsterSkill(id: "optimize", name: "深度清理", chance: 0.3, buff: BuffKind.vulnerable, stacks: 2),
+    ],
+  ),
+  "casino_boss": SecurityProgram(
+    id: "casino_boss",
+    name: "赌场经理",
+    type: SystemType.boss,
+    level: 5,
+    maxHp: 200,
+    baseDamage: 20,
+    damageMin: 18,
+    damageMax: 22,
+    description: "掌握着赌场所有核心算力的管理者，能够源源不断地调度安保程序。",
+    skills: [
+      MonsterSkill(id: "summon", name: "呼叫增援", chance: 1.0, buff: null, stacks: 0),
+    ],
+  ),
+  "casino_security": SecurityProgram(
+    id: "casino_security",
+    name: "赌场保镖",
+    type: SystemType.normal,
+    level: 3,
+    maxHp: 50,
+    baseDamage: 12,
+    damageMin: 10,
+    damageMax: 15,
+    description: "赌场的精英安保程序，专门处理强行闯入的渗透者。",
+    skills: [
+      MonsterSkill(id: "lockdown", name: "协议锁定", chance: 0.3, buff: BuffKind.weak, stacks: 1),
     ],
   ),
 };

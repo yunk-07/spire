@@ -24,6 +24,7 @@ import 'campfire_screen.dart';
 import 'rest_stop_screen.dart';
 import 'maintenance_bay_screen.dart';
 import 'cooling_chamber_screen.dart';
+import 'casino_screen.dart';
 
 /// 树状地图页面 - 科幻风格重设计
 class MapScreen extends StatefulWidget {
@@ -500,6 +501,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       case LevelType.boss:
         glowColor = const Color(0xFFFF4D4D); // 红色：核心
         break;
+      case LevelType.casino:
+        glowColor = const Color(0xFFFFA000); // 琥珀色：赌场
+        break;
     }
 
     final int difficulty = node.difficulty.clamp(1, 5);
@@ -546,6 +550,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         break;
       case LevelType.boss:
         icon = Icons.security_outlined;
+        break;
+      case LevelType.casino:
+        icon = Icons.casino_outlined;
         break;
     }
 
@@ -894,6 +901,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         typeDescription = "国度核心节点。高塔的关键架构所在地，彻底击毁此处的守卫程序以完成该国度的渗透任务。";
         typeIcon = Icons.security_outlined;
         break;
+      case LevelType.casino:
+        typeDescription = "地下电子赌场。在这里你可以参与“21点”协议博弈，通过运气与计算赢取更多金币，但也可能倾家荡产。";
+        typeIcon = Icons.casino_outlined;
+        break;
     }
 
     showGeneralDialog(
@@ -1223,9 +1234,35 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           targetPage = ExchangePage(level: node);
         }
         break;
+      case LevelType.casino:
+        if (GameState.playerGold < 20) {
+          _showCasinoNoMoneyDialog(node);
+          return;
+        }
+        targetPage = CasinoScreen(level: node);
+        break;
       default:
         targetPage = BattlePage(programIds: node.programIds, levelId: node.id);
     }
     Navigator.pushReplacement(context, createHoloRoute(targetPage));
+  }
+
+  void _showCasinoNoMoneyDialog(LevelInfo node) async {
+    final confirm = await showCyberConfirmExit(
+      context,
+      color: Colors.redAccent,
+      title: "访问受限",
+      content: "赌场经理：\"站住！这里的入场费是 20 金币。检测到你的信用分和余额严重不足。\"\n\n\"没有钱就滚出我的地盘，否则安保程序会让你死得很惨。\"",
+      cancelLabel: "撤退",
+      confirmLabel: "强行闯入",
+    );
+
+    if (confirm == true && mounted) {
+      // 强行闯入：进入 Boss 战
+      Navigator.pushReplacement(
+        context,
+        createHoloRoute(BattlePage(programIds: ["casino_boss"], levelId: node.id)),
+      );
+    }
   }
 }

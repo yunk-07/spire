@@ -12,6 +12,7 @@ enum LevelType {
   mystery,      // 未知扰动（随机事件）
   rest,         // 逻辑修复站（回复/强化）
   boss,         // 最终核心
+  casino,       // 赌场：21点玩法
 }
 
 class LevelInfo {
@@ -189,6 +190,8 @@ class GameProgress {
             type = LevelType.elite;
           } else if (roll < 0.92) {
             type = LevelType.mystery;
+          } else if (roll < 0.96) {
+            type = LevelType.casino;
           } else {
             type = LevelType.rest;
           }
@@ -271,6 +274,8 @@ class GameProgress {
             case LevelType.cache:
               return 0;
             case LevelType.infiltration:
+              return 0;
+            case LevelType.casino:
               return 0;
             case LevelType.boss:
               return 3;
@@ -418,6 +423,8 @@ class GameProgress {
         return restNames[r.nextInt(restNames.length)];
       case LevelType.boss:
         return '$prefix${bossNames[r.nextInt(bossNames.length)]}';
+      case LevelType.casino:
+        return '地下赌场';
     }
   }
 

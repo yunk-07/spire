@@ -112,7 +112,7 @@ enum GamePhase {
   gameOver, // 游戏结束
 }
 
-enum SystemIntent { impact, encrypt, repair }
+enum SystemIntent { impact, encrypt, repair, summon }
 
 void main() {
   runApp(const MyApp());
@@ -158,6 +158,7 @@ enum PopupType {
   gold,        // 获得金币 (金色)
   crit,        // 暴击伤害 (橙红色，更大)
   blockTip,    // 格挡文字提示 (青色)
+  status,      // 状态变化提示 (黄色)
 }
 
 class GamePopup {
@@ -297,6 +298,14 @@ class _GamePopupWidgetState extends State<GamePopupWidget> with SingleTickerProv
             shadows = [
               const Shadow(color: Colors.black, blurRadius: 4),
               Shadow(color: const Color(0xFF00F0FF).withValues(alpha: 0.8), blurRadius: 15),
+            ];
+            break;
+          case PopupType.status:
+            textColor = const Color(0xFFFFD700); // 金色/黄色
+            prefix = "";
+            shadows = [
+              const Shadow(color: Colors.black, blurRadius: 4),
+              Shadow(color: const Color(0xFFFFD700).withValues(alpha: 0.8), blurRadius: 12),
             ];
             break;
         }
@@ -664,6 +673,30 @@ class AnimationService extends ChangeNotifier {
   // 手动触发状态刷新
   void refresh() => notifyListeners();
 
+  // 关键区域：显示状态变化提示（用于 Buff/Debuff 或特殊机制）
+  void showStatusEffect(Entity target, String message, Color color) {
+    final ctx = target.key.currentContext;
+    if (ctx == null) return;
+
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final pos = box.localToGlobal(const Offset(50, -30)); // 在角色上方显示
+
+    final p = GamePopup(
+      value: message,
+      pos: pos,
+      type: PopupType.status, // 确保 PopupType 中有 status
+    );
+    gamePopups.add(p);
+    notifyListeners();
+    _ensurePump();
+
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      gamePopups.remove(p);
+      notifyListeners();
+    });
+  }
+
   void triggerScreenOverload() {
     isScreenOverloaded = true;
     notifyListeners();
@@ -1017,13 +1050,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       ),
                     ),
                   ),
-                  Positioned.fill(
-                  child: Opacity(
-                    opacity: 0.1,
-                    child: CyberScanline(color: themeColor),
-                  ),
-                ),
-                Column(
+                  Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
@@ -1422,11 +1449,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           if (parts.length > 1) {
             final factor = double.tryParse(parts[1]) ?? 1.0;
             if (factor != 1.0) {
-              final newMaxHp = (GameState.playerMaxHp * factor).round().clamp(1, 999999);
-              GameState.playerMaxHp = newMaxHp;
+              final newMaxHp = (player.maxHp * factor).round().clamp(1, 999999);
               player.maxHp = newMaxHp;
               player.hp = min(player.hp, player.maxHp);
-              GameState.playerHp = player.hp;
             }
           }
           break;
@@ -1867,7 +1892,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     if (player.sturdy > 0) {
       player.sturdy = max(0, player.sturdy - 1);
     } else {
-      player.block = GameState.permanentBlock;
+      player.block = 0;
     }
     if (characterData.characterClass == CharacterClass.jianren) {
       player.sturdy += 1;
@@ -2007,7 +2032,10 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
   /// 系统程序行动逻辑
   Future<void> _systemActions() async {
-    for (final program in activePrograms) {
+    // 关键区域：使用 List.from 创建副本进行迭代，防止召唤新怪物时触发 ConcurrentModificationError
+    final programsToAct = List<Entity>.from(activePrograms);
+    
+    for (final program in programsToAct) {
       if (program.hp > 0) {
         // 每个怪物行动前稍微停顿，增加层次感
         await Future.delayed(const Duration(milliseconds: 400));
@@ -2025,6 +2053,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             _systemHeal(program, amount: program.intentValue);
             // 修复动作等待
             await Future.delayed(const Duration(milliseconds: 500));
+            break;
+          case SystemIntent.summon:
+            await _systemSummon(program);
             break;
           default:
             await _systemAttackPlayer(program);
@@ -2048,7 +2079,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     }
 
     if (characterData.characterClass == CharacterClass.yanxin) {
-      for (final program in activePrograms) {
+      // 关键区域：使用 List.from 防止迭代期间修改集合
+      final fireTargets = List<Entity>.from(activePrograms);
+      for (final program in fireTargets) {
         if (program.hp > 0 && program.fire > 0) {
           if (program.block > 0) {
             program.block = 0;
@@ -2067,6 +2100,13 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
   /// 怪物冲击接入单元
   Future<void> _systemAttackPlayer(Entity program, {int? predicted}) async {
+    // 关键区域：赌场经理伤害激增视觉反馈
+    if (program.id == "casino_boss" && activePrograms.length >= 6) {
+      _showStatusTip("【赌场经理】算力超载：全功率冲击中！", Colors.redAccent);
+      anim.showStatusEffect(program, "OVERLOAD_MODE", Colors.redAccent);
+      await Future.delayed(const Duration(milliseconds: 400));
+    }
+
     // 使用预测值（即 intentValue），它已经包含了算力、虚弱、漏洞暴露和诅咒的计算
     int totalDamage = predicted ?? program.intentValue;
     
@@ -2109,6 +2149,43 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     anim.showBlockGain(program, v);
   }
 
+  /// 赌场老板特殊机制：召唤新的怪兽
+  Future<void> _systemSummon(Entity boss) async {
+    // 关键区域：检查整体上限 6
+    if (activePrograms.length >= 6) {
+      _showStatusTip("【赌场经理】调度指令被拦截：系统负载已达上限", Colors.redAccent);
+      await Future.delayed(const Duration(milliseconds: 600));
+      return;
+    }
+
+    // 关键区域：召唤动作占用当前怪物的完整回合
+    _showStatusTip("【赌场经理】正在调度安保程序...", const Color(0xFFFFD700));
+    
+    // 播放召唤动画/提示
+    await Future.delayed(const Duration(milliseconds: 600));
+
+    // 创建新的怪兽：赌场保镖
+    final securityData = systemDatabase["casino_security"]!;
+    final security = Entity(securityData.name, securityData.maxHp);
+    security.id = securityData.id;
+    security.baseDamage = securityData.baseDamage;
+    security.maxHp = securityData.maxHp;
+    security.hp = securityData.maxHp;
+
+    setState(() {
+      activePrograms.add(security);
+    });
+
+    // 为新召唤的怪兽立即roll一个意图
+    _rollSystemIntents();
+    
+    // 播放入场动画
+    anim.showStatusEffect(security, "增援程序已接入", const Color(0xFFFFD700));
+    
+    // 召唤占用回合，所以这里需要一个明显的停顿，且不再执行其他动作
+    await Future.delayed(const Duration(milliseconds: 1000));
+  }
+
   void _rollSystemIntents({bool isTurnStart = false}) {
     final random = Random();
     for (final m in activePrograms) {
@@ -2122,24 +2199,38 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       bool shouldChangeIntentType = isTurnStart || m.intent == null || random.nextDouble() < 0.3;
       
       if (shouldChangeIntentType) {
-        final lowHp = m.hp < m.maxHp * 0.3;
-        final p = random.nextDouble();
-        if (lowHp && p < 0.4) {
-          m.intent = SystemIntent.repair;
-        } else if (p < 0.25) {
-          m.intent = SystemIntent.encrypt;
+        // 赌场老板特殊机制：如果场上怪兽小于3，且总数未达上限6，则有较高概率召唤新怪兽
+        if (m.id == "casino_boss" && 
+            activePrograms.where((e) => e.hp > 0).length < 3 &&
+            activePrograms.length < 6) {
+          m.intent = SystemIntent.summon;
         } else {
-          m.intent = SystemIntent.impact;
+          final lowHp = m.hp < m.maxHp * 0.3;
+          final p = random.nextDouble();
+          if (lowHp && p < 0.4) {
+            m.intent = SystemIntent.repair;
+          } else if (p < 0.25) {
+            m.intent = SystemIntent.encrypt;
+          } else {
+            m.intent = SystemIntent.impact;
+          }
         }
       }
 
       // 无论意图类型是否改变，都重新计算意图数值以反映最新的状态效果
       if (m.intent == SystemIntent.repair) {
         m.intentValue = random.nextInt(5) + 3;
+      } else if (m.intent == SystemIntent.summon) {
+        m.intentValue = 0; // 召唤动作没有数值
       } else if (m.intent == SystemIntent.encrypt) {
         m.intentValue = 3 + (turnCount ~/ 3) + random.nextInt(4);
       } else if (m.intent == SystemIntent.impact) {
         double dmg = (m.baseDamage + (turnCount ~/ 3) + random.nextInt(3)).toDouble();
+        
+        // 关键区域：赌场经理特殊机制 - 当保镖达到上限 6 时，伤害激增
+        if (m.id == "casino_boss" && activePrograms.length >= 6) {
+          dmg *= 2.5; // 伤害提升 2.5 倍
+        }
         
         // 考虑怪物的算力和虚弱 (统一逻辑)
         dmg += m.strength;
@@ -2728,8 +2819,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                         ),
                         child: Stack(
                           children: [
-                            // 进度条内部扫描光
-                            CyberScanline(color: Colors.white.withValues(alpha: 0.25)),
                             // 右侧发光线 (赛博边缘)
                             Positioned(
                               top: 0,
@@ -3130,12 +3219,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                             child: Stack(
                               alignment: Alignment.center,
                               children: [
-                                Positioned.fill(
-                                  child: Opacity(
-                                    opacity: 0.05,
-                                    child: CyberScanline(color: blockColor),
-                                  ),
-                                ),
                                 Row(
                                   children: [
                                     TweenAnimationBuilder<double>(
@@ -3217,10 +3300,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        Opacity(
-                          opacity: 0.1,
-                          child: CyberScanline(color: Colors.redAccent),
-                        ),
                         const Icon(
                           Icons.power_settings_new,
                           size: 18,
@@ -3244,19 +3323,90 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
   /// 获取游戏阶段对应的颜色
 
-  // 关键区域：底部“进入弃牌”覆盖层（SafeArea避免底部遮挡）
+  // 关键区域：底部“进入弃牌”覆盖层
   Widget _bottomDiscardOverlay(Color themeColor) {
     return Positioned(
+      bottom: 16,
       left: 0,
       right: 0,
-      bottom: 20, // 稍微上移一点，避免被系统条遮挡
       child: Center(
-        child: _buildSciFiButton(
-          heroTag: 'main_action_button',
-          text: "确认执行同步", // 修改文案，更清晰
+        child: GestureDetector(
           onTap: startDiscardPhase,
-          color: themeColor,
-          icon: Icons.sync, // 换一个更有同步感的图标
+          child: Container(
+            width: 140,
+            height: 56,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF0A0F16).withValues(alpha: 0.95),
+                  const Color(0xFF1A1F26).withValues(alpha: 0.95),
+                ],
+              ),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+              border: Border.all(color: themeColor.withValues(alpha: 0.6), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: themeColor.withValues(alpha: 0.2),
+                  blurRadius: 15,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              children: [
+                // 装饰性微光
+                Positioned(
+                  top: -15,
+                  left: -15,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: themeColor.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.0, end: 1.0),
+                        duration: const Duration(milliseconds: 2000),
+                        builder: (context, val, child) {
+                          return Opacity(
+                            opacity: 0.7 + 0.3 * sin(val * pi),
+                            child: Icon(Icons.sync, color: themeColor, size: 18),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        "结束阶段",
+                        style: TextStyle(
+                          color: themeColor.withValues(alpha: 0.95),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          fontFamily: 'monospace',
+                          letterSpacing: 1,
+                          shadows: [
+                            Shadow(color: themeColor.withValues(alpha: 0.5), blurRadius: 4),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -3602,6 +3752,15 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     );
   }
 
+  // 基础空闲悬浮/呼吸动画组件
+  Widget _idleAnimationWrapper({required Widget child, required bool isMonster, required String id}) {
+    return _LoopingIdleWidget(
+      isMonster: isMonster,
+      id: id,
+      child: child,
+    );
+  }
+
   Widget _playerWidget(Entity e, {bool isHighlighted = false}) {
     final isGlitching = anim.glitching.contains(e);
     final isProtecting = anim.protecting.contains(e);
@@ -3659,28 +3818,22 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0.8, end: 1.0),
-                    duration: const Duration(seconds: 2),
-                    curve: Curves.easeInOut,
-                    builder: (context, val, child) {
-                      return Transform.scale(
-                        scale: isHighlighted ? 1.1 : val,
-                        child: Icon(
-                          characterData.icon,
-                          size: 38,
-                          color: isHighlighted 
-                              ? themeColor
-                              : themeColor.withValues(alpha: 0.8),
-                          shadows: [
-                            Shadow(
-                              color: themeColor.withValues(alpha: 0.5),
-                              blurRadius: isHighlighted ? 12 : 8,
-                            ),
-                          ],
+                  _idleAnimationWrapper(
+                    id: "player_icon",
+                    isMonster: false,
+                    child: Icon(
+                      characterData.icon,
+                      size: 38,
+                      color: isHighlighted 
+                          ? themeColor
+                          : themeColor.withValues(alpha: 0.8),
+                      shadows: [
+                        Shadow(
+                          color: themeColor.withValues(alpha: 0.5),
+                          blurRadius: isHighlighted ? 12 : 8,
                         ),
-                      );
-                    },
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -3725,10 +3878,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         double scale = 1.0;
         double rotation = 0.0;
 
-        // 基础空闲呼吸效果
-        final breathTime = DateTime.now().millisecondsSinceEpoch / 1500.0;
-        scale += sin(breathTime * 2) * 0.015;
-
         if (isGlitching) {
           dx = sin(t * 8 * pi) * 6 * (1 - t);
           rotation = sin(t * 4 * pi) * 0.03 * (1 - t);
@@ -3765,11 +3914,13 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     );
 
     // 将 GlobalKey 提升到最顶层容器，确保其唯一性
-    return AnimatedOpacity(
-      key: e.key,
-      opacity: 1.0,
-      duration: const Duration(milliseconds: 100),
-      child: box,
+    return RepaintBoundary(
+      child: AnimatedOpacity(
+        key: e.key,
+        opacity: 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: box,
+      ),
     );
   }
 
@@ -3964,11 +4115,11 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                         child: Stack(
                           children: [
                             // 内部装饰：扫描线
-                            Positioned.fill(
-                              child: IgnorePointer(
-                                child: CyberScanline(color: color.withValues(alpha: 0.1)),
-                              ),
-                            ),
+                            // Positioned.fill(
+                            //   child: IgnorePointer(
+                            //     child: CyberScanline(color: color.withValues(alpha: 0.1)),
+                            //   ),
+                            // ),
                             // 装饰边角
                             Positioned.fill(
                               child: IgnorePointer(
@@ -4481,95 +4632,13 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                       label: "放弃接入",
                                       color: Colors.grey.shade700,
                                       onTap: () async {
-                                        final confirm = await showGeneralDialog<bool>(
-                                          context: ctx,
-                                          barrierDismissible: true,
-                                          barrierLabel: "ABANDON_CONFIRM",
-                                          barrierColor: Colors.black.withValues(alpha: 0.8),
-                                          transitionDuration: const Duration(milliseconds: 200),
-                                          pageBuilder: (pCtx, a1, a2) {
-                                            return Center(
-                                              child: Material(
-                                                color: Colors.transparent,
-                                                child: Container(
-                                                  width: 280,
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(0xFF0D1117),
-                                                    border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5), width: 1),
-                                                  ),
-                                                  child: Stack(
-                                                    children: [
-                                                      // 背景网格
-                                                      Positioned.fill(
-                                                        child: CustomPaint(
-                                                          painter: CyberGridPainter(
-                                                            color: Colors.redAccent,
-                                                            opacity: 0.1,
-                                                            spacing: 20.0,
-                                                            showChars: false,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      // 四角装饰
-                                                      Positioned.fill(
-                                                        child: CustomPaint(
-                                                          painter: CyberCornerPainter(
-                                                            color: Colors.redAccent.withValues(alpha: 0.3),
-                                                            cornerSize: 15,
-                                                            strokeWidth: 1.5,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      Padding(
-                                                        padding: const EdgeInsets.all(24),
-                                                        child: Column(
-                                                          mainAxisSize: MainAxisSize.min,
-                                                          children: [
-                                                            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 32),
-                                                            const SizedBox(height: 16),
-                                                            const Text(
-                                                              "确认放弃脑机接入？",
-                                                              style: TextStyle(
-                                                                color: Colors.white,
-                                                                fontSize: 16,
-                                                                fontWeight: FontWeight.bold,
-                                                                letterSpacing: 1,
-                                                              ),
-                                                            ),
-                                                            const SizedBox(height: 8),
-                                                            const Text(
-                                                              "放弃后该奖励将永久失效",
-                                                              style: TextStyle(
-                                                                color: Colors.white60,
-                                                                fontSize: 12,
-                                                              ),
-                                                            ),
-                                                            const SizedBox(height: 24),
-                                                            Row(
-                                                              mainAxisAlignment: MainAxisAlignment.end,
-                                                              children: [
-                                                                _dialogButton(
-                                                                  label: "取消",
-                                                                  color: Colors.white54,
-                                                                  onTap: () => Navigator.pop(pCtx, false),
-                                                                ),
-                                                                const SizedBox(width: 12),
-                                                                _dialogButton(
-                                                                  label: "确认放弃",
-                                                                  color: Colors.redAccent,
-                                                                  onTap: () => Navigator.pop(pCtx, true),
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            );
-                                          },
+                                        final confirm = await showCyberConfirmExit(
+                                          ctx,
+                                          color: Colors.redAccent,
+                                          title: "确认放弃脑机接入？",
+                                          content: "放弃后该奖励将永久失效",
+                                          cancelLabel: "取消",
+                                          confirmLabel: "确认放弃",
                                         );
 
                                         if (confirm == true) {
@@ -4596,6 +4665,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                           GameState.playerMaxHp = (GameState.playerMaxHp - 2).clamp(1, 999);
                                           GameState.playerHp = min(GameState.playerHp, GameState.playerMaxHp);
                                           GameState.selectedBrainChipId = newChip.id;
+                                          GameState.applyBrainChipInstantEffects(newChip.id);
                                           _bossRewardSelected = true;
                                           _statusTip = "脑机已更换，最大完整度 -2";
                                           _statusTipColor = Colors.orangeAccent;
@@ -5014,30 +5084,24 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                   ),
                 ),
                 Center(
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0.9, end: 1.0),
-                    duration: const Duration(seconds: 3),
-                    curve: Curves.easeInOut,
-                    builder: (context, val, child) {
-                      return Transform.scale(
-                        scale: val,
-                        child: Icon(
-                          isDead ? Icons.dangerous : Icons.pest_control,
-                          size: 42 * s,
-                          color:
-                              isDead
-                                  ? Colors.white24
-                                  : coreColor.withValues(alpha: 0.8),
-                          shadows: [
-                            if (!isDead)
-                              Shadow(
-                                color: coreColor.withValues(alpha: 0.5),
-                                blurRadius: (isHighlighted ? 15 : 10) * s,
-                              ),
-                          ],
-                        ),
-                      );
-                    },
+                  child: _idleAnimationWrapper(
+                    id: "monster_${program.id}",
+                    isMonster: true,
+                    child: Icon(
+                      isDead ? Icons.dangerous : Icons.pest_control,
+                      size: 42 * s,
+                      color:
+                          isDead
+                              ? Colors.white24
+                              : coreColor.withValues(alpha: 0.8),
+                      shadows: [
+                        if (!isDead)
+                          Shadow(
+                            color: coreColor.withValues(alpha: 0.5),
+                            blurRadius: (isHighlighted ? 15 : 10) * s,
+                          ),
+                      ],
+                    ),
                   ),
                 ),
                 if (isProtecting)
@@ -5069,10 +5133,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             double dx = 0, dy = 0;
             double scale = 1.0;
             double rotation = 0.0;
-
-            // 基础空闲悬浮动画 (idle floating)
-            final idleTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
-            dy += sin(idleTime * 2 + program.id.hashCode % 10) * 3;
 
             if (isGlitching) {
               // 更加剧烈的故障抖动
@@ -5139,205 +5199,207 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             intentColor = null;
         }
 
-        return AnimatedOpacity(
-          key: program.key,
-          opacity: (isDead ? 0.4 : 1.0).clamp(0.0, 1.0),
-          duration: const Duration(milliseconds: 100),
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.topCenter,
-            children: [
-              box,
-              Positioned(
-                top: 10 * s,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: 90 * s),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      program.name,
-                      style: TextStyle(
-                        fontSize: (12 * s).clamp(9, 12),
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFFE1E9FF),
-                        shadows: [
-                          Shadow(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            blurRadius: 4 * s,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (intentIcon != null)
+        return RepaintBoundary(
+          child: AnimatedOpacity(
+            key: program.key,
+            opacity: (isDead ? 0.4 : 1.0).clamp(0.0, 1.0),
+            duration: const Duration(milliseconds: 100),
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.topCenter,
+              children: [
+                box,
                 Positioned(
-                  top: -65 * s,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 4 * s),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0A0F16).withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(4 * s),
-                      border: Border.all(
-                        color: (intentColor ?? themeColor).withValues(alpha: 0.6),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // 左侧装饰条
-                        Container(
-                          width: 3 * s,
-                          height: 16 * s,
-                          decoration: BoxDecoration(
-                            color: intentColor ?? themeColor,
-                            borderRadius: BorderRadius.circular(1 * s),
-                            boxShadow: [
-                              BoxShadow(
-                                color: (intentColor ?? themeColor).withValues(alpha: 0.5),
-                                blurRadius: 4 * s,
-                              ),
-                            ],
-                          ),
-                        ),
-                        SizedBox(width: 8 * s),
-                        Icon(
-                          intentIcon,
-                          size: 16 * s,
-                          color: intentColor,
-                        ),
-                        if (intentValueText != null) ...[
-                          SizedBox(width: 6 * s),
-                          Text(
-                            intentValueText,
-                            style: TextStyle(
-                              fontSize: (15 * s).clamp(12, 15),
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                              fontFamily: 'monospace',
-                              letterSpacing: 0.5,
+                  top: 10 * s,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: 90 * s),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        program.name,
+                        style: TextStyle(
+                          fontSize: (12 * s).clamp(9, 12),
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFFE1E9FF),
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              blurRadius: 4 * s,
                             ),
-                          ),
-                        ],
-                        SizedBox(width: 4 * s),
-                      ],
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              Positioned(
-                top: (-42 * s), // 稍微调高一点以容纳血条
-                child: Column(
-                  children: [
-                    _cyberHpBar(
-                      current: program.hp,
-                      maxHp: program.maxHp,
-                      width: (100 * s).clamp(70, 100), // 敌方血条稍窄
-                      height: (18 * s).clamp(12, 18),
-                      label: "SYS",
-                      color: isDead ? Colors.grey : (isHighlighted ? themeColor : const Color(0xFFE1E9FF)), // 增加主题色关联
-                      isMonster: true,
-                    ),
-                    if (program.block > 0) ...[
-                      const SizedBox(height: 4),
-                      TweenAnimationBuilder<double>(
-                        key: ValueKey("monster_block_${program.block}"),
-                        tween: Tween(begin: 1.2, end: 1.0),
-                        duration: const Duration(milliseconds: 300),
-                        builder: (context, val, child) {
-                          final Color blockColor = themeColor;
-                          return Transform.scale(
-                            scale: val,
-                            child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 3 * s),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(6),
-                                  bottomRight: Radius.circular(6),
+                if (intentIcon != null)
+                  Positioned(
+                    top: -65 * s,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 4 * s),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0A0F16).withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(4 * s),
+                        border: Border.all(
+                          color: (intentColor ?? themeColor).withValues(alpha: 0.6),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // 左侧装饰条
+                          Container(
+                            width: 3 * s,
+                            height: 16 * s,
+                            decoration: BoxDecoration(
+                              color: intentColor ?? themeColor,
+                              borderRadius: BorderRadius.circular(1 * s),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (intentColor ?? themeColor).withValues(alpha: 0.5),
+                                  blurRadius: 4 * s,
                                 ),
-                                border: Border.all(color: blockColor, width: 1.2),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: blockColor.withValues(alpha: 0.3),
-                                    blurRadius: 6 * s,
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.shield_outlined, size: 10 * s, color: blockColor),
-                                  SizedBox(width: 4 * s),
-                                  Text(
-                                    "FWL",
-                                    style: TextStyle(
-                                      color: themeColor,
-                                      fontSize: (8 * s).clamp(6, 8),
-                                      fontWeight: FontWeight.bold,
-                                      fontFamily: 'monospace',
-                                    ),
-                                  ),
-                                  SizedBox(width: 3 * s),
-                                  Text(
-                                    "${program.block}",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: (11 * s).clamp(8, 11),
-                                      fontWeight: FontWeight.w900,
-                                      fontFamily: 'monospace',
-                                    ),
-                                  ),
-                                ],
+                              ],
+                            ),
+                          ),
+                          SizedBox(width: 8 * s),
+                          Icon(
+                            intentIcon,
+                            size: 16 * s,
+                            color: intentColor,
+                          ),
+                          if (intentValueText != null) ...[
+                            SizedBox(width: 6 * s),
+                            Text(
+                              intentValueText,
+                              style: TextStyle(
+                                fontSize: (15 * s).clamp(12, 15),
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                fontFamily: 'monospace',
+                                letterSpacing: 0.5,
                               ),
                             ),
-                          );
-                        },
-                      ),
-                    ],
-                    const SizedBox(height: 4),
-                    _statusEffectsBar(program),
-                  ],
-                ),
-              ),
-              if (statusText != null)
-                Positioned(
-                  top: -16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          isDead ? const Color(0xFF252525) : themeColor.withValues(alpha: 0.2),
-                          const Color(0xFF101722),
+                          ],
+                          SizedBox(width: 4 * s),
                         ],
-                      ),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(4),
-                        bottomRight: Radius.circular(10),
-                      ),
-                      border: Border.all(
-                        color: isDead ? const Color(0xFF444444) : themeColor,
-                        width: 1,
-                      ),
-                    ),
-                    child: Text(
-                      statusText,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        color: isDead ? Colors.white38 : Colors.white,
-                        fontFamily: 'monospace',
-                        letterSpacing: 1,
                       ),
                     ),
                   ),
+                Positioned(
+                  top: (-42 * s), // 稍微调高一点以容纳血条
+                  child: Column(
+                    children: [
+                      _cyberHpBar(
+                        current: program.hp,
+                        maxHp: program.maxHp,
+                        width: (100 * s).clamp(70, 100), // 敌方血条稍窄
+                        height: (18 * s).clamp(12, 18),
+                        label: "SYS",
+                        color: isDead ? Colors.grey : (isHighlighted ? themeColor : const Color(0xFFE1E9FF)), // 增加主题色关联
+                        isMonster: true,
+                      ),
+                      if (program.block > 0) ...[
+                        const SizedBox(height: 4),
+                        TweenAnimationBuilder<double>(
+                          key: ValueKey("monster_block_${program.block}"),
+                          tween: Tween(begin: 1.2, end: 1.0),
+                          duration: const Duration(milliseconds: 300),
+                          builder: (context, val, child) {
+                            final Color blockColor = themeColor;
+                            return Transform.scale(
+                              scale: val,
+                              child: Container(
+                                padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 3 * s),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
+                                  borderRadius: const BorderRadius.only(
+                                    topLeft: Radius.circular(6),
+                                    bottomRight: Radius.circular(6),
+                                  ),
+                                  border: Border.all(color: blockColor, width: 1.2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: blockColor.withValues(alpha: 0.3),
+                                      blurRadius: 6 * s,
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.shield_outlined, size: 10 * s, color: blockColor),
+                                    SizedBox(width: 4 * s),
+                                    Text(
+                                      "FWL",
+                                      style: TextStyle(
+                                        color: themeColor,
+                                        fontSize: (8 * s).clamp(6, 8),
+                                        fontWeight: FontWeight.bold,
+                                        fontFamily: 'monospace',
+                                      ),
+                                    ),
+                                    SizedBox(width: 3 * s),
+                                    Text(
+                                      "${program.block}",
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: (11 * s).clamp(8, 11),
+                                        fontWeight: FontWeight.w900,
+                                        fontFamily: 'monospace',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                      const SizedBox(height: 4),
+                      _statusEffectsBar(program),
+                    ],
+                  ),
                 ),
-            ],
+                if (statusText != null)
+                  Positioned(
+                    top: -16,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            isDead ? const Color(0xFF252525) : themeColor.withValues(alpha: 0.2),
+                            const Color(0xFF101722),
+                          ],
+                        ),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(4),
+                          bottomRight: Radius.circular(10),
+                        ),
+                        border: Border.all(
+                          color: isDead ? const Color(0xFF444444) : themeColor,
+                          width: 1,
+                        ),
+                      ),
+                      child: Text(
+                        statusText,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          color: isDead ? Colors.white38 : Colors.white,
+                          fontFamily: 'monospace',
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         );
       },
@@ -5359,9 +5421,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
               const Color(0xFF1A1F26).withValues(alpha: 0.9),
             ],
           ),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(2),
-            bottomRight: Radius.circular(16),
+          borderRadius: BorderRadius.only(
+            topRight: isDrawPile ? const Radius.circular(16) : Radius.zero,
+            topLeft: isDrawPile ? Radius.zero : const Radius.circular(16),
           ),
           border: Border.all(color: color.withValues(alpha: 0.4), width: 1.2),
           boxShadow: [
@@ -5375,13 +5437,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         clipBehavior: Clip.antiAlias,
         child: Stack(
           children: [
-            // 内部动态扫描线
-            Positioned.fill(
-              child: Opacity(
-                opacity: 0.1,
-                child: CyberScanline(color: color),
-              ),
-            ),
             // 装饰性微光
             Positioned(
               top: -10,
@@ -5948,7 +6003,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           Positioned.fill(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(3),
-              child: CyberScanline(color: themeColor.withValues(alpha: 0.1)),
+              // child: CyberScanline(color: themeColor.withValues(alpha: 0.1)),
+              child: Container(),
             ),
           ),
           Positioned.fill(
@@ -6797,7 +6853,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                   Positioned.fill(
                     child: Opacity(
                       opacity: 0.05,
-                      child: CyberScanline(color: color),
+                      // child: CyberScanline(color: color),
+                      child: Container(),
                     ),
                   ),
                   Row(
@@ -6964,10 +7021,10 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         type: PopupType.damage,
       );
       anim.gamePopups.add(p);
-      anim.notifyListeners();
+      anim.refresh();
       Future.delayed(const Duration(milliseconds: 1200), () {
         anim.gamePopups.remove(p);
-        anim.notifyListeners();
+        anim.refresh();
       });
     } else if (card.type == CardType.encryption) {
       anim.showActionFeedback(target);
@@ -7103,7 +7160,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                             Positioned.fill(
                               child: Opacity(
                                 opacity: 0.03,
-                                child: CyberScanline(color: color),
+                                // child: CyberScanline(color: color),
+                                child: Container(),
                               ),
                             ),
                           ],
@@ -7288,7 +7346,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                 children: [
                                   Opacity(
                                     opacity: 0.05,
-                                    child: CyberScanline(color: color),
+                                    // child: CyberScanline(color: color),
+                                    child: Container(),
                                   ),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
@@ -7399,6 +7458,75 @@ class _BlinkingCursorState extends State<_BlinkingCursor> with SingleTickerProvi
     return FadeTransition(
       opacity: _controller,
       child: Container(width: 8, height: 16, color: widget.color),
+    );
+  }
+}
+
+/// 循环空闲动画组件，解决模型动画不循环和性能问题
+class _LoopingIdleWidget extends StatefulWidget {
+  final Widget child;
+  final bool isMonster;
+  final String id;
+
+  const _LoopingIdleWidget({
+    required this.child,
+    required this.isMonster,
+    required this.id,
+  });
+
+  @override
+  _LoopingIdleWidgetState createState() => _LoopingIdleWidgetState();
+}
+
+class _LoopingIdleWidgetState extends State<_LoopingIdleWidget> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: Duration(seconds: widget.isMonster ? 3 : 2),
+    )..repeat(reverse: true);
+    
+    _animation = Tween<double>(
+      begin: widget.isMonster ? 0.9 : 0.8,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _animation,
+        builder: (context, child) {
+          double dy = 0;
+          if (widget.isMonster) {
+            // 怪物悬浮效果：随缩放同步上下漂浮，使其更自然
+            dy = (_controller.value - 0.5) * 4;
+          }
+          
+          return Transform.translate(
+            offset: Offset(0, dy),
+            child: Transform.scale(
+              scale: _animation.value,
+              child: child,
+            ),
+          );
+        },
+        child: widget.child,
+      ),
     );
   }
 }

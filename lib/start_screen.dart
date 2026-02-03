@@ -695,25 +695,29 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                   width: double.infinity,
                   label: '同步数据并开始渗透',
                   onPressed: selectedCharacterId != null
-                      ? () {
-                          GameProgress.startRun();
-                          // 保存选择的角色ID到全局状态
-                          GameState.selectedCharacterId = selectedCharacterId!;
-                          // 更新玩家HP
-                          final character = characterDatabase[selectedCharacterId!]!;
-                          GameState.playerMaxHp = character.maxHp;
-                          GameState.playerHp = character.maxHp;
-                          GameState.playerGold = character.initialGold;
-                          // 初始化持久化牌组
-                          GameState.drawPile = List.from(character.startingDeck);
-                          Navigator.push(
-                            context,
-                            createHoloRoute(
-                              const BrainChipSelectionScreen(),
-                            ),
-                          );
-                        }
-                      : null,
+                            ? () {
+                                 // 关键区域：重置游戏数据，开启新一局
+                                 GameProgress.startRun();
+                                 GameState.reset();
+                                 GameStatistics.reset();
+ 
+                                 // 保存选择的角色ID到全局状态
+                                 GameState.selectedCharacterId = selectedCharacterId!;
+                                // 更新玩家HP
+                                final character = characterDatabase[selectedCharacterId!]!;
+                                GameState.playerMaxHp = character.maxHp;
+                                GameState.playerHp = character.maxHp;
+                                GameState.playerGold = character.initialGold;
+                                // 初始化持久化牌组
+                                GameState.drawPile = List.from(character.startingDeck);
+                                Navigator.push(
+                                  context,
+                                  createHoloRoute(
+                                    const BrainChipSelectionScreen(),
+                                  ),
+                                );
+                              }
+                            : null,
                 ),
               ),
             ],

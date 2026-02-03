@@ -25,6 +25,36 @@ class GameState {
   static int heatProgress = 0;
   static String? selectedBrainChipId;
 
+  /// 应用脑机装备时的即时效果（仅触发一次）
+  static void applyBrainChipInstantEffects(String chipId) {
+    final chip = brainChipDatabase[chipId];
+    if (chip == null || chip.effect == null) return;
+
+    final effects = chip.effect!.split(';');
+    for (var e in effects) {
+      final parts = e.trim().split(' ');
+      if (parts.isEmpty) continue;
+      
+      final command = parts[0];
+      if (command == 'permanent_max_hp_mult') {
+        if (parts.length > 1) {
+          final factor = double.tryParse(parts[1]) ?? 1.0;
+          if (factor != 1.0) {
+            playerMaxHp = (playerMaxHp * factor).round().clamp(1, 999999);
+            playerHp = min(playerHp, playerMaxHp);
+          }
+        }
+      }
+      // 如果有其他即时效果（如 heal），也可以在这里添加
+      if (command == 'heal') {
+        if (parts.length > 1) {
+          final amount = int.tryParse(parts[1]) ?? 0;
+          heal(amount);
+        }
+      }
+    }
+  }
+
   /// 获取当前全局主题色（基于脑机）
   static Color getThemeColor() {
     if (selectedBrainChipId != null) {
@@ -40,11 +70,15 @@ class GameState {
   }
 
   static void reset() {
+    playerMaxHp = 80;
+    playerHp = 80;
     playerBlock = 0;
     playerStrength = 0;
     permanentStrength = 0;
     permanentBlock = 0;
+    playerGold = 0;
     heatProgress = 0;
+    selectedBrainChipId = null;
     drawPile.clear();
   }
 }
@@ -55,6 +89,7 @@ class GameStatistics {
   static int totalDamageBlocked = 0;
   static int totalCardsUsed = 0;
   static int totalTurns = 0;
+  static int totalBattlesWon = 0; // 赢得战斗总数
 
   // 重置统计信息
   static void reset() {
@@ -62,5 +97,6 @@ class GameStatistics {
     totalDamageBlocked = 0;
     totalCardsUsed = 0;
     totalTurns = 0;
+    totalBattlesWon = 0;
   }
 }

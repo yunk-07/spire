@@ -5,6 +5,7 @@ import 'game_state.dart';
 import 'nation_selection_screen.dart';
 import 'main.dart';
 import 'theme_config.dart';
+import 'start_screen.dart';
 
 class BrainChipSelectionScreen extends StatefulWidget {
   const BrainChipSelectionScreen({super.key});
@@ -26,9 +27,27 @@ class _BrainChipSelectionScreenState extends State<BrainChipSelectionScreen> {
   Widget build(BuildContext context) {
     final themeColor = Color(chip.themeColor);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF020408),
-      body: Stack(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldPop = await showCyberConfirmExit(
+          context,
+          color: themeColor,
+          title: "终止连接",
+          content: "确定要断开当前的神经接口分配吗？这将会使你返回到角色选择页面。",
+        );
+        if (shouldPop && mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            createHoloRoute(const StartScreen()),
+            (route) => false,
+          );
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF020408),
+        body: Stack(
         children: [
           // 1. 动态径向背景
           Positioned.fill(
@@ -134,11 +153,14 @@ class _BrainChipSelectionScreenState extends State<BrainChipSelectionScreen> {
                   SizedBox(
                     width: 320,
                     child: CyberButton(
+                      heroTag: 'main_action_button',
                       label: '确认并初始化连接',
                       height: 56,
                       fontSize: 16,
                       color: themeColor,
                       onPressed: () {
+                        // 关键区域：在确认时应用即时效果
+                        GameState.applyBrainChipInstantEffects(chip.id);
                         Navigator.pushReplacement(context, createHoloRoute(const NationSelectionScreen()));
                       },
                     ),
@@ -149,6 +171,7 @@ class _BrainChipSelectionScreenState extends State<BrainChipSelectionScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -292,7 +315,7 @@ class _BrainChipSelectionScreenState extends State<BrainChipSelectionScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "FIRMWARE_REV",
+                            "固件版本",
                             style: TextStyle(color: themeColor.withValues(alpha: 0.3), fontSize: 8, fontFamily: 'monospace'),
                           ),
                           Text(

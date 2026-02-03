@@ -275,14 +275,6 @@ class ThemeConfig {
             ),
             Positioned.fill(
               child: IgnorePointer(
-                child: CyberScanline(
-                  color: suiteColor.withValues(alpha: 0.15),
-                  isGlitch: c.suite == CardSuite.overload,
-                ),
-              ),
-            ),
-            Positioned.fill(
-              child: IgnorePointer(
                 child: CustomPaint(
                   painter: CyberCornerPainter(color: suiteColor.withValues(alpha: 0.15)),
                 ),
@@ -1659,9 +1651,6 @@ class CyberLogicPanel extends StatelessWidget {
           child: Stack(
             children: [
               Positioned.fill(
-                child: CyberScanline(color: color.withValues(alpha: 0.08)),
-              ),
-              Positioned.fill(
                 child: CustomPaint(
                   painter: CyberCornerPainter(color: color.withValues(alpha: 0.5)),
                 ),
@@ -2539,111 +2528,63 @@ class _CyberGlitchTextState extends State<CyberGlitchText> with SingleTickerProv
 }
 
 /// 系统返回确认对话框 - 统一的二级确认逻辑
-Future<bool> showCyberConfirmExit(BuildContext context, {Color? color}) async {
-  final themeColor = color ?? GameProgress.currentNation.themeColor;
-  final res = await showGeneralDialog<bool>(
+Future<bool> showCyberConfirmExit(
+  BuildContext context, {
+  Color? color,
+  String title = "终止连接",
+  String content = "即将终止当前的尖塔渗透任务，未同步的数据流将会丢失。是否确认断开物理接入？",
+  String cancelLabel = "取消",
+  String confirmLabel = "确定",
+}) async {
+  final themeColor = color ?? GameState.getThemeColor();
+  return await showGeneralDialog<bool>(
     context: context,
     barrierDismissible: true,
-    barrierLabel: "DISCONNECT_CONFIRM",
+    barrierLabel: "ExitConfirmation",
     barrierColor: Colors.black.withValues(alpha: 0.8),
-    transitionDuration: const Duration(milliseconds: 200),
-    pageBuilder: (ctx, anim1, anim2) {
-      return Center(
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            width: 320,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0A0F16).withValues(alpha: 0.95),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: const Color(0xFFFF6A6A).withValues(alpha: 0.8),
-                width: 2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFFF6A6A).withValues(alpha: 0.2),
-                  blurRadius: 30,
-                  spreadRadius: 2,
-                ),
-              ],
+    pageBuilder: (context, anim1, anim2) => const SizedBox(),
+    transitionDuration: const Duration(milliseconds: 300),
+    transitionBuilder: (context, anim1, anim2, child) {
+      return ScaleTransition(
+        scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
+        child: FadeTransition(
+          opacity: anim1,
+          child: AlertDialog(
+            backgroundColor: const Color(0xFF0A0F16),
+            shape: RoundedRectangleBorder(
+              side: BorderSide(color: themeColor.withValues(alpha: 0.5), width: 2),
+              borderRadius: BorderRadius.circular(15),
             ),
-            child: Stack(
+            title: Row(
               children: [
-                Positioned.fill(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: const CyberScanline(color: Color(0x11FF6A6A)),
-                  ),
-                ),
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: CyberCornerPainter(color: const Color(0x66FF6A6A)),
-                  ),
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.warning_amber_rounded, color: Color(0xFFFF6A6A), size: 20),
-                        SizedBox(width: 10),
-                        Text(
-                          "DISCONNECT_REQUEST",
-                          style: TextStyle(
-                            color: Color(0xFFFF6A6A),
-                            fontSize: 10,
-                            fontFamily: 'monospace',
-                            letterSpacing: 2,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      '即将终止当前的尖塔渗透任务，未同步的数据流将会丢失。是否确认断开物理接入？',
-                      style: TextStyle(
-                        color: Color(0xFFE1E9FF),
-                        fontSize: 14,
-                        height: 1.6,
-                        fontFamily: 'monospace',
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        CyberButton(
-                          width: 100,
-                          height: 36,
-                          fontSize: 12,
-                          label: '维持接入',
-                          color: themeColor,
-                          onPressed: () => Navigator.pop(ctx, false),
-                        ),
-                        const SizedBox(width: 16),
-                        CyberButton(
-                          width: 100,
-                          height: 36,
-                          fontSize: 12,
-                          label: '确认断开',
-                          color: const Color(0xFFFF6A6A),
-                          onPressed: () => Navigator.pop(ctx, true),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                Icon(Icons.warning_amber_rounded, color: themeColor),
+                const SizedBox(width: 10),
+                Text(title, style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 16)),
               ],
             ),
+            content: Text(
+              content,
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(cancelLabel, style: TextStyle(color: themeColor.withValues(alpha: 0.5), fontFamily: 'monospace')),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: themeColor.withValues(alpha: 0.2),
+                  side: BorderSide(color: themeColor),
+                ),
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(confirmLabel, style: const TextStyle(color: Colors.white, fontFamily: 'monospace')),
+              ),
+            ],
           ),
         ),
       );
     },
-  );
-  return res ?? false;
+  ) ?? false;
 }
 
 /// 赛博朋克风格扫描线
