@@ -197,7 +197,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
         ),
         const SizedBox(height: 12),
         Text(
-          'DATA CACHE STATION v2.1',
+          '数据缓存站 v2.1',
           style: TextStyle(
             fontSize: 10,
             color: themeColor.withValues(alpha: 0.4),
@@ -213,24 +213,9 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
         Container(
           width: 320,
           padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0A0F16).withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: themeColor.withValues(alpha: 0.3),
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 10, offset: const Offset(0, 5)),
-            ],
-          ),
+          decoration: ThemeConfig.buildCyberDecoration(themeColor),
           child: Stack(
             children: [
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: CyberCornerPainter(color: themeColor.withValues(alpha: 0.6)),
-                ),
-              ),
               Column(
                 children: [
                   Row(
@@ -243,7 +228,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'UNIT_INTEGRITY_STATUS',
+                        '单元完整度状态',
                         style: TextStyle(
                           fontSize: 9,
                           color: themeColor,
@@ -344,36 +329,9 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 8),
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: themeColor.withValues(alpha: 0.5),
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: themeColor.withValues(alpha: 0.2),
-              blurRadius: 10,
-              spreadRadius: 1,
-            ),
-          ],
-        ),
+        decoration: ThemeConfig.buildCyberDecoration(themeColor),
         child: Stack(
           children: [
-            // 内部动态扫描线
-            Positioned.fill(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(7),
-                child: CyberScanline(color: themeColor.withValues(alpha: 0.2)),
-              ),
-            ),
-            // 装饰边角
-            Positioned.fill(
-              child: CustomPaint(
-                painter: CyberCornerPainter(color: themeColor.withValues(alpha: 0.4)),
-              ),
-            ),
             Row(
               children: [
                 Container(
@@ -403,15 +361,15 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
                       Text(
                         description,
                         style: TextStyle(
-                          fontSize: 13,
-                          color: const Color(0xFFE1E9FF).withValues(alpha: 0.7),
+                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.6),
                           fontFamily: 'monospace',
                         ),
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right, color: themeColor),
+                Icon(Icons.chevron_right, color: themeColor.withValues(alpha: 0.3)),
               ],
             ),
           ],
@@ -438,7 +396,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
         const SizedBox(height: 32),
         
         Text(
-          'CACHE_EXTRACT_COMPLETE',
+          '缓存提取完成',
           style: TextStyle(
             fontSize: 10,
             color: themeColor,

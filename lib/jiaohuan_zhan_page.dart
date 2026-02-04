@@ -76,12 +76,16 @@ class _JiaohuanZhanPageState extends State<JiaohuanZhanPage> {
                           Center(
                             child: CyberLogicPanel(
                               color: color,
-                              label: "// EXCHANGE",
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                                child: Row(
-                                  children: List.generate(_cards.length, (i) => _cardTile(_cards[i], i)),
+                              label: "// 交换站",
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: ThemeConfig.buildCyberDecoration(color),
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                  child: Row(
+                                    children: List.generate(_cards.length, (i) => _cardTile(_cards[i], i)),
+                                  ),
                                 ),
                               ),
                             ),
@@ -117,7 +121,7 @@ class _JiaohuanZhanPageState extends State<JiaohuanZhanPage> {
       children: [
         Text(levelTitle, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: color, blurRadius: 20)])),
         const SizedBox(height: 12),
-        Text('SWITCH STATION v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
+        Text('交换终端 v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
       ],
     );
   }
@@ -130,20 +134,20 @@ class _JiaohuanZhanPageState extends State<JiaohuanZhanPage> {
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: const Color(0xFF0A0F16), borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.4)), boxShadow: [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 10)]),
-            child: Row(children: [Icon(Icons.sync_alt, size: 14, color: color), const SizedBox(width: 6), Text("OPTIONS: ${_cards.length}", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2, fontWeight: FontWeight.bold))]),
+            decoration: ThemeConfig.buildCyberDecoration(color),
+            child: Row(children: [Icon(Icons.sync_alt, size: 14, color: color), const SizedBox(width: 6), Text("可用选项: ${_cards.length}", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2, fontWeight: FontWeight.bold))]),
           ),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: const Color(0xFF0A0F16), borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.4))),
-            child: Row(children: [Icon(Icons.memory, size: 14, color: color), const SizedBox(width: 6), Text("NODE: $levelId", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))]),
+            decoration: ThemeConfig.buildCyberDecoration(color, isRight: true),
+            child: Row(children: [Icon(Icons.memory, size: 14, color: color), const SizedBox(width: 6), Text("节点编号: $levelId", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))]),
           ),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: const Color(0xFF0A0F16), borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.4))),
-            child: Row(children: [Icon(Icons.favorite, size: 14, color: const Color(0xFFFF6A6A)), const SizedBox(width: 6), Text("HP: ${GameState.playerHp}/${GameState.playerMaxHp}", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))]),
+            decoration: ThemeConfig.buildCyberDecoration(color),
+            child: Row(children: [Icon(Icons.favorite, size: 14, color: const Color(0xFFFF6A6A)), const SizedBox(width: 6), Text("生命值: ${GameState.playerHp}/${GameState.playerMaxHp}", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))]),
           ),
         ],
       ),
@@ -175,21 +179,7 @@ class _JiaohuanZhanPageState extends State<JiaohuanZhanPage> {
               left: 0,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.8),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(4),
-                    bottomRight: Radius.circular(10),
-                  ),
-                  border: Border.all(color: const Color(0xFFFF6A6A).withValues(alpha: 0.8), width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFF6A6A).withValues(alpha: 0.3),
-                      blurRadius: 4,
-                      spreadRadius: 1,
-                    )
-                  ],
-                ),
+                decoration: ThemeConfig.buildCyberDecoration(const Color(0xFFFF6A6A)),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

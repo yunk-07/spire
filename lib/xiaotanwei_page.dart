@@ -96,11 +96,15 @@ class _XiaotanweiPageState extends State<XiaotanweiPage> {
                           Center(
                             child: CyberLogicPanel(
                               color: color,
-                              label: "// STALL",
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                                child: Row(children: _cards.map((c) => _cardTile(c)).toList()),
+                              label: "// 摊位",
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: ThemeConfig.buildCyberDecoration(color),
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                  child: Row(children: _cards.map((c) => _cardTile(c)).toList()),
+                                ),
                               ),
                             ),
                           ),
@@ -135,7 +139,7 @@ class _XiaotanweiPageState extends State<XiaotanweiPage> {
       children: [
         Text(levelTitle, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: color, blurRadius: 20)])),
         const SizedBox(height: 12),
-        Text('STALL PROTOCOL v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
+        Text('摊位协议 v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
       ],
     );
   }
@@ -147,25 +151,20 @@ class _XiaotanweiPageState extends State<XiaotanweiPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: const Color(0xFF0A0F16), borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.4)), boxShadow: [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 10)]),
-            child: Row(children: [Icon(Icons.storefront, size: 14, color: color), const SizedBox(width: 6), Text("OPTIONS: ${_cards.length}", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2, fontWeight: FontWeight.bold))]),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: ThemeConfig.buildCyberDecoration(color),
+            child: Row(children: [Icon(Icons.storefront, size: 14, color: color), const SizedBox(width: 6), Text("可供选择: ${_cards.length}", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2, fontWeight: FontWeight.bold))]),
           ),
           const SizedBox(width: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: const Color(0xFF0A0F16), borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.4))),
-            child: Row(children: [Icon(Icons.memory, size: 14, color: color), const SizedBox(width: 6), Text("NODE: $levelId", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))]),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: ThemeConfig.buildCyberDecoration(color, isRight: true),
+            child: Row(children: [Icon(Icons.memory, size: 14, color: color), const SizedBox(width: 6), Text("节点: $levelId", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))]),
           ),
           const SizedBox(width: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0A0F16),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.4)),
-              boxShadow: [BoxShadow(color: const Color(0xFFFFD700).withValues(alpha: 0.1), blurRadius: 8)],
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: ThemeConfig.buildCyberDecoration(const Color(0xFFFFD700)),
             child: Row(
               children: [
                 const Icon(Icons.monetization_on, size: 14, color: Color(0xFFFFD700)),
@@ -220,21 +219,7 @@ class _XiaotanweiPageState extends State<XiaotanweiPage> {
               left: 0,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.8),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(4),
-                    bottomRight: Radius.circular(10),
-                  ),
-                  border: Border.all(color: const Color(0xFF44FF44).withValues(alpha: 0.8), width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF44FF44).withValues(alpha: 0.3),
-                      blurRadius: 4,
-                      spreadRadius: 1,
-                    )
-                  ],
-                ),
+                decoration: ThemeConfig.buildCyberDecoration(const Color(0xFF44FF44)),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: const [
@@ -261,13 +246,9 @@ class _XiaotanweiPageState extends State<XiaotanweiPage> {
               right: 0,
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0A0F16),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: canAfford ? const Color(0xFFFFD700).withValues(alpha: 0.6) : Colors.red.withValues(alpha: 0.6),
-                    width: 1,
-                  ),
+                decoration: ThemeConfig.buildCyberDecoration(
+                  canAfford ? const Color(0xFFFFD700) : Colors.red,
+                  isRight: true,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,

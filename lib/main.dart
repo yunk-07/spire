@@ -1199,6 +1199,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    // 关键区域：重置本场战斗的数据统计
+    GameStatistics.resetBattle();
     _hpPulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat(reverse: true);
     _waveCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat();
     _chipDeployCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
@@ -1745,6 +1747,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           }
     // 增加使用卡牌统计
     GameStatistics.totalCardsUsed++;
+    GameStatistics.battleCardsUsed++;
 
     // 重置高亮目标
     highlightedTarget = null;
@@ -1858,6 +1861,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           anim.showBlockDamage(target, absorbed);
           _playBlockSound();
           GameStatistics.totalDamageBlocked += absorbed;
+          GameStatistics.battleDamageBlocked += absorbed;
         }
         if (target.block == 0 && absorbed > 0) {
           anim.playShieldBreak(target);
@@ -1890,6 +1894,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       anim.showDamage(target, remaining);
       _playHitSound();
       GameStatistics.totalDamageDealt += remaining;
+      GameStatistics.battleDamageDealt += remaining;
     }
     
     if (identical(target, player)) {
@@ -2042,6 +2047,10 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     // 同步阶段开始时自动抽牌：随机获取数据包
     _randomDrawCards(bonus: drawBonus);
     hasDrawnCards = true;
+    
+    // 关键区域：记录总回合数
+    GameStatistics.totalTurns++;
+    GameStatistics.battleTurns++;
 
     // 关键区域：同步阶段开始时结算玩家状态
     if (player.vulnerable > 0) player.vulnerable--;
@@ -2457,6 +2466,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       isVictory = true;
       if (!_victoryRecorded && widget.levelId != null) {
         GameProgress.markDefeated(widget.levelId!);
+        GameStatistics.totalBattlesWon++; // 关键区域：记录赢得的战斗
         _victoryRecorded = true;
         // 关键区域：Boss战胜利时随机决定奖励类型（神圣或恶魔）
         if (GameProgress.isCurrentNationFinished()) {
@@ -4303,6 +4313,11 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                             GameProgress.markDefeated(widget.levelId!);
                                           }
                                           
+                                          // 如果是通关（整个国家完成），则结算数据到累计统计
+                                          if (GameProgress.isCurrentNationFinished()) {
+                                            GameStatistics.commitRunStats();
+                                          }
+                                          
                                           Navigator.pushReplacement(
                                             context,
                                             createHoloRoute(
@@ -4321,6 +4336,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                         Icons.refresh,
                                         "重载系统",
                                         () {
+                                          // 关键区域：记录失败前的数据到累计统计
+                                          GameStatistics.commitRunStats();
+                                          
                                           GameProgress.resetRunData();
                                           GameState.reset();
                                           GameStatistics.reset();
@@ -4984,7 +5002,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
               ),
               const SizedBox(width: 8),
               const Text(
-                '渗透数据分析 / ANALYZING...',
+                '本次战斗实时统计 / BATTLE_STATS',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 12,
@@ -4996,10 +5014,11 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             ],
           ),
           const SizedBox(height: 12),
-          _statRow('数据同步周期 (回合)', '${GameStatistics.totalTurns}', const Color(0xFFE1E9FF)),
-          _statRow('调用指令集 (出牌)', '${GameStatistics.totalCardsUsed}', themeColor),
-          _statRow('数据破坏值 (伤害)', '${GameStatistics.totalDamageDealt}', const Color(0xFFFF6A6A)),
-          _statRow('防御拦截值 (护盾)', '${GameStatistics.totalDamageBlocked}', const Color(0xFF5AD1FF)),
+          _statRow('数据同步周期 (回合)', '${GameStatistics.battleTurns}', const Color(0xFFE1E9FF)),
+          _statRow('指令集调用 (出牌)', '${GameStatistics.battleCardsUsed}', themeColor),
+          _statRow('数据破坏数值 (伤害)', '${GameStatistics.battleDamageDealt}', const Color(0xFFFF6A6A)),
+          _statRow('防火墙拦截 (护盾)', '${GameStatistics.battleDamageBlocked}', const Color(0xFF5AD1FF)),
+          _statRow('已攻破扇区 (胜场)', '${GameStatistics.totalBattlesWon}', const Color(0xFF44FF44)),
         ],
       ),
     );
@@ -5008,27 +5027,44 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   Widget _statRow(String label, String value, Color valueColor) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.5),
-              fontSize: 11,
-              fontFamily: 'monospace',
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                ),
+              ),
+              Text(
+                value,
+                style: TextStyle(
+                  color: valueColor,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'monospace',
+                  shadows: [
+                    Shadow(color: valueColor.withValues(alpha: 0.3), blurRadius: 4),
+                  ],
+                ),
+              ),
+            ],
           ),
-          Text(
-            value,
-            style: TextStyle(
-              color: valueColor,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'monospace',
-              shadows: [
-                Shadow(color: valueColor.withValues(alpha: 0.3), blurRadius: 4),
-              ],
+          Container(
+            height: 1,
+            margin: const EdgeInsets.only(top: 4),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  valueColor.withValues(alpha: 0.2),
+                  valueColor.withValues(alpha: 0.05),
+                  Colors.transparent,
+                ],
+              ),
             ),
           ),
         ],

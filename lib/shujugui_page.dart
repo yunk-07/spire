@@ -82,11 +82,15 @@ class _ShujuguiPageState extends State<ShujuguiPage> {
                           Center(
                             child: CyberLogicPanel(
                               color: color,
-                              label: "// DATA CABINET",
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                                child: Row(children: List.generate(_cards.length, (i) => _cardTile(_cards[i], _prices[i]))),
+                              label: "// 数据柜",
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: ThemeConfig.buildCyberDecoration(color),
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                  child: Row(children: List.generate(_cards.length, (i) => _cardTile(_cards[i], _prices[i]))),
+                                ),
                               ),
                             ),
                           ),
@@ -120,12 +124,8 @@ class _ShujuguiPageState extends State<ShujuguiPage> {
 
   Widget _buildGoldDisplay(Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.5)),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: ThemeConfig.buildCyberDecoration(const Color(0xFFFFD700)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -150,7 +150,7 @@ class _ShujuguiPageState extends State<ShujuguiPage> {
       children: [
         Text(levelTitle, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: color, blurRadius: 20)])),
         const SizedBox(height: 12),
-        Text('DATA CABINET v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
+        Text('数据柜协议 v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
       ],
     );
   }
@@ -162,15 +162,15 @@ class _ShujuguiPageState extends State<ShujuguiPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: const Color(0xFF0A0F16), borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.4)), boxShadow: [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 10)]),
-            child: Row(children: [Icon(Icons.storage, size: 14, color: color), const SizedBox(width: 6), Text("OPTIONS: ${_cards.length}", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2, fontWeight: FontWeight.bold))]),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: ThemeConfig.buildCyberDecoration(color),
+            child: Row(children: [Icon(Icons.storage, size: 14, color: color), const SizedBox(width: 6), Text("可供选择: ${_cards.length}", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2, fontWeight: FontWeight.bold))]),
           ),
           const SizedBox(width: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: const Color(0xFF0A0F16), borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.4))),
-            child: Row(children: [Icon(Icons.memory, size: 14, color: color), const SizedBox(width: 6), Text("NODE: $levelId", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))]),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: ThemeConfig.buildCyberDecoration(color, isRight: true),
+            child: Row(children: [Icon(Icons.memory, size: 14, color: color), const SizedBox(width: 6), Text("节点: $levelId", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))]),
           ),
         ],
       ),
@@ -202,21 +202,7 @@ class _ShujuguiPageState extends State<ShujuguiPage> {
               left: 0,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.8),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(4),
-                    bottomRight: Radius.circular(10),
-                  ),
-                  border: Border.all(color: const Color(0xFFE26CFF).withValues(alpha: 0.8), width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFE26CFF).withValues(alpha: 0.3),
-                      blurRadius: 4,
-                      spreadRadius: 1,
-                    )
-                  ],
-                ),
+                decoration: ThemeConfig.buildCyberDecoration(const Color(0xFFE26CFF)),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

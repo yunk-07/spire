@@ -85,18 +85,52 @@ class GameState {
 
 // 游戏统计信息
 class GameStatistics {
+  // 本场战斗数据 (Current Battle Data)
+  static int battleDamageDealt = 0;
+  static int battleDamageBlocked = 0;
+  static int battleCardsUsed = 0;
+  static int battleTurns = 0;
+
+  // 本局数据 (Current Run Data)
   static int totalDamageDealt = 0;
   static int totalDamageBlocked = 0;
   static int totalCardsUsed = 0;
   static int totalTurns = 0;
   static int totalBattlesWon = 0; // 赢得战斗总数
 
-  // 重置统计信息
+  // 累计数据 (Cumulative Data - Session persistent)
+  static int globalDamageDealt = 0;
+  static int globalDamageBlocked = 0;
+  static int globalCardsUsed = 0;
+  static int globalTurns = 0;
+  static int globalBattlesWon = 0;
+  static int globalRunsCompleted = 0;
+
+  // 重置本场战斗统计信息
+  static void resetBattle() {
+    battleDamageDealt = 0;
+    battleDamageBlocked = 0;
+    battleCardsUsed = 0;
+    battleTurns = 0;
+  }
+
+  // 重置本局统计信息
   static void reset() {
+    resetBattle();
     totalDamageDealt = 0;
     totalDamageBlocked = 0;
     totalCardsUsed = 0;
     totalTurns = 0;
     totalBattlesWon = 0;
+  }
+
+  // 结算当前局数据到累计数据
+  static void commitRunStats() {
+    globalDamageDealt += totalDamageDealt;
+    globalDamageBlocked += totalDamageBlocked;
+    globalCardsUsed += totalCardsUsed;
+    globalTurns += totalTurns;
+    globalBattlesWon += totalBattlesWon;
+    globalRunsCompleted++;
   }
 }

@@ -99,7 +99,7 @@ class _HuozhanPageState extends State<HuozhanPage> {
                             child: CyberLogicPanel(
                               color: color,
                               icon: Icons.inventory_2,
-                              label: "// DEPOT_CHANNEL",
+                              label: "// 货栈频道",
                               child: _buildDepotContent(),
                             ),
                           ),
@@ -145,7 +145,7 @@ class _HuozhanPageState extends State<HuozhanPage> {
         ),
         const SizedBox(height: 12),
         Text(
-          'DEPOT PROTOCOL v3.4',
+          '货栈协议 v3.4',
           style: TextStyle(
             fontSize: 10,
             color: color.withValues(alpha: 0.4),
@@ -164,19 +164,14 @@ class _HuozhanPageState extends State<HuozhanPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0A0F16),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: color.withValues(alpha: 0.4)),
-              boxShadow: [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 10)],
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: ThemeConfig.buildCyberDecoration(color),
             child: Row(
               children: [
                 Icon(Icons.inventory_2, size: 14, color: color),
                 const SizedBox(width: 6),
                 Text(
-                  "OPTIONS: ${_cards.length}",
+                  "可供选择: ${_cards.length}",
                   style: TextStyle(
                     color: color,
                     fontSize: 10,
@@ -190,23 +185,38 @@ class _HuozhanPageState extends State<HuozhanPage> {
           ),
           const SizedBox(width: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0A0F16),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: color.withValues(alpha: 0.4)),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: ThemeConfig.buildCyberDecoration(color, isRight: true),
             child: Row(
               children: [
                 Icon(Icons.memory, size: 14, color: color),
                 const SizedBox(width: 6),
                 Text(
-                  "NODE: $levelId",
+                  "节点: $levelId",
                   style: TextStyle(
                     color: color,
                     fontSize: 10,
                     fontFamily: 'monospace',
                     letterSpacing: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: ThemeConfig.buildCyberDecoration(const Color(0xFFFFD700)),
+            child: Row(
+              children: [
+                const Icon(Icons.monetization_on, size: 14, color: Color(0xFFFFD700)),
+                const SizedBox(width: 6),
+                Text(
+                  "${GameState.playerGold}",
+                  style: const TextStyle(                    color: Color(0xFFFFD700),
+                    fontSize: 10,
+                    fontFamily: 'monospace',
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
@@ -220,13 +230,18 @@ class _HuozhanPageState extends State<HuozhanPage> {
 
   // 货栈内容：在逻辑面板中展示横向卡牌列表
   Widget _buildDepotContent() {
-    return SizedBox(
-      height: 290, // 增加高度以容纳价格
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        itemCount: _cards.length,
-        itemBuilder: (_, i) => _cardTile(_cards[i]),
+    final color = GameState.getThemeColor();
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: ThemeConfig.buildCyberDecoration(color),
+      child: SizedBox(
+        height: 290, // 增加高度以容纳价格
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          itemCount: _cards.length,
+          itemBuilder: (_, i) => _cardTile(_cards[i]),
+        ),
       ),
     );
   }
@@ -264,25 +279,11 @@ class _HuozhanPageState extends State<HuozhanPage> {
               left: 0,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.8),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(4),
-                    bottomRight: Radius.circular(10),
-                  ),
-                  border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.8), width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFFD700).withValues(alpha: 0.3),
-                      blurRadius: 4,
-                      spreadRadius: 1,
-                    )
-                  ],
-                ),
+                decoration: ThemeConfig.buildCyberDecoration(const Color(0xFFFFD700)),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: const [
-                    Icon(Icons.storage, size: 11, color: Color(0xFFFFD700)),
+                    Icon(Icons.inventory_2, size: 11, color: Color(0xFFFFD700)),
                     SizedBox(width: 4),
                     Text(
                       '高价值缓存',
@@ -305,13 +306,9 @@ class _HuozhanPageState extends State<HuozhanPage> {
               right: 0,
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0A0F16),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: canAfford ? const Color(0xFFFFD700).withValues(alpha: 0.6) : Colors.red.withValues(alpha: 0.6),
-                    width: 1,
-                  ),
+                decoration: ThemeConfig.buildCyberDecoration(
+                  canAfford ? const Color(0xFFFFD700) : Colors.red,
+                  isRight: true,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,

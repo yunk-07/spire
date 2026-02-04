@@ -102,6 +102,37 @@ class ThemeConfig {
     }
   }
 
+  /// 获取全新的赛博朋克装饰样式 (参考摸牌堆样式)
+  static BoxDecoration buildCyberDecoration(Color themeColor, {bool isRight = false}) {
+    return BoxDecoration(
+      gradient: LinearGradient(
+        begin: isRight ? Alignment.centerRight : Alignment.centerLeft,
+        end: isRight ? Alignment.centerLeft : Alignment.centerRight,
+        colors: [
+          const Color(0xFF0A0F16).withValues(alpha: 0.95),
+          const Color(0xFF1A1F26).withValues(alpha: 0.9),
+        ],
+      ),
+      borderRadius: BorderRadius.only(
+        topRight: Radius.circular(isRight ? 0 : 16),
+        bottomLeft: Radius.circular(isRight ? 0 : 16),
+        topLeft: Radius.circular(isRight ? 16 : 0),
+        bottomRight: Radius.circular(isRight ? 16 : 0),
+      ),
+      border: Border.all(
+        color: themeColor.withValues(alpha: 0.4),
+        width: 1.2,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: themeColor.withValues(alpha: 0.15),
+          blurRadius: 12,
+          spreadRadius: 1,
+        ),
+      ],
+    );
+  }
+
   /// 获取套装对应的图标
   static IconData getSuiteIcon(CardSuite suite) {
     switch (suite) {

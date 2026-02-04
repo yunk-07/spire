@@ -73,14 +73,14 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
                           CyberLogicPanel(
                             color: color,
                             icon: Icons.local_fire_department,
-                            label: "// CAMPFIRE_CORE",
+                            label: "// 核心模块",
                             child: _buildVisualCenter(),
                           ),
                           const SizedBox(height: 24),
                           CyberLogicPanel(
                             color: color,
                             icon: Icons.build,
-                            label: "// CAMPFIRE_OPTIONS",
+                            label: "// 交互选项",
                             child: _options(color),
                           ),
                           const SizedBox(height: 40),
@@ -207,7 +207,7 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
             ),
             const SizedBox(height: 20),
             Text(
-              "HEAT_LEVEL: ${GameState.heatProgress}",
+              "热量等级: ${GameState.heatProgress}",
               style: const TextStyle(color: Colors.white70, fontSize: 12, fontFamily: 'monospace', letterSpacing: 2),
             ),
           ],
@@ -222,28 +222,7 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
         constraints: const BoxConstraints(maxWidth: 600),
         width: double.infinity,
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF0A0F16).withValues(alpha: 0.9),
-              const Color(0xFF1A1F26).withValues(alpha: 0.9),
-            ],
-          ),
-          borderRadius: const BorderRadius.only(
-            topRight: Radius.circular(16),
-            bottomLeft: Radius.circular(16),
-          ),
-          border: Border.all(color: color.withValues(alpha: 0.4), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.15),
-              blurRadius: 12,
-              spreadRadius: 1,
-            ),
-          ],
-        ),
+        decoration: ThemeConfig.buildCyberDecoration(color),
         child: ClipRRect(
           borderRadius: const BorderRadius.only(
             topRight: Radius.circular(16),
@@ -258,7 +237,7 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
                 children: [
                   _optionCard(
                     title: "休息",
-                    subtitle: "REGENERATE",
+                    subtitle: "核心重构",
                     desc: "恢复缺失生命的 50%",
                     color: GameState.getThemeColor(),
                     icon: Icons.hotel,
@@ -267,7 +246,7 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
                   const SizedBox(height: 16),
                   _optionCard(
                     title: "强化",
-                    subtitle: "STRENGTHEN",
+                    subtitle: "算力增强",
                     desc: "永久增加 1 点算力",
                     color: const Color(0xFF6CFF9E),
                     icon: Icons.trending_up,
@@ -276,7 +255,7 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
                   const SizedBox(height: 16),
                   _optionCard(
                     title: "锻造",
-                    subtitle: "PURGE_CARD",
+                    subtitle: "指令优化",
                     desc: "移除一张牌，优化指令集",
                     color: const Color(0xFFFFD700),
                     icon: Icons.build,
@@ -304,28 +283,7 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF0A0F16).withValues(alpha: 0.9),
-              const Color(0xFF1A1F26).withValues(alpha: 0.9),
-            ],
-          ),
-          borderRadius: const BorderRadius.only(
-            topRight: Radius.circular(16),
-            bottomLeft: Radius.circular(16),
-          ),
-          border: Border.all(color: color.withValues(alpha: 0.4), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.1),
-              blurRadius: 8,
-              spreadRadius: 1,
-            ),
-          ],
-        ),
+        decoration: ThemeConfig.buildCyberDecoration(color),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -613,7 +571,7 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
       children: [
         Text(levelTitle, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: color, blurRadius: 20)])),
         const SizedBox(height: 12),
-        Text('CAMPFIRE v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
+        Text('核心终端 v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
       ],
     );
   }
@@ -624,9 +582,9 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFF0A0F16), borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.4)), boxShadow: [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 10)]), child: Row(children: [Icon(Icons.local_fire_department, size: 14, color: color), const SizedBox(width: 6), const Text("OPTIONS: 2", style: TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2))])),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: ThemeConfig.buildCyberDecoration(color), child: Row(children: [Icon(Icons.local_fire_department, size: 14, color: color), const SizedBox(width: 6), const Text("可用操作: 3", style: TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2))])),
           const SizedBox(width: 12),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFF0A0F16), borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.4))), child: Row(children: [Icon(Icons.memory, size: 14, color: color), const SizedBox(width: 6), Text("NODE: $levelId", style: const TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))])),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: ThemeConfig.buildCyberDecoration(color, isRight: true), child: Row(children: [Icon(Icons.memory, size: 14, color: color), const SizedBox(width: 6), Text("节点编号: $levelId", style: const TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))])),
         ],
       ),
     );

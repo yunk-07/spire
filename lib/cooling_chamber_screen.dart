@@ -50,9 +50,12 @@ class CoolingChamberScreen extends StatelessWidget {
                             child: CyberLogicPanel(
                               color: GameState.getThemeColor(),
                               icon: Icons.ac_unit,
-                              label: "// COOLING_CHANNEL",
+                              label: "// 冷却通道",
                               child: Padding(
-                                padding: const EdgeInsets.all(16.0),
+                              padding: const EdgeInsets.all(16.0),
+                              child: Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: ThemeConfig.buildCyberDecoration(GameState.getThemeColor()),
                                 child: CyberButton(
                                   width: 320,
                                   height: 60,
@@ -67,6 +70,7 @@ class CoolingChamberScreen extends StatelessWidget {
                                   },
                                 ),
                               ),
+                            ),
                             ),
                           ),
                           const SizedBox(height: 40),
@@ -89,7 +93,7 @@ class CoolingChamberScreen extends StatelessWidget {
       children: [
         Text(levelTitle, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: color, blurRadius: 20)])),
         const SizedBox(height: 12),
-        Text('COOLING CHAMBER v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
+        Text('冷却终端 v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
       ],
     );
   }
@@ -101,9 +105,9 @@ class CoolingChamberScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFF0A0F16), borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.4)), boxShadow: [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 10)]), child: Row(children: [Icon(Icons.ac_unit, size: 14, color: color), const SizedBox(width: 6), const Text("OPTIONS: 1", style: TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2))])),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: ThemeConfig.buildCyberDecoration(color), child: Row(children: [Icon(Icons.ac_unit, size: 14, color: color), const SizedBox(width: 6), const Text("可用操作: 1", style: TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2))])),
           const SizedBox(width: 12),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFF0A0F16), borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.4))), child: Row(children: [Icon(Icons.memory, size: 14, color: color), const SizedBox(width: 6), Text("NODE: $levelId", style: const TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))])),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: ThemeConfig.buildCyberDecoration(color, isRight: true), child: Row(children: [Icon(Icons.memory, size: 14, color: color), const SizedBox(width: 6), Text("节点编号: $levelId", style: const TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))])),
         ],
       ),
     );

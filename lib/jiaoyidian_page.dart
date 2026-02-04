@@ -81,11 +81,15 @@ class _JiaoyidianPageState extends State<JiaoyidianPage> {
                           Center(
                             child: CyberLogicPanel(
                               color: color,
-                              label: "// EXCHANGE",
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                                child: Row(children: List.generate(_cards.length, (i) => _cardTile(_cards[i], _prices[i]))),
+                              label: "// 交易",
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: ThemeConfig.buildCyberDecoration(color),
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                  child: Row(children: List.generate(_cards.length, (i) => _cardTile(_cards[i], _prices[i]))),
+                                ),
                               ),
                             ),
                           ),
@@ -119,12 +123,8 @@ class _JiaoyidianPageState extends State<JiaoyidianPage> {
 
   Widget _buildGoldDisplay(Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.5)),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: ThemeConfig.buildCyberDecoration(const Color(0xFFFFD700)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -149,7 +149,7 @@ class _JiaoyidianPageState extends State<JiaoyidianPage> {
       children: [
         Text(levelTitle, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: color, blurRadius: 20)])),
         const SizedBox(height: 12),
-        Text('EXCHANGE NODE v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
+        Text('交易协议 v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
       ],
     );
   }
@@ -161,15 +161,15 @@ class _JiaoyidianPageState extends State<JiaoyidianPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: const Color(0xFF0A0F16), borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.4)), boxShadow: [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 10)]),
-            child: Row(children: [Icon(Icons.swap_horiz, size: 14, color: color), const SizedBox(width: 6), Text("OPTIONS: ${_cards.length}", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2, fontWeight: FontWeight.bold))]),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: ThemeConfig.buildCyberDecoration(color),
+            child: Row(children: [Icon(Icons.swap_horiz, size: 14, color: color), const SizedBox(width: 6), Text("可供选择: ${_cards.length}", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2, fontWeight: FontWeight.bold))]),
           ),
           const SizedBox(width: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: const Color(0xFF0A0F16), borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.4))),
-            child: Row(children: [Icon(Icons.memory, size: 14, color: color), const SizedBox(width: 6), Text("NODE: $levelId", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))]),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: ThemeConfig.buildCyberDecoration(color, isRight: true),
+            child: Row(children: [Icon(Icons.memory, size: 14, color: color), const SizedBox(width: 6), Text("节点: $levelId", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))]),
           ),
         ],
       ),
@@ -201,21 +201,7 @@ class _JiaoyidianPageState extends State<JiaoyidianPage> {
               left: 0,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.8),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(4),
-                    bottomRight: Radius.circular(10),
-                  ),
-                  border: Border.all(color: const Color(0xFF26A69A).withValues(alpha: 0.8), width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF26A69A).withValues(alpha: 0.3),
-                      blurRadius: 4,
-                      spreadRadius: 1,
-                    )
-                  ],
-                ),
+                decoration: ThemeConfig.buildCyberDecoration(const Color(0xFF26A69A)),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

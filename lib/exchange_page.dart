@@ -108,8 +108,12 @@ class _ExchangePageState extends State<ExchangePage> {
                           const SizedBox(height: 48),
                           CyberLogicPanel(
                             color: themeColor,
-                            label: "// LOGIC EXCHANGE",
-                            child: _buildLogicExchangeOptions(themeColor),
+                            label: "// 逻辑交易",
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: ThemeConfig.buildCyberDecoration(themeColor),
+                              child: _buildLogicExchangeOptions(themeColor),
+                            ),
                           ),
                           const SizedBox(height: 48),
                           Padding(
@@ -146,20 +150,13 @@ class _ExchangePageState extends State<ExchangePage> {
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0A0F16),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: color.withValues(alpha: 0.4)),
-              boxShadow: [
-                BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 10),
-              ],
-            ),
+            decoration: ThemeConfig.buildCyberDecoration(color),
             child: Row(
               children: [
                 Icon(Icons.tune, size: 12, color: color),
                 const SizedBox(width: 6),
                 Text(
-                  "OPTIONS: 2",
+                  "可用选项: 2",
                   style: TextStyle(
                     color: color,
                     fontSize: 10,
@@ -174,17 +171,13 @@ class _ExchangePageState extends State<ExchangePage> {
           const SizedBox(width: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0A0F16),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: color.withValues(alpha: 0.4)),
-            ),
+            decoration: ThemeConfig.buildCyberDecoration(color, isRight: true),
             child: Row(
               children: [
                 Icon(Icons.memory, size: 14, color: color),
                 const SizedBox(width: 6),
                 Text(
-                  "NODE: $levelId",
+                  "节点: $levelId",
                   style: TextStyle(
                     color: color,
                     fontSize: 10,
@@ -207,18 +200,13 @@ class _ExchangePageState extends State<ExchangePage> {
       child: Container(
         width: 200,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0A0F16),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: color.withValues(alpha: 0.4)),
-          boxShadow: [BoxShadow(color: color.withValues(alpha: 0.1), blurRadius: 8)],
-        ),
+        decoration: ThemeConfig.buildCyberDecoration(color),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const SizedBox(width: 6),
             Text(
-              "ITG: ${GameState.playerHp}/${GameState.playerMaxHp}",
+              "完整度: ${GameState.playerHp}/${GameState.playerMaxHp}",
               style: TextStyle(color: color, fontSize: 12, fontFamily: 'monospace', letterSpacing: 2),
             ),
           ],
@@ -245,7 +233,7 @@ class _ExchangePageState extends State<ExchangePage> {
         ),
         const SizedBox(height: 12),
         Text(
-          'LOGIC EXCHANGE PROTOCOL v3.4',
+          '逻辑交易协议 v3.4',
           style: TextStyle(
             fontSize: 10,
             color: themeColor.withValues(alpha: 0.4),
@@ -346,7 +334,7 @@ class _ExchangePageState extends State<ExchangePage> {
                           Row(
                             children: [
                               Text(
-                                "LOGIC",
+                                "协议",
                                 style: TextStyle(
                                   color: color.withValues(alpha: 0.8),
                                   fontSize: 10,

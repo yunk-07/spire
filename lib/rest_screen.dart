@@ -104,7 +104,7 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
           )
         ),
         const SizedBox(height: 12),
-        Text('LOGIC REPAIR v3.4', 
+        Text('逻辑修复终端 v3.4', 
           style: TextStyle(
             fontSize: 10, 
             color: color.withValues(alpha: 0.4), 
@@ -124,33 +124,24 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), 
-            decoration: BoxDecoration(
-              color: const Color(0xFF0A0F16), 
-              borderRadius: BorderRadius.circular(4), 
-              border: Border.all(color: color.withValues(alpha: 0.4)), 
-              boxShadow: [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 10)]
-            ), 
+            decoration: ThemeConfig.buildCyberDecoration(color), 
             child: Row(
               children: [
                 Icon(Icons.qr_code_scanner, size: 14, color: color), 
                 const SizedBox(width: 6), 
-                const Text("OPTIONS: 2", style: TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2))
+                const Text("可用操作: 3", style: TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2))
               ]
             )
           ),
           const SizedBox(width: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), 
-            decoration: BoxDecoration(
-              color: const Color(0xFF0A0F16), 
-              borderRadius: BorderRadius.circular(4), 
-              border: Border.all(color: color.withValues(alpha: 0.4))
-            ), 
+            decoration: ThemeConfig.buildCyberDecoration(color, isRight: true), 
             child: Row(
               children: [
                 Icon(Icons.memory, size: 14, color: color), 
                 const SizedBox(width: 6), 
-                Text("NODE: $levelId", style: const TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))
+                Text("节点编号: $levelId", style: const TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))
               ]
             )
           ),
@@ -187,7 +178,7 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
             ),
             const SizedBox(height: 20),
             Text(
-              "CORE_STABILITY: ${(85 + _random.nextInt(15))}%",
+              "核心稳定性: ${(85 + _random.nextInt(15))}%",
               style: TextStyle(color: color, fontSize: 12, fontFamily: 'Courier', letterSpacing: 2),
             ),
           ],
@@ -203,7 +194,7 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
         children: [
           _buildCyberOption(
             title: "逻辑回溯",
-            subtitle: "RECONSTRUCT_INTEGRITY",
+            subtitle: "完整性重构",
             desc: "恢复 50% 已受损的生命完整度",
             icon: Icons.history_edu,
             color: color,
@@ -212,7 +203,7 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
           const SizedBox(height: 20),
           _buildCyberOption(
             title: "防火墙强化",
-            subtitle: "FIREWALL_STRENGTHEN",
+            subtitle: "防御矩阵强化",
             desc: "永久增加 2 点基础防火墙强度",
             icon: Icons.shield_outlined,
             color: const Color(0xFF6CFF9E),
@@ -221,7 +212,7 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
           const SizedBox(height: 20),
           _buildCyberOption(
             title: "时空跳跃",
-            subtitle: "DIMENSIONAL_SHIFT",
+            subtitle: "维度偏移",
             desc: "重新锚定位置，跳跃到当前层级任意节点",
             icon: Icons.auto_fix_high,
             color: const Color(0xFFAD00FF),
@@ -244,11 +235,7 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.05),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-          borderRadius: BorderRadius.circular(2),
-        ),
+        decoration: ThemeConfig.buildCyberDecoration(color),
         child: Row(
           children: [
             Container(
@@ -295,7 +282,7 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("SYSTEM_INTEGRITY", style: TextStyle(color: Colors.white54, fontSize: 10, fontFamily: 'Courier')),
+              const Text("系统完整度", style: TextStyle(color: Colors.white54, fontSize: 10, fontFamily: 'Courier')),
               Text("${GameState.playerHp} / ${GameState.playerMaxHp}", 
                 style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.bold, fontFamily: 'Courier')),
             ],
@@ -378,22 +365,34 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
                             CyberLogicPanel(
                               color: themeColor,
                               icon: Icons.qr_code_scanner,
-                              label: "// REPAIR_CHANNEL",
-                              child: _buildVisualCenter(themeColor),
+                              label: "// 核心状态",
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: ThemeConfig.buildCyberDecoration(themeColor),
+                                child: _buildVisualCenter(themeColor),
+                              ),
                             ),
                             const SizedBox(height: 24),
                             CyberLogicPanel(
                               color: themeColor,
-                              icon: Icons.qr_code_scanner,
-                              label: "// REPAIR_CHANNEL",
-                              child: _buildOptions(themeColor),
+                              icon: Icons.settings,
+                              label: "// 修复协议",
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: ThemeConfig.buildCyberDecoration(themeColor),
+                                child: _buildOptions(themeColor),
+                              ),
                             ),
                             const SizedBox(height: 24),
                             CyberLogicPanel(
                               color: themeColor,
-                              icon: Icons.qr_code_scanner,
-                              label: "// REPAIR_CHANNEL",
-                              child: _buildStatusFooter(themeColor),
+                              icon: Icons.info_outline,
+                              label: "// 系统信息",
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: ThemeConfig.buildCyberDecoration(themeColor),
+                                child: _buildStatusFooter(themeColor),
+                              ),
                             ),
                           ],
                         ),
