@@ -3,6 +3,7 @@
 // 重新设计：更加科幻、清晰的地图显示，突出玩家位置
 
 import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'game_state.dart';
 import 'nation_selection_screen.dart';
@@ -220,15 +221,15 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     // 元数据标签
                     Row(
                       children: [
-                        _hudStatusItem("MAP_PROTOCOL", "V4.2.0", themeColor),
+                        _hudStatusItem("地图协议", "V4.2.0", themeColor),
                         const SizedBox(width: 16),
-                        _hudStatusItem("OPERATOR", characterDatabase[GameState.selectedCharacterId]?.name ?? "UNKNOWN", themeColor),
+                        _hudStatusItem("操作员", characterDatabase[GameState.selectedCharacterId]?.name ?? "UNKNOWN", themeColor),
                         const SizedBox(width: 16),
-                        _hudStatusItem("ITG", "${GameState.playerHp}/${GameState.playerMaxHp}", GameState.playerHp / GameState.playerMaxHp < 0.3 ? Colors.redAccent : themeColor),
+                        _hudStatusItem("系统完整性", "${GameState.playerHp}/${GameState.playerMaxHp}", GameState.playerHp / GameState.playerMaxHp < 0.3 ? Colors.redAccent : themeColor),
                         const SizedBox(width: 16),
-                        _hudStatusItem("CREDITS", GameState.playerGold.toString(), const Color(0xFFFFD700)),
+                        _hudStatusItem("信用点", GameState.playerGold.toString(), const Color(0xFFFFD700)),
                         const Spacer(),
-                        _hudStatusItem("LOC_NODE", GameProgress.currentLevelId?.substring(0, 8) ?? "N/A", themeColor),
+                        _hudStatusItem("位置节点", GameProgress.currentLevelId?.substring(0, 8) ?? "N/A", themeColor),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -378,7 +379,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          "SECTOR_FULLY_SYNCHRONIZED",
+                          "扇区已完全同步",
                           style: TextStyle(
                             color: GameState.getThemeColor(),
                             fontSize: 14,
@@ -616,14 +617,14 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     ],
                   ),
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(2),
-                    bottomRight: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                    bottomLeft: Radius.circular(16),
                   ),
                   border: Border.all(
                     color: isCurrent
                         ? Color.lerp(glowColor, diffColor, 0.5)!
                         : Color.lerp(glowColor.withValues(alpha: 0.3 * alpha), diffColor.withValues(alpha: 0.6 * alpha), 0.5)!,
-                    width: isCurrent ? 1.5 : 1.0,
+                    width: isCurrent ? 1.2 : 1.0,
                   ),
                   boxShadow:
                       isCurrent
@@ -763,7 +764,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              "SYNCING",
+                              "同步中",
                               style: TextStyle(
                                 color: glowColor,
                                 fontSize: 7,
@@ -811,7 +812,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                             ],
                           ),
                           child: const Text(
-                            "CURRENT_POS",
+                            "当前位置",
                             style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.w900,
@@ -865,10 +866,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     final color = GameState.getThemeColor();
     final nextLayer = layerIndex + 1 < _layers.length ? _layers[layerIndex + 1] : const <LevelInfo>[];
     final monsters = node.programIds.map((id) => systemDatabase[id]).whereType<SecurityProgram>().toList();
-    final nextTitles = nextLayer.where((lvl) => node.nextLevelIndices.contains(nextLayer.indexOf(lvl))).map((e) => e.title).toList();
-    
-    // 确保标题、侦测到的实体等信息不为空，并添加默认提示
-    final displayNextTitles = nextTitles.isEmpty ? ["路径终点或未知区域"] : nextTitles;
 
     String typeDescription = "";
     IconData typeIcon = Icons.hub_outlined;
@@ -921,134 +918,116 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               scale: CurvedAnimation(parent: a1, curve: Curves.easeOutBack),
               child: FadeTransition(
                 opacity: a1,
-                child: CyberLogicPanel(
-                  color: color,
-                  maxWidth: 420,
-                  label: "// TACTICAL_BRIEFING",
-                  sessionLabel: "L${layerIndex}_N${_layers[layerIndex].indexOf(node)}",
-                  icon: typeIcon,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 标题与难度
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CyberLogicPanel(
+                      color: color,
+                      maxWidth: 380,
+                      label: "",
+                      sessionLabel: "",
+                      icon: Icons.qr_code_scanner,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  node.title.toUpperCase(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w900,
-                                    fontFamily: 'monospace',
-                                    letterSpacing: 2,
-                                  ),
+                          // 标题与图标
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: color.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: color.withValues(alpha: 0.2)),
                                 ),
-                                const SizedBox(height: 4),
-                                _difficultyStars(node.difficulty),
-                              ],
-                            ),
+                                child: Icon(typeIcon, color: color, size: 24),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      node.title.toUpperCase(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w900,
+                                        fontFamily: 'monospace',
+                                        letterSpacing: 1.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    _difficultyStars(node.difficulty),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
+                          const SizedBox(height: 16),
+                          
+                          const Divider(color: Colors.white10, height: 1),
+                          const SizedBox(height: 8),
+
+                          // 任务简报
                           Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.1),
-                              border: Border.all(color: color.withValues(alpha: 0.3)),
-                              shape: BoxShape.circle,
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Text(
+                              typeDescription,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.7),
+                                fontSize: 13,
+                                height: 1.6,
+                                fontFamily: 'serif',
+                              ),
                             ),
-                            child: Icon(typeIcon, color: color, size: 32),
                           ),
+                          const SizedBox(height: 16),
+
+                          // 威胁评估 (怪物)
+                          if (monsters.isNotEmpty) ...[
+                            Text(
+                              "检测到威胁:",
+                              style: TextStyle(color: color.withValues(alpha: 0.5), fontSize: 10, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: monsters.map((m) => _buildMonsterChip(m, color)).toList(),
+                            ),
+                          ],
                         ],
                       ),
-                      const SizedBox(height: 20),
-
-                      // 任务简报
-                      CyberTacticalDivider(color: color, label: "系统简报"),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.03),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border(left: BorderSide(color: color, width: 2)),
+                    ),
+                    const SizedBox(height: 24),
+                    // 操作按钮
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CyberPileButton(
+                          label: '返回',
+                          color: const Color(0xFF8FA3C0),
+                          width: 160,
+                          isRight: false,
+                          onPressed: () => Navigator.pop(ctx),
                         ),
-                        child: Text(
-                          typeDescription,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.8),
-                            fontSize: 13,
-                            height: 1.5,
-                            fontStyle: FontStyle.italic,
-                            fontFamily: 'serif',
-                          ),
+                        const SizedBox(width: 16),
+                        CyberPileButton(
+                          label: '进入',
+                          color: color,
+                          width: 160,
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _enterLevel(node);
+                          },
                         ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // 威胁评估 (怪物)
-                      CyberTacticalDivider(color: color, label: "威胁评估"),
-                      const SizedBox(height: 12),
-                      if (monsters.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 8),
-                          child: Text(
-                            "NO_THREAT_DETECTED (未检测到敌对程序)",
-                            style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11, fontFamily: 'monospace'),
-                          ),
-                        )
-                      else
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: monsters.map((m) => _buildMonsterChip(m, color)).toList(),
-                        ),
-                      const SizedBox(height: 24),
-
-                      // 拓扑预测
-                      CyberTacticalDivider(color: color, label: "拓扑预测"),
-                      const SizedBox(height: 12),
-                      CyberInfoRow(
-                        label: "NEXT_NODES",
-                        value: displayNextTitles.join(' / '),
-                        color: color,
-                        icon: Icons.alt_route_outlined,
-                      ),
-                      const SizedBox(height: 32),
-
-                      // 操作按钮
-                      Row(
-                        children: [
-                          Expanded(
-                            child: CyberButton(
-                              label: '放弃',
-                              height: 48,
-                              fontSize: 14,
-                              color: const Color(0xFF8FA3C0),
-                              onPressed: () => Navigator.pop(ctx),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: CyberButton(
-                              label: '开始渗透',
-                              height: 48,
-                              fontSize: 14,
-                              onPressed: () {
-                                Navigator.pop(ctx);
-                                _enterLevel(node);
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -1067,17 +1046,17 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       case SystemType.boss:
         typeIcon = Icons.dangerous;
         typeColor = const Color(0xFFFF5252);
-        typeTag = "CRITICAL";
+        typeTag = "核心";
         break;
       case SystemType.elite:
         typeIcon = Icons.security;
         typeColor = const Color(0xFFFFD740);
-        typeTag = "ELITE";
+        typeTag = "精英";
         break;
       case SystemType.normal:
         typeIcon = Icons.bug_report;
         typeColor = color.withValues(alpha: 0.8);
-        typeTag = "NORMAL";
+        typeTag = "常规";
         break;
     }
 
@@ -1122,15 +1101,21 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   style: TextStyle(color: typeColor, fontSize: 8, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
                 ),
               ),
-              const SizedBox(width: 8),
-              Icon(Icons.favorite, color: Colors.red.withValues(alpha: 0.7), size: 10),
+              const SizedBox(width: 6),
+              Text(
+                "HP",
+                style: TextStyle(color: Colors.red.withValues(alpha: 0.5), fontSize: 8, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
+              ),
               const SizedBox(width: 2),
               Text(
                 "${m.maxHp}",
                 style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 10, fontFamily: 'monospace'),
               ),
               const SizedBox(width: 8),
-              Icon(Icons.bolt, color: Colors.amber.withValues(alpha: 0.7), size: 10),
+              Text(
+                "ATK",
+                style: TextStyle(color: Colors.amber.withValues(alpha: 0.5), fontSize: 8, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
+              ),
               const SizedBox(width: 2),
               Text(
                 "${m.baseDamage}",
@@ -1264,5 +1249,131 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         createHoloRoute(BattlePage(programIds: ["casino_boss"], levelId: node.id)),
       );
     }
+  }
+}
+
+
+class CyberPileButton extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final Color color;
+  final VoidCallback onPressed;
+  final double width;
+  final double height;
+  final bool isRight;
+
+  const CyberPileButton({
+    super.key,
+    required this.label,
+    this.icon,
+    required this.color,
+    required this.onPressed,
+    this.width = 160,
+    this.height = 50,
+    this.isRight = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: Stack(
+          children: [
+            // 背景装饰：网格与扫描线 (参考 CyberLogicPanel)
+            ClipRRect(
+              borderRadius: BorderRadius.only(
+                topRight: isRight ? const Radius.circular(16) : const Radius.circular(2),
+                topLeft: isRight ? const Radius.circular(2) : const Radius.circular(16),
+                bottomLeft: isRight ? const Radius.circular(16) : const Radius.circular(2),
+                bottomRight: isRight ? const Radius.circular(2) : const Radius.circular(16),
+              ),
+              child: Stack(
+                children: [
+                  // 半透明背景
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF0A0F16).withValues(alpha: 0.9),
+                          const Color(0xFF1A1F26).withValues(alpha: 0.9),
+                        ],
+                      ),
+                      border: Border.all(
+                        color: color.withValues(alpha: 0.4),
+                        width: 1.2,
+                      ),
+                    ),
+                  ),
+                  // 网格装饰
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: CyberGridPainter(
+                        color: color,
+                        opacity: 0.1,
+                        spacing: 15,
+                        showChars: false,
+                        strokeWidth: 0.5,
+                      ),
+                    ),
+                  ),
+                  // 扫描线
+                  Positioned.fill(
+                    child: CyberScanline(
+                      color: color.withValues(alpha: 0.1),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 内容
+            Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon, color: color, size: 20),
+                    const SizedBox(width: 10),
+                  ],
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      fontFamily: 'monospace',
+                      letterSpacing: 1,
+                      shadows: [
+                        Shadow(
+                          color: color.withValues(alpha: 0.6),
+                          blurRadius: 6,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 边缘微光装饰
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: CyberCornerPainter(
+                    color: color.withValues(alpha: 0.4),
+                    cornerSize: 8,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

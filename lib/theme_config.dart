@@ -1628,28 +1628,57 @@ class CyberLogicPanel extends StatelessWidget {
       child: Container(
         constraints: maxWidth != null ? BoxConstraints(maxWidth: maxWidth!) : null,
         width: maxWidth != null ? null : double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         decoration: BoxDecoration(
-          color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(4),
+            topRight: Radius.circular(20),
+            bottomLeft: Radius.circular(20),
+            bottomRight: Radius.circular(4),
+          ),
           boxShadow: [
             BoxShadow(
-              color: color.withValues(alpha: 0.15),
-              blurRadius: 24,
-              spreadRadius: 2,
-            ),
-            const BoxShadow(
-              color: Colors.black,
-              blurRadius: 10,
-              offset: Offset(0, 4),
+              color: color.withValues(alpha: 0.2),
+              blurRadius: 30,
+              spreadRadius: 1,
             ),
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(7),
-          child: Stack(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(1),
+            topRight: Radius.circular(19),
+            bottomLeft: Radius.circular(19),
+            bottomRight: Radius.circular(1),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            child: Stack(
             children: [
+              // 背景网格装饰
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: CyberGridPainter(
+                    color: color,
+                    opacity: 0.05,
+                    spacing: 30,
+                    showChars: false,
+                    strokeWidth: 0.5,
+                  ),
+                ),
+              ),
+              // 背景扫描线
+              Positioned.fill(
+                child: CyberScanline(color: color),
+              ),
+              // 边缘微光
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: CyberScreenGlowPainter(
+                    alpha: 0.05,
+                    color: color,
+                  ),
+                ),
+              ),
               Positioned.fill(
                 child: CustomPaint(
                   painter: CyberCornerPainter(color: color.withValues(alpha: 0.5)),
@@ -1658,46 +1687,48 @@ class CyberLogicPanel extends StatelessWidget {
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      Icon(icon, size: 16, color: color),
-                      const SizedBox(width: 8),
-                      Text(
-                        label,
-                        style: TextStyle(
-                          color: color.withValues(alpha: 0.6),
-                          fontSize: 10,
-                          fontFamily: 'monospace',
-                          letterSpacing: 2,
+                  if (label.isNotEmpty || sessionLabel.isNotEmpty || icon != Icons.qr_code_scanner) ...[
+                    Row(
+                      children: [
+                        Icon(icon, size: 16, color: color),
+                        const SizedBox(width: 8),
+                        Text(
+                          label,
+                          style: TextStyle(
+                            color: color.withValues(alpha: 0.6),
+                            fontSize: 10,
+                            fontFamily: 'monospace',
+                            letterSpacing: 2,
+                          ),
                         ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        sessionLabel,
-                        style: TextStyle(
-                          color: color.withValues(alpha: 0.6),
-                          fontSize: 10,
-                          fontFamily: 'monospace',
-                          letterSpacing: 2,
+                        const Spacer(),
+                        Text(
+                          sessionLabel,
+                          style: TextStyle(
+                            color: color.withValues(alpha: 0.6),
+                            fontSize: 10,
+                            fontFamily: 'monospace',
+                            letterSpacing: 2,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    height: 1,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          color.withValues(alpha: 0.8),
-                          color.withValues(alpha: 0.2),
-                          Colors.transparent,
-                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      height: 1,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            color.withValues(alpha: 0.8),
+                            color.withValues(alpha: 0.2),
+                            Colors.transparent,
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
+                  ],
                   child,
                 ],
               ),
@@ -1705,8 +1736,9 @@ class CyberLogicPanel extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 /// 赛博朋克风格背景
@@ -2351,12 +2383,12 @@ class CyberButton extends StatelessWidget {
               ],
             ),
             borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(2),
-              bottomRight: Radius.circular(16),
+              topRight: Radius.circular(16),
+              bottomLeft: Radius.circular(16),
             ),
             border: Border.all(
-              color: activeColor.withValues(alpha: 0.5),
-              width: 1.5,
+              color: activeColor.withValues(alpha: 0.4),
+              width: 1.2,
             ),
             boxShadow: [
               BoxShadow(
@@ -2694,8 +2726,9 @@ class CyberCornerPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final actualCornerSize = math.min(cornerSize, math.min(size.width, size.height) / 2);
+    final innerOffset = strokeWidth * 2;
 
-    // 左上角
+    // 左上角 (直角硬朗)
     canvas.drawPath(
       Path()
         ..moveTo(0, actualCornerSize)
@@ -2704,32 +2737,59 @@ class CyberCornerPainter extends CustomPainter {
       paint,
     );
 
-    // 右上角
-    canvas.drawPath(
-      Path()
-        ..moveTo(size.width - actualCornerSize, 0)
-        ..lineTo(size.width, 0)
-        ..lineTo(size.width, actualCornerSize),
+    // 右上角 (阶梯状边角)
+    final topStep = Path()
+      ..moveTo(size.width - actualCornerSize, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, actualCornerSize);
+    canvas.drawPath(topStep, paint);
+    
+    // 内侧辅助线
+    canvas.drawLine(
+      Offset(size.width - actualCornerSize * 0.6, innerOffset),
+      Offset(size.width - innerOffset, innerOffset),
+      paint..strokeWidth = strokeWidth * 0.5,
+    );
+    canvas.drawLine(
+      Offset(size.width - innerOffset, innerOffset),
+      Offset(size.width - innerOffset, actualCornerSize * 0.6),
       paint,
     );
 
-    // 左下角
+    // 左下角 (阶梯状边角)
     canvas.drawPath(
       Path()
         ..moveTo(0, size.height - actualCornerSize)
         ..lineTo(0, size.height)
         ..lineTo(actualCornerSize, size.height),
+      paint..strokeWidth = strokeWidth,
+    );
+    canvas.drawLine(
+      Offset(innerOffset, size.height - actualCornerSize * 0.6),
+      Offset(innerOffset, size.height - innerOffset),
+      paint..strokeWidth = strokeWidth * 0.5,
+    );
+    canvas.drawLine(
+      Offset(innerOffset, size.height - innerOffset),
+      Offset(actualCornerSize * 0.6, size.height - innerOffset),
       paint,
     );
 
-    // 右下角
+    // 右下角 (直角硬朗)
     canvas.drawPath(
       Path()
         ..moveTo(size.width - actualCornerSize, size.height)
         ..lineTo(size.width, size.height)
         ..lineTo(size.width, size.height - actualCornerSize),
-      paint,
+      paint..strokeWidth = strokeWidth,
     );
+    
+    // 在边框中间添加一些装饰点
+    final dotPaint = Paint()..color = color.withValues(alpha: 0.5)..style = PaintingStyle.fill;
+    canvas.drawRect(Rect.fromLTWH(size.width * 0.5 - 10, 0, 4, 2), dotPaint);
+    canvas.drawRect(Rect.fromLTWH(size.width * 0.5 + 6, 0, 4, 2), dotPaint);
+    canvas.drawRect(Rect.fromLTWH(size.width * 0.5 - 10, size.height - 2, 4, 2), dotPaint);
+    canvas.drawRect(Rect.fromLTWH(size.width * 0.5 + 6, size.height - 2, 4, 2), dotPaint);
   }
 
   @override

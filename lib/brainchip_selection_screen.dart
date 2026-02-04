@@ -195,14 +195,32 @@ class _BrainChipSelectionScreenState extends State<BrainChipSelectionScreen> {
       height: 500,
       padding: const EdgeInsets.all(1.5),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: themeColor.withValues(alpha: 0.3)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF0A0F16).withValues(alpha: 0.9),
+            const Color(0xFF1A1F26).withValues(alpha: 0.9),
+          ],
+        ),
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(16),
+          bottomLeft: Radius.circular(16),
+        ),
+        border: Border.all(color: themeColor.withValues(alpha: 0.4), width: 1.2),
         boxShadow: [
-          BoxShadow(color: themeColor.withValues(alpha: 0.15), blurRadius: 40, spreadRadius: -5),
+          BoxShadow(
+            color: themeColor.withValues(alpha: 0.15),
+            blurRadius: 12,
+            spreadRadius: 1,
+          ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(16),
+          bottomLeft: Radius.circular(16),
+        ),
         child: Stack(
           children: [
             // 卡片背景
@@ -234,7 +252,10 @@ class _BrainChipSelectionScreenState extends State<BrainChipSelectionScreen> {
                         decoration: BoxDecoration(
                           color: themeColor.withValues(alpha: 0.1),
                           border: Border.all(color: themeColor.withValues(alpha: 0.5)),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: const BorderRadius.only(
+                            topRight: Radius.circular(8),
+                            bottomLeft: Radius.circular(8),
+                          ),
                         ),
                         child: Text(
                           "LV.${chip.level}",

@@ -223,15 +223,32 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFF0A0F16).withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF0A0F16).withValues(alpha: 0.9),
+              const Color(0xFF1A1F26).withValues(alpha: 0.9),
+            ],
+          ),
+          borderRadius: const BorderRadius.only(
+            topRight: Radius.circular(16),
+            bottomLeft: Radius.circular(16),
+          ),
+          border: Border.all(color: color.withValues(alpha: 0.4), width: 1.2),
           boxShadow: [
-            BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 24, spreadRadius: 2),
+            BoxShadow(
+              color: color.withValues(alpha: 0.15),
+              blurRadius: 12,
+              spreadRadius: 1,
+            ),
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: const BorderRadius.only(
+            topRight: Radius.circular(16),
+            bottomLeft: Radius.circular(16),
+          ),
           child: Stack(
             children: [
               Positioned.fill(child: CyberScanline(color: color.withValues(alpha: 0.08))),
@@ -288,9 +305,26 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.06),
-          border: Border.all(color: color.withValues(alpha: 0.4)),
-          borderRadius: BorderRadius.circular(6),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF0A0F16).withValues(alpha: 0.9),
+              const Color(0xFF1A1F26).withValues(alpha: 0.9),
+            ],
+          ),
+          borderRadius: const BorderRadius.only(
+            topRight: Radius.circular(16),
+            bottomLeft: Radius.circular(16),
+          ),
+          border: Border.all(color: color.withValues(alpha: 0.4), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.1),
+              blurRadius: 8,
+              spreadRadius: 1,
+            ),
+          ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

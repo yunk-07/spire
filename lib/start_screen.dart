@@ -449,26 +449,26 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                (isSelected ? ThemeConfig.getClassColor(character.characterClass) : const Color(0xFF0A0F16)).withValues(alpha: 0.15),
-                                const Color(0xFF0A0F16).withValues(alpha: 0.8),
+                                const Color(0xFF0A0F16).withValues(alpha: 0.9),
+                                const Color(0xFF1A1F26).withValues(alpha: 0.9),
                               ],
                             ),
                             borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(2),
-                              bottomRight: Radius.circular(20),
+                              topRight: Radius.circular(16),
+                              bottomLeft: Radius.circular(16),
                             ),
                             border: Border.all(
                               color: (isSelected ? ThemeConfig.getClassColor(character.characterClass) : const Color(0xFF1E2C3C))
                                   .withValues(alpha: isSelected ? 0.6 : 0.3),
-                              width: isSelected ? 1.5 : 1,
+                              width: 1.2,
                             ),
-                            boxShadow: isSelected ? [
+                            boxShadow: [
                               BoxShadow(
-                                color: ThemeConfig.getClassColor(character.characterClass).withValues(alpha: 0.15),
-                                blurRadius: 15,
+                                color: (isSelected ? ThemeConfig.getClassColor(character.characterClass) : Colors.black).withValues(alpha: isSelected ? 0.15 : 0),
+                                blurRadius: 12,
                                 spreadRadius: 1,
                               )
-                            ] : [],
+                            ],
                           ),
                           clipBehavior: Clip.antiAlias,
                           child: Stack(
@@ -496,8 +496,8 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                                           decoration: BoxDecoration(
                                             color: isSelected ? ThemeConfig.getClassColor(character.characterClass).withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.24),
                                             borderRadius: const BorderRadius.only(
-                                              topLeft: Radius.circular(1),
-                                              bottomRight: Radius.circular(8),
+                                              topRight: Radius.circular(8),
+                                              bottomLeft: Radius.circular(8),
                                             ),
                                             border: Border.all(
                                               color: (isSelected ? ThemeConfig.getClassColor(character.characterClass) : Colors.white12),

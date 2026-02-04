@@ -969,6 +969,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   };
 
   bool _isDraggingOverJudgementArea = false; // 是否正在向判定区拖动
+  CardInstance? _previewCardInstance; // 当前正在预览的卡牌
 
   // 判定区组件
   Widget _judgementArea(Color themeColor) {
@@ -1081,6 +1082,117 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           ),
         );
       },
+    );
+  }
+
+  // 关键区域：左侧预览判定区
+  Widget _cardPreviewZone(Color themeColor) {
+    return Positioned(
+      left: 0,
+      top: 200,
+      bottom: 0,
+      width: 40,
+      child: DragTarget<CardInstance>(
+        onWillAccept: (instance) {
+          if (instance != null) {
+            setState(() {
+              _previewCardInstance = instance;
+            });
+            return true;
+          }
+          return false;
+        },
+        onLeave: (instance) {
+          setState(() {
+            _previewCardInstance = null;
+          });
+        },
+        onAcceptWithDetails: (details) {
+          setState(() {
+            _previewCardInstance = null;
+          });
+        },
+        builder: (context, candidateData, rejectedData) {
+          final isHovering = candidateData.isNotEmpty;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  themeColor.withValues(alpha: isHovering ? 0.3 : 0.05),
+                  themeColor.withValues(alpha: 0.0),
+                ],
+              ),
+              border: Border(
+                left: BorderSide(
+                  color: themeColor.withValues(alpha: isHovering ? 0.8 : 0.2),
+                  width: 2,
+                ),
+              ),
+            ),
+            child: Center(
+              child: RotatedBox(
+                quarterTurns: 3,
+                child: Text(
+                  "放置显示卡牌详情",
+                  style: TextStyle(
+                    color: themeColor.withValues(alpha: isHovering ? 0.8 : 0.2),
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'monospace',
+                    letterSpacing: 2,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // 关键区域：放大预览悬浮窗
+  Widget _magnifiedCardPreview(Color themeColor) {
+    if (_previewCardInstance == null) return const SizedBox.shrink();
+    final card = _previewCardInstance!.data;
+    if (card == null) return const SizedBox.shrink();
+
+    return Positioned(
+      left: 45,
+      top: 300,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        builder: (context, value, child) {
+          return Opacity(
+            opacity: value,
+            child: Transform.translate(
+              offset: Offset(-15 * (1 - value), 0),
+              child: Transform.scale(
+                scale: 0.85 + 0.15 * value,
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  width: 168, // 84 * 2
+                  height: 224, // 112 * 2
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: themeColor.withValues(alpha: 0.3),
+                        blurRadius: 25,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: _cardWidget(card, width: 168, height: 224),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -2522,6 +2634,10 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                     ),
               // 根据屏幕方向选择不同布局
               isLandscape ? _landscapeLayout(themeColor) : _portraitLayout(themeColor),
+              // 手牌预览判定区
+              _cardPreviewZone(themeColor),
+              // 放大预览悬浮窗
+              _magnifiedCardPreview(themeColor),
               // 低生命值屏幕红光
               if ((player.hp / player.maxHp.clamp(1, 999999)) < 0.3)
                 Positioned.fill(
@@ -3042,7 +3158,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        "NODE: ${widget.levelId ?? 'UNKNOWN'}",
+                        "当前位置: ${widget.levelId ?? 'UNKNOWN'}",
                         style: TextStyle(
                           color: themeColor.withValues(alpha: 0.9),
                           fontSize: 8,
@@ -3673,7 +3789,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "CHIP_LINK_ACTIVE",
+                          "已接入脑机",
                           style: TextStyle(
                             color: col.withValues(alpha: 0.5),
                             fontSize: 7,
@@ -6751,6 +6867,8 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     CardData c, {
     bool dragging = false,
     bool showCompleteAnimation = false,
+    double width = 84,
+    double height = 112,
   }) {
     if (showCompleteAnimation) {
       return TweenAnimationBuilder<double>(
@@ -6759,11 +6877,11 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         curve: Curves.bounceOut,
         builder: (context, scale, child) => Transform.scale(
           scale: scale,
-          child: ThemeConfig.buildCardWidget(c, dragging: dragging),
+          child: ThemeConfig.buildCardWidget(c, dragging: dragging, width: width, height: height),
         ),
       );
     } else {
-      return ThemeConfig.buildCardWidget(c, dragging: dragging);
+      return ThemeConfig.buildCardWidget(c, dragging: dragging, width: width, height: height);
     }
   }
 
