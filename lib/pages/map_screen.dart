@@ -4,10 +4,10 @@
 
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'game_state.dart';
+import '../models/game_state.dart';
 import 'nation_selection_screen.dart';
-import 'level_data.dart';
-import 'main.dart';
+import '../models/level_data.dart';
+import '../main.dart';
 import 'rest_page.dart';
 import 'rest_screen.dart';
 import 'exchange_page.dart';
@@ -17,9 +17,9 @@ import 'shangpu_page.dart';
 import 'jiaoyidian_page.dart';
 import 'shujugui_page.dart';
 import 'jiaohuan_zhan_page.dart';
-import 'theme_config.dart';
-import 'program_data.dart';
-import 'character_data.dart';
+import '../config/theme_config.dart';
+import '../models/program_data.dart';
+import '../models/character_data.dart';
 import 'campfire_screen.dart';
 import 'rest_stop_screen.dart';
 import 'maintenance_bay_screen.dart';

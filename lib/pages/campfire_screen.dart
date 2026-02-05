@@ -1,12 +1,12 @@
 // campfire_screen.dart
 // 作用：篝火处页面，提供“休息”与“锻造”（移除一张牌）两种选择
 import 'package:flutter/material.dart';
-import 'theme_config.dart';
-import 'game_state.dart';
-import 'card_data.dart';
-import 'main.dart';
+import '../config/theme_config.dart';
+import '../models/game_state.dart';
+import '../models/card_data.dart';
+import '../main.dart';
 import 'map_screen.dart';
-import 'level_data.dart';
+import '../models/level_data.dart';
 
 class CampfireScreen extends StatefulWidget {
   final LevelInfo? level;

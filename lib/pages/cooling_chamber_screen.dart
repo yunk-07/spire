@@ -1,18 +1,18 @@
-// rest_stop_screen.dart
-// 作用：歇脚点页面，小幅恢复并提升下一战的初始算力
+// cooling_chamber_screen.dart
+// 作用：冷却间页面，提供深度冷却（中等修复 + 下战初始防火墙）
 import 'package:flutter/material.dart';
-import 'theme_config.dart';
-import 'game_state.dart';
-import 'main.dart';
+import '../config/theme_config.dart';
+import '../models/game_state.dart';
+import '../main.dart';
 import 'map_screen.dart';
-import 'level_data.dart';
+import '../models/level_data.dart';
 
-class RestStopScreen extends StatelessWidget {
+class CoolingChamberScreen extends StatelessWidget {
   final LevelInfo? level;
-  const RestStopScreen({super.key, this.level});
+  const CoolingChamberScreen({super.key, this.level});
 
   String get levelId => level?.id ?? 'UNKNOWN';
-  String get levelTitle => level?.title ?? '未知区域';
+  String get levelTitle => level?.title ?? '冷却间';
 
   @override
   Widget build(BuildContext context) {
@@ -49,22 +49,22 @@ class RestStopScreen extends StatelessWidget {
                           Center(
                             child: CyberLogicPanel(
                               color: GameState.getThemeColor(),
-                              icon: Icons.tips_and_updates,
-                              label: "// 歇脚点",
+                              icon: Icons.ac_unit,
+                              label: "// 冷却通道",
                               child: Padding(
                               padding: const EdgeInsets.all(16.0),
                               child: Container(
                                 padding: const EdgeInsets.all(20),
                                 decoration: ThemeConfig.buildCyberDecoration(GameState.getThemeColor()),
                                 child: CyberButton(
-                                  width: 280,
+                                  width: 320,
                                   height: 60,
                                   fontSize: 14,
-                                  label: '短暂歇脚：恢复 20 + 永久算力 +1',
+                                  label: '深度冷却：恢复 30 + 永久防火墙 +5',
                                   color: GameState.getThemeColor(),
                                   onPressed: () {
-                                    GameState.heal(20);
-                                    GameState.permanentStrength += 1;
+                                    GameState.heal(30);
+                                    GameState.permanentBlock += 5;
                                     GameProgress.markDefeated(levelId);
                                     Navigator.pushReplacement(context, createHoloRoute(const MapScreen(canSelect: true)));
                                   },
@@ -93,7 +93,7 @@ class RestStopScreen extends StatelessWidget {
       children: [
         Text(levelTitle, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: color, blurRadius: 20)])),
         const SizedBox(height: 12),
-        Text('补给站点 v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
+        Text('冷却终端 v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
       ],
     );
   }
@@ -105,11 +105,13 @@ class RestStopScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: ThemeConfig.buildCyberDecoration(color), child: Row(children: [Icon(Icons.tips_and_updates, size: 14, color: color), const SizedBox(width: 6), const Text("可用操作: 1", style: TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2))])),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: ThemeConfig.buildCyberDecoration(color), child: Row(children: [Icon(Icons.ac_unit, size: 14, color: color), const SizedBox(width: 6), const Text("可用操作: 1", style: TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2))])),
           const SizedBox(width: 12),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: ThemeConfig.buildCyberDecoration(color, isRight: true), child: Row(children: [Icon(Icons.memory, size: 14, color: color), const SizedBox(width: 6), Text("节点编号: $levelId", style: TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))])),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: ThemeConfig.buildCyberDecoration(color, isRight: true), child: Row(children: [Icon(Icons.memory, size: 14, color: color), const SizedBox(width: 6), Text("节点编号: $levelId", style: const TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))])),
         ],
       ),
     );
   }
 }
+
+

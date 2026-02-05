@@ -1,6 +1,6 @@
 // 作用：管理各类攻击特效的独立动画域，减少全局重建与重绘压力
 import 'package:flutter/material.dart';
-import 'main.dart' show AttackEffect, AttackEffectType;
+import '../main.dart' show AttackEffect, AttackEffectType;
 
 typedef EffectWidgetBuilder = Widget Function(AttackEffect e);
 

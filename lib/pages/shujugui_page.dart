@@ -1,44 +1,45 @@
-// shangpu_page.dart
-// 作用：商铺页面，沿用“货栈”UI样式，横向展示5张随机卡牌，可选择加入
+// shujugui_page.dart
+// 作用：数据柜页面，沿用“货栈”UI样式，横向展示5张随机卡牌，可选择加入
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'map_screen.dart';
-import 'card_data.dart';
-import 'game_state.dart';
-import 'level_data.dart';
+import '../models/card_data.dart';
+import '../models/game_state.dart';
+import '../models/level_data.dart';
 // import 'rest_page.dart';
-import 'core/route.dart' show createHoloRoute;
-import 'theme_config.dart';
+import '../core/route.dart' show createHoloRoute;
+import '../config/theme_config.dart';
 
-class ShangpuPage extends StatefulWidget {
+class ShujuguiPage extends StatefulWidget {
   final LevelInfo? level;
-  const ShangpuPage({super.key, this.level});
+  const ShujuguiPage({super.key, this.level});
   @override
-  State<ShangpuPage> createState() => _ShangpuPageState();
+  State<ShujuguiPage> createState() => _ShujuguiPageState();
 }
 
-class _ShangpuPageState extends State<ShangpuPage> {
+class _ShujuguiPageState extends State<ShujuguiPage> {
   late final List<CardData> _cards;
   late final List<int> _prices;
 
   LevelInfo? get node => widget.level;
   String get levelId => node?.id ?? 'UNKNOWN';
-  String get levelTitle => node?.title ?? '商铺';
+  String get levelTitle => node?.title ?? '数据柜';
 
   @override
   void initState() {
     super.initState();
     final random = Random();
     // 关键区域：排除恶魔和神圣系列卡牌（仅限Boss奖励）
-    final pool = cardDatabase.values.where((c) => c.suite != CardSuite.demon && c.suite != CardSuite.holy).toList();
+    final high = cardDatabase.values.where((c) => c.level >= 4 && c.suite != CardSuite.demon && c.suite != CardSuite.holy).toList();
+    final pool = List<CardData>.from(high);
     final picked = <CardData>[];
     final prices = <int>[];
-    while (picked.length < 5 && pool.isNotEmpty) {
+    while (picked.length < 2 && pool.isNotEmpty) {
       final card = pool.removeAt(random.nextInt(pool.length));
       picked.add(card);
-      // 价格逻辑：基础价格(等级*10 + 15) + 随机浮动(-5到10)
-      int basePrice = card.level * 10 + 15;
-      int offset = random.nextInt(16) - 5;
+      // 价格逻辑：基础价格(等级*20 + 30) + 随机浮动(-10到20)
+      int basePrice = card.level * 20 + 30;
+      int offset = random.nextInt(31) - 10;
       prices.add(basePrice + offset);
     }
     _cards = picked;
@@ -81,7 +82,7 @@ class _ShangpuPageState extends State<ShangpuPage> {
                           Center(
                             child: CyberLogicPanel(
                               color: color,
-                              label: "// 商铺",
+                              label: "// 数据柜",
                               child: Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: ThemeConfig.buildCyberDecoration(color),
@@ -99,7 +100,7 @@ class _ShangpuPageState extends State<ShangpuPage> {
                           Padding(
                             padding: const EdgeInsets.only(bottom: 40),
                             child: Text(
-                              '请消耗信用点选择一张商铺卡牌以继续...',
+                              '请消耗信用点选择一张数据柜卡牌以继续...',
                               style: TextStyle(
                                 color: color.withValues(alpha: 0.6),
                                 fontFamily: 'monospace',
@@ -149,7 +150,7 @@ class _ShangpuPageState extends State<ShangpuPage> {
       children: [
         Text(levelTitle, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: color, blurRadius: 20)])),
         const SizedBox(height: 12),
-        Text('商铺协议 v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
+        Text('数据柜协议 v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
       ],
     );
   }
@@ -163,7 +164,7 @@ class _ShangpuPageState extends State<ShangpuPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: ThemeConfig.buildCyberDecoration(color),
-            child: Row(children: [Icon(Icons.store, size: 14, color: color), const SizedBox(width: 6), Text("可供选择: ${_cards.length}", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2, fontWeight: FontWeight.bold))]),
+            child: Row(children: [Icon(Icons.storage, size: 14, color: color), const SizedBox(width: 6), Text("可供选择: ${_cards.length}", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2, fontWeight: FontWeight.bold))]),
           ),
           const SizedBox(width: 12),
           Container(
@@ -201,16 +202,16 @@ class _ShangpuPageState extends State<ShangpuPage> {
               left: 0,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: ThemeConfig.buildCyberDecoration(const Color(0xFFFFA726)),
+                decoration: ThemeConfig.buildCyberDecoration(const Color(0xFFE26CFF)),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.local_offer, size: 11, color: Color(0xFFFFA726)),
+                    const Icon(Icons.storage, size: 11, color: Color(0xFFE26CFF)),
                     const SizedBox(width: 4),
                     Text(
-                      '促销 $price',
+                      '封存 $price',
                       style: const TextStyle(
-                        color: Color(0xFFFFA726),
+                        color: Color(0xFFE26CFF),
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                         fontFamily: 'monospace',

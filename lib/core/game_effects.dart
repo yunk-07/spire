@@ -1,4 +1,4 @@
-import 'card_data.dart';
+import '../models/card_data.dart';
 
 /// 效果执行回调函数类型
 typedef EffectCallback =

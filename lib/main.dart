@@ -5,21 +5,21 @@ import 'dart:math';
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'card_data.dart';
-import 'game_effects.dart';
-import 'start_screen.dart';
-import 'program_data.dart';
-import 'map_screen.dart';
-import 'level_data.dart';
-import 'game_state.dart';
-import 'character_data.dart';
+import 'models/card_data.dart';
+import 'core/game_effects.dart';
+import 'pages/start_screen.dart';
+import 'models/program_data.dart';
+import 'pages/map_screen.dart';
+import 'models/level_data.dart';
+import 'models/game_state.dart';
+import 'models/character_data.dart';
 // import 'laser_painter.dart';
 // import 'slash_painter.dart';
-import 'animation_constants.dart';
+import 'config/animation_constants.dart';
 // import 'effect_styles.dart';
-import 'theme_config.dart';
-import 'effects_widgets.dart';
-import 'brainchip_data.dart';
+import 'config/theme_config.dart';
+import 'widgets/effects_widgets.dart';
+import 'models/brainchip_data.dart';
 
 // ============================================================================
 // 文件说明 / 主要函数说明及键的作用

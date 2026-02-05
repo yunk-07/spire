@@ -2,12 +2,12 @@
 // 作用：维保处页面，提供随机添加一张牌（可选择要或不要），接受则同时恢复10
 import 'package:flutter/material.dart';
 import 'dart:math';
-import 'theme_config.dart';
-import 'game_state.dart';
-import 'card_data.dart';
-import 'main.dart';
+import '../config/theme_config.dart';
+import '../models/game_state.dart';
+import '../models/card_data.dart';
+import '../main.dart';
 import 'map_screen.dart';
-import 'level_data.dart';
+import '../models/level_data.dart';
 
 class MaintenanceBayScreen extends StatelessWidget {
   final LevelInfo? level;

@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'card_data.dart';
-import 'game_state.dart';
-import 'level_data.dart';
-import 'character_data.dart';
+import '../models/card_data.dart';
+import '../models/game_state.dart';
+import '../models/level_data.dart';
+import '../models/character_data.dart';
 import 'animation_constants.dart';
 
 /// 统一管理卡牌样式、配色和系列相关配置

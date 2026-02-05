@@ -1,49 +1,46 @@
-// xiaotanwei_page.dart
-// 作用：小摊位页面，沿用“货栈”UI样式，横向展示5张随机卡牌，可选择加入
+// huozhan_page.dart
+// 作用：货栈页面，横向展示5张随机卡牌，可选择其中一张加入牌堆
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'dart:async';
 import 'map_screen.dart';
-import 'card_data.dart';
-import 'game_state.dart';
-import 'level_data.dart';
+import '../models/card_data.dart';
+import '../models/game_state.dart';
+import '../models/level_data.dart';
 // import 'rest_page.dart';
-import 'core/route.dart' show createHoloRoute;
-import 'theme_config.dart';
+import '../core/route.dart' show createHoloRoute;
+import '../config/theme_config.dart';
 
-class XiaotanweiPage extends StatefulWidget {
+class HuozhanPage extends StatefulWidget {
   final LevelInfo? level;
-  const XiaotanweiPage({super.key, this.level});
+  const HuozhanPage({super.key, this.level});
   @override
-  State<XiaotanweiPage> createState() => _XiaotanweiPageState();
+  State<HuozhanPage> createState() => _HuozhanPageState();
 }
 
-class _XiaotanweiPageState extends State<XiaotanweiPage> {
+class _HuozhanPageState extends State<HuozhanPage> {
   late final List<CardData> _cards;
   late final List<int> _prices;
 
   LevelInfo? get node => widget.level;
   String get levelId => node?.id ?? 'UNKNOWN';
-  String get levelTitle => node?.title ?? '小摊位';
+  String get levelTitle => node?.title ?? '货栈';
 
   @override
   void initState() {
     super.initState();
     final random = Random();
-    // 关键区域：排除恶魔和神圣系列卡牌（仅限Boss奖励）
-    final nonBossCards = cardDatabase.values.where((c) => c.suite != CardSuite.demon && c.suite != CardSuite.holy).toList();
-    final lvl1 = nonBossCards.where((c) => c.level == 1).toList();
-    final lvl2 = nonBossCards.where((c) => c.level == 2).toList();
-    final pool = <CardData>[];
-    pool.addAll(lvl1);
-    if (pool.length < 5) {
-      pool.addAll(lvl2);
-    }
-    if (pool.length < 5) {
-      pool.addAll(nonBossCards);
-    }
+    final ids = List<String>.from(GameState.drawPile);
+    // 关键区域：从当前牌堆选取时也应排除恶魔和神圣卡牌（保持一致性）
+    final fromDeck = ids.map((id) => cardDatabase[id])
+        .whereType<CardData>()
+        .where((c) => c.suite != CardSuite.demon && c.suite != CardSuite.holy)
+        .toList();
+    final pool = List<CardData>.from(fromDeck);
     final picked = <CardData>[];
     while (picked.length < 5 && pool.isNotEmpty) {
-      picked.add(pool.removeAt(random.nextInt(pool.length)));
+      final idx = random.nextInt(pool.length);
+      picked.add(pool.removeAt(idx));
     }
     _cards = picked;
     
@@ -58,6 +55,11 @@ class _XiaotanweiPageState extends State<XiaotanweiPage> {
       // 价格浮动 80% - 120%
       return (basePrice * (0.8 + random.nextDouble() * 0.4)).floor();
     }).toList();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   @override
@@ -96,28 +98,21 @@ class _XiaotanweiPageState extends State<XiaotanweiPage> {
                           Center(
                             child: CyberLogicPanel(
                               color: color,
-                              label: "// 摊位",
-                              child: Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: ThemeConfig.buildCyberDecoration(color),
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                                  child: Row(children: _cards.map((c) => _cardTile(c)).toList()),
-                                ),
-                              ),
+                              icon: Icons.inventory_2,
+                              label: "// 货栈频道",
+                              child: _buildDepotContent(),
                             ),
                           ),
                           const SizedBox(height: 40),
                           Padding(
                             padding: const EdgeInsets.only(bottom: 40),
                             child: Text(
-                              '请选择一张小摊位卡牌以继续...',
+                              '请选择一张货栈卡牌以继续...',
                               style: TextStyle(
                                 color: color.withValues(alpha: 0.6),
                                 fontFamily: 'monospace',
                                 fontSize: 12,
-                                letterSpacing: 2,
+                                letterSpacing: 1.5,
                               ),
                             ),
                           ),
@@ -137,9 +132,27 @@ class _XiaotanweiPageState extends State<XiaotanweiPage> {
   Widget _buildHeader(Color color) {
     return Column(
       children: [
-        Text(levelTitle, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 8, fontFamily: 'monospace', shadows: [Shadow(color: color, blurRadius: 20)])),
+        Text(
+          levelTitle,
+          style: TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            letterSpacing: 8,
+            fontFamily: 'monospace',
+            shadows: [Shadow(color: color, blurRadius: 20)],
+          ),
+        ),
         const SizedBox(height: 12),
-        Text('摊位协议 v3.4', style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.4), letterSpacing: 2, fontFamily: 'monospace')),
+        Text(
+          '货栈协议 v3.4',
+          style: TextStyle(
+            fontSize: 10,
+            color: color.withValues(alpha: 0.4),
+            letterSpacing: 2,
+            fontFamily: 'monospace',
+          ),
+        ),
       ],
     );
   }
@@ -153,13 +166,42 @@ class _XiaotanweiPageState extends State<XiaotanweiPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: ThemeConfig.buildCyberDecoration(color),
-            child: Row(children: [Icon(Icons.storefront, size: 14, color: color), const SizedBox(width: 6), Text("可供选择: ${_cards.length}", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2, fontWeight: FontWeight.bold))]),
+            child: Row(
+              children: [
+                Icon(Icons.inventory_2, size: 14, color: color),
+                const SizedBox(width: 6),
+                Text(
+                  "可供选择: ${_cards.length}",
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 10,
+                    fontFamily: 'monospace',
+                    letterSpacing: 2,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(width: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: ThemeConfig.buildCyberDecoration(color, isRight: true),
-            child: Row(children: [Icon(Icons.memory, size: 14, color: color), const SizedBox(width: 6), Text("节点: $levelId", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))]),
+            child: Row(
+              children: [
+                Icon(Icons.memory, size: 14, color: color),
+                const SizedBox(width: 6),
+                Text(
+                  "节点: $levelId",
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 10,
+                    fontFamily: 'monospace',
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(width: 12),
           Container(
@@ -171,8 +213,7 @@ class _XiaotanweiPageState extends State<XiaotanweiPage> {
                 const SizedBox(width: 6),
                 Text(
                   "${GameState.playerGold}",
-                  style: const TextStyle(
-                    color: Color(0xFFFFD700),
+                  style: const TextStyle(                    color: Color(0xFFFFD700),
                     fontSize: 10,
                     fontFamily: 'monospace',
                     fontWeight: FontWeight.bold,
@@ -182,6 +223,25 @@ class _XiaotanweiPageState extends State<XiaotanweiPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+
+  // 货栈内容：在逻辑面板中展示横向卡牌列表
+  Widget _buildDepotContent() {
+    final color = GameState.getThemeColor();
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: ThemeConfig.buildCyberDecoration(color),
+      child: SizedBox(
+        height: 290, // 增加高度以容纳价格
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          itemCount: _cards.length,
+          itemBuilder: (_, i) => _cardTile(_cards[i]),
+        ),
       ),
     );
   }
@@ -219,16 +279,16 @@ class _XiaotanweiPageState extends State<XiaotanweiPage> {
               left: 0,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: ThemeConfig.buildCyberDecoration(const Color(0xFF44FF44)),
+                decoration: ThemeConfig.buildCyberDecoration(const Color(0xFFFFD700)),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: const [
-                    Icon(Icons.storefront, size: 11, color: Color(0xFF44FF44)),
+                    Icon(Icons.inventory_2, size: 11, color: Color(0xFFFFD700)),
                     SizedBox(width: 4),
                     Text(
-                      '基础供给',
+                      '高价值缓存',
                       style: TextStyle(
-                        color: Color(0xFF44FF44),
+                        color: Color(0xFFFFD700),
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                         fontFamily: 'monospace',

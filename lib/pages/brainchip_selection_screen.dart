@@ -1,10 +1,10 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'brainchip_data.dart';
-import 'game_state.dart';
+import '../models/brainchip_data.dart';
+import '../models/game_state.dart';
 import 'nation_selection_screen.dart';
-import 'main.dart';
-import 'theme_config.dart';
+import '../main.dart';
+import '../config/theme_config.dart';
 import 'start_screen.dart';
 
 class BrainChipSelectionScreen extends StatefulWidget {

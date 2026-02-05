@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'game_state.dart';
-import 'level_data.dart';
-import 'main.dart';
-import 'theme_config.dart';
+import '../models/game_state.dart';
+import '../models/level_data.dart';
+import '../main.dart';
+import '../config/theme_config.dart';
 import 'map_screen.dart';
 
 /// 国度选择界面

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme_config.dart';
+import '../config/theme_config.dart';
 
 Route<T> createHoloRoute<T>(Widget page) {
   return PageRouteBuilder<T>(

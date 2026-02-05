@@ -4,11 +4,11 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'game_state.dart';
-import 'level_data.dart';
-import 'main.dart';
+import '../models/game_state.dart';
+import '../models/level_data.dart';
+import '../main.dart';
 import 'map_screen.dart';
-import 'theme_config.dart';
+import '../config/theme_config.dart';
 
 class CasinoScreen extends StatefulWidget {
   final LevelInfo level;

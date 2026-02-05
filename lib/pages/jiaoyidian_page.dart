@@ -3,12 +3,12 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'map_screen.dart';
-import 'card_data.dart';
-import 'game_state.dart';
-import 'level_data.dart';
+import '../models/card_data.dart';
+import '../models/game_state.dart';
+import '../models/level_data.dart';
 // import 'rest_page.dart';
-import 'core/route.dart' show createHoloRoute;
-import 'theme_config.dart';
+import '../core/route.dart' show createHoloRoute;
+import '../config/theme_config.dart';
 
 class JiaoyidianPage extends StatefulWidget {
   final LevelInfo? level;

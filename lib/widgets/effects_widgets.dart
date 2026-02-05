@@ -1,11 +1,11 @@
 // 作用：封装五类攻击特效的独立组件，便于复用与局部重建
 import 'package:flutter/material.dart';
 import 'dart:math';
-import 'animation_constants.dart';
-import 'effect_styles.dart';
-import 'theme_config.dart';
+import '../config/animation_constants.dart';
+import '../config/effect_styles.dart';
+import '../config/theme_config.dart';
 import 'particle_emitter.dart';
-import 'main.dart' show AttackEffect;
+import '../main.dart' show AttackEffect;
 
 class ImpactEffectWidget extends StatelessWidget {
   final AttackEffect e;

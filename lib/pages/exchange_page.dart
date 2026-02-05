@@ -2,12 +2,12 @@
 // 作用：提供数据交易所界面，玩家可以在此选择并获得新的卡牌
 
 import 'package:flutter/material.dart';
-import 'game_state.dart';
-import 'card_data.dart';
-import 'level_data.dart';
-import 'core/route.dart' show createHoloRoute;
+import '../models/game_state.dart';
+import '../models/card_data.dart';
+import '../models/level_data.dart';
+import '../core/route.dart' show createHoloRoute;
 import 'map_screen.dart';
-import 'theme_config.dart';
+import '../config/theme_config.dart';
 
 class ExchangePage extends StatefulWidget {
   final LevelInfo? level;

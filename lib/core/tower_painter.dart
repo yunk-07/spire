@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme_config.dart';
+import '../config/theme_config.dart';
 
 class HoloTowerWidget extends StatefulWidget {
   const HoloTowerWidget({super.key});

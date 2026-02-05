@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'character_data.dart';
-import 'card_data.dart';
-import 'level_data.dart';
+import '../models/character_data.dart';
+import '../models/card_data.dart';
+import '../models/level_data.dart';
 // import 'brainchip_data.dart';
-import 'main.dart';
+import '../main.dart';
 import 'brainchip_selection_screen.dart';
-import 'core/tower_painter.dart';
-import 'game_state.dart';
-import 'theme_config.dart';
+import '../core/tower_painter.dart';
+import '../models/game_state.dart';
+import '../config/theme_config.dart';
 
 List<double> _buildRadarData(CharacterData c) {
   double gain = 0; // strength/temp_strength/sturdy/max_hp_up
