@@ -1216,9 +1216,22 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       _chipBannerActive = true;
       _chipDeployCtrl.forward();
       
-      // 关键区域：执行脑机 DSL 效果
+      // 关键区域：确保脑机即时效果已应用（针对迁移或特殊获取路径）
+      GameState.applyBrainChipInstantEffects(chipId);
+      // 同步可能已改变的永久属性到当前战斗实体
+      player.strength = GameState.permanentStrength;
+      player.block = GameState.permanentBlock;
+      player.maxHp = GameState.playerMaxHp;
+      player.hp = min(player.hp, player.maxHp);
+      
+      // 关键区域：执行脑机 DSL 效果（过滤掉已在 applyBrainChipInstantEffects 中处理的永久性效果）
       if (chip.effect != null) {
-        CardEffect.execute(chip.effect!, null, null, this);
+        final filteredEffect = chip.effect!.split(';')
+            .where((e) => !e.trim().startsWith('permanent_'))
+            .join(';');
+        if (filteredEffect.isNotEmpty) {
+          CardEffect.execute(filteredEffect, null, null, this);
+        }
       }
       
       Future.delayed(const Duration(milliseconds: 1600), () {
@@ -1475,6 +1488,14 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             player.strength += value * repeatCount;
           }
           break;
+        case 'permanent_strength':
+          if (parts.length > 1) {
+            final value = int.tryParse(parts[1]) ?? 0;
+            final total = value * repeatCount;
+            GameState.permanentStrength += total;
+            player.strength += total;
+          }
+          break;
         case 'temp_strength':
           if (parts.length > 1) {
             final value = int.tryParse(parts[1]) ?? 1;
@@ -1563,6 +1584,17 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
               final newMaxHp = (player.maxHp * factor).round().clamp(1, 999999);
               player.maxHp = newMaxHp;
               player.hp = min(player.hp, player.maxHp);
+            }
+          }
+          break;
+        case 'permanent_max_hp_mult':
+          if (parts.length > 1) {
+            final factor = double.tryParse(parts[1]) ?? 1.0;
+            if (factor != 1.0) {
+              GameState.playerMaxHp = (GameState.playerMaxHp * factor).round().clamp(1, 999999);
+              player.maxHp = GameState.playerMaxHp;
+              player.hp = min(player.hp, player.maxHp);
+              GameState.playerHp = player.hp;
             }
           }
           break;
@@ -1998,6 +2030,13 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   /// 回合制游戏规则系统
   /// =====================
 
+  double _getMonsterScalingFactor() {
+    if (turnCount >= 20) return 2.0;
+    if (turnCount >= 15) return 1.6;
+    if (turnCount >= 10) return 1.3;
+    return 1.0;
+  }
+
   /// 开始同步阶段（原同步阶段）
   void startSyncPhase() {
     gamePhase = GamePhase.syncPhase;
@@ -2052,7 +2091,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     // 关键区域：同步阶段开始时结算玩家状态
     if (player.vulnerable > 0) player.vulnerable--;
     if (player.weak > 0) player.weak--;
-    if (player.sturdy > 0) player.sturdy--;
     if (player.curse > 0) player.curse--;
     
     // 关键区域：结算玩家身上的火焰（持续伤害）
@@ -2150,6 +2188,16 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
   /// 系统程序行动逻辑
   Future<void> _systemActions() async {
+    // 关键区域：系统响应阶段开始时结算怪物的状态（护盾不再自动清零）
+    for (final program in activePrograms) {
+      if (program.hp > 0) {
+        if (program.sturdy > 0) {
+          program.sturdy = max(0, program.sturdy - 1);
+        }
+      }
+    }
+    setState(() {});
+
     // 关键区域：使用 List.from 创建副本进行迭代，防止召唤新怪物时触发 ConcurrentModificationError
     final programsToAct = List<Entity>.from(activePrograms);
     
@@ -2185,7 +2233,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         // 关键区域：怪物状态衰减
         if (program.vulnerable > 0) program.vulnerable--;
         if (program.weak > 0) program.weak--;
-        if (program.sturdy > 0) program.sturdy--;
         if (program.curse > 0) program.curse--;
         
         // 关键区域：每个怪物行动完后更新UI
@@ -2232,6 +2279,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     if (totalDamage <= 0) {
       final random = Random();
       double dmg = (program.baseDamage + (turnCount ~/ 3) + random.nextInt(3)).toDouble();
+      dmg *= _getMonsterScalingFactor(); // 应用回合增强
       dmg += program.strength;
       if (program.weak > 0) dmg *= 0.75;
       if (player.vulnerable > 0) dmg *= 1.5;
@@ -2254,7 +2302,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   /// 怪物恢复生命值
   void _systemHeal(Entity program, {int? amount}) {
     final random = Random();
-    final healAmount = amount ?? (random.nextInt(5) + 3);
+    final healAmount = amount ?? ((random.nextInt(5) + 3) * _getMonsterScalingFactor()).floor();
     program.hp = (program.hp + healAmount).clamp(0, program.maxHp);
 
     anim.showHeal(program, healAmount);
@@ -2262,7 +2310,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
 
   void _systemDefend(Entity program, {int? value}) {
     final random = Random();
-    final v = value ?? (3 + (turnCount ~/ 3) + random.nextInt(4));
+    final v = value ?? ((3 + (turnCount ~/ 3) + random.nextInt(4)) * _getMonsterScalingFactor()).floor();
     program.block += v;
     anim.showBlockGain(program, v);
   }
@@ -2336,12 +2384,14 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       }
 
       // 无论意图类型是否改变，都重新计算意图数值以反映最新的状态效果
+      double scalingFactor = _getMonsterScalingFactor();
+
       if (m.intent == SystemIntent.repair) {
-        m.intentValue = random.nextInt(5) + 3;
+        m.intentValue = ((random.nextInt(5) + 3) * scalingFactor).floor();
       } else if (m.intent == SystemIntent.summon) {
         m.intentValue = 0; // 召唤动作没有数值
       } else if (m.intent == SystemIntent.encrypt) {
-        m.intentValue = 3 + (turnCount ~/ 3) + random.nextInt(4);
+        m.intentValue = ((3 + (turnCount ~/ 3) + random.nextInt(4)) * scalingFactor).floor();
       } else if (m.intent == SystemIntent.impact) {
         double dmg = (m.baseDamage + (turnCount ~/ 3) + random.nextInt(3)).toDouble();
         
@@ -2349,6 +2399,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         if (m.id == "casino_boss" && activePrograms.length >= 6) {
           dmg *= 2.5; // 伤害提升 2.5 倍
         }
+        
+        // 增加回合数增强
+        dmg *= scalingFactor;
         
         // 考虑怪物的算力和虚弱 (统一逻辑)
         dmg += m.strength;
@@ -2359,6 +2412,12 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         dmg += player.curse * 2;
         
         m.intentValue = dmg.floor();
+      }
+
+      // 回合增强提示
+      if (isTurnStart && scalingFactor > 1.0) {
+        String level = turnCount >= 20 ? "III" : (turnCount >= 15 ? "II" : "I");
+        anim.showStatusEffect(m, "系统迭代 $level: 数值 x$scalingFactor", Colors.orangeAccent);
       }
     }
   }
@@ -2844,6 +2903,124 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   }
 
   // 关键区域：顶部HUD（SafeArea避免状态栏遮挡）
+  Widget _cyberIntentBar({
+    required String text,
+    IconData? icon,
+    String? value,
+    required double width,
+    double height = 18,
+    required Color color,
+    required double s,
+  }) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFF05060A),
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(4),
+          bottomLeft: Radius.circular(10),
+        ),
+        border: Border.all(
+          color: color.withValues(alpha: 0.4),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.1),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(3),
+          bottomLeft: Radius.circular(8),
+        ),
+        child: Stack(
+          alignment: Alignment.centerLeft,
+          children: [
+            // 动态背景斜纹
+            Positioned.fill(
+              child: CustomPaint(
+                painter: CyberHpBarBackgroundPainter(color: color.withValues(alpha: 0.08)),
+              ),
+            ),
+            // 装饰性渐变背景
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      color.withValues(alpha: 0.1),
+                      color.withValues(alpha: 0.02),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // 左侧装饰块
+            Container(
+              width: 3 * s,
+              height: height,
+              color: color,
+            ),
+            // 内容区域
+            Padding(
+              padding: EdgeInsets.only(left: 6 * s, right: 6 * s),
+              child: Row(
+                children: [
+                  if (icon != null) ...[
+                    Icon(
+                      icon,
+                      size: (10 * s).clamp(8, 11),
+                      color: color.withValues(alpha: 0.9),
+                    ),
+                    SizedBox(width: 4 * s),
+                  ],
+                  Expanded(
+                    child: Text(
+                      text,
+                      style: TextStyle(
+                        fontSize: (8.5 * s).clamp(7.5, 9.5),
+                        fontWeight: FontWeight.w900,
+                        color: color.withValues(alpha: 0.95),
+                        fontFamily: 'monospace',
+                        letterSpacing: 0.3,
+                        shadows: [
+                          Shadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 2),
+                          Shadow(color: color.withValues(alpha: 0.3), blurRadius: 4),
+                        ],
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (value != null) ...[
+                    SizedBox(width: 4 * s),
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: (10 * s).clamp(9, 11),
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        fontFamily: 'monospace',
+                        shadows: [
+                          Shadow(color: color, blurRadius: 6),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _cyberHpBar({
     required int current,
     required int maxHp,
@@ -3088,7 +3265,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                 Icon(Icons.link, size: 10, color: themeColor.withValues(alpha: 0.5)),
                 const SizedBox(width: 4),
                 Text(
-                  "SYS.INTEGRITY_LINK",
+                  "INTEGRITY_LINK",
                   style: TextStyle(
                     color: themeColor.withValues(alpha: 0.6),
                     fontSize: 8,
@@ -3131,6 +3308,26 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                           letterSpacing: 0.8,
                           fontFamily: 'monospace',
                           fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        width: 1,
+                        height: 8,
+                        color: themeColor.withValues(alpha: 0.3),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        "执行回合数: $turnCount",
+                        style: TextStyle(
+                          color: turnCount >= 10 ? Colors.orangeAccent : themeColor.withValues(alpha: 0.9),
+                          fontSize: 8,
+                          letterSpacing: 0.8,
+                          fontFamily: 'monospace',
+                          fontWeight: FontWeight.w900,
+                          shadows: turnCount >= 10 ? [
+                            Shadow(color: Colors.orangeAccent.withValues(alpha: 0.5), blurRadius: 4),
+                          ] : null,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -3319,7 +3516,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
-                                      "FWL.PROT",
+                                      "FWL·护盾",
                                       style: TextStyle(
                                         color: blockColor.withValues(alpha: 0.6),
                                         fontSize: 8,
@@ -4750,6 +4947,13 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                           GameState.playerHp = min(GameState.playerHp, GameState.playerMaxHp);
                                           GameState.selectedBrainChipId = newChip.id;
                                           GameState.applyBrainChipInstantEffects(newChip.id);
+                                          
+                                          // 实时更新当前战斗中的玩家属性
+                                          player.maxHp = GameState.playerMaxHp;
+                                          player.hp = min(player.hp, player.maxHp);
+                                          player.strength = GameState.permanentStrength;
+                                          player.block = GameState.permanentBlock;
+                                          
                                           _bossRewardSelected = true;
                                           _statusTip = "脑机已更换，最大生命值 -2";
                                           _statusTipColor = Colors.orangeAccent;
@@ -5276,29 +5480,38 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         );
         final statusText =
             !isDead && isHighlighted ? "目标锁定" : (isDead ? "进程已销毁" : null);
+        String? intentText;
+        IconData? intentIcon;
         String? intentValueText;
-         IconData? intentIcon;
-         Color? intentColor;
-         switch (program.intent) {
+        Color? intentColor;
+        switch (program.intent) {
           case SystemIntent.impact:
+            intentText = "即将进攻";
+            intentIcon = Icons.gps_fixed;
             intentValueText = "${program.intentValue}";
-            intentIcon = Icons.bolt;
             intentColor = Colors.redAccent;
             break;
           case SystemIntent.encrypt:
+            intentText = "即将防御";
+            intentIcon = Icons.shield_rounded;
             intentValueText = "${program.intentValue}";
-            intentIcon = Icons.shield;
             intentColor = themeColor;
             break;
           case SystemIntent.repair:
+            intentText = "即将恢复";
+            intentIcon = Icons.healing_rounded;
             intentValueText = "${program.intentValue}";
-            intentIcon = Icons.auto_fix_high;
             intentColor = Colors.greenAccent;
             break;
+          case SystemIntent.summon:
+            intentText = "即将召唤";
+            intentIcon = Icons.group_add_rounded;
+            intentColor = const Color(0xFFE26CFF);
+            break;
           default:
-            intentValueText = null;
-            intentIcon = null;
-            intentColor = null;
+            intentText = "未知？？";
+            intentIcon = Icons.help_outline_rounded;
+            intentColor = Colors.grey;
         }
 
         return RepaintBoundary(
@@ -5334,59 +5547,16 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-                if (intentIcon != null)
+                if (!isDead)
                   Positioned(
                     top: -65 * s,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 4 * s),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0A0F16).withValues(alpha: 0.85),
-                        borderRadius: BorderRadius.circular(4 * s),
-                        border: Border.all(
-                          color: (intentColor ?? themeColor).withValues(alpha: 0.6),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // 左侧装饰条
-                          Container(
-                            width: 3 * s,
-                            height: 16 * s,
-                            decoration: BoxDecoration(
-                              color: intentColor ?? themeColor,
-                              borderRadius: BorderRadius.circular(1 * s),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: (intentColor ?? themeColor).withValues(alpha: 0.5),
-                                  blurRadius: 4 * s,
-                                ),
-                              ],
-                            ),
-                          ),
-                          SizedBox(width: 8 * s),
-                          Icon(
-                            intentIcon,
-                            size: 16 * s,
-                            color: intentColor,
-                          ),
-                          if (intentValueText != null) ...[
-                            SizedBox(width: 6 * s),
-                            Text(
-                              intentValueText,
-                              style: TextStyle(
-                                fontSize: (15 * s).clamp(12, 15),
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                fontFamily: 'monospace',
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ],
-                          SizedBox(width: 4 * s),
-                        ],
-                      ),
+                    child: _cyberIntentBar(
+                      text: intentText,
+                      icon: intentIcon,
+                      value: intentValueText,
+                      width: (110 * s).clamp(80, 110),
+                      color: intentColor ?? themeColor,
+                      s: s,
                     ),
                   ),
                 Positioned(

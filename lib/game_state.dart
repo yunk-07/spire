@@ -15,6 +15,9 @@ class GameState {
   static int permanentStrength = 0; // 初始算力 (Initial Strength)
   static int permanentBlock = 0;    // 初始防火墙 (Initial Firewall)
   
+  // 记录已触发过即时效果的脑机 ID，防止重复触发
+  static Set<String> appliedInstantChips = {};
+  
   static int playerGold = 0;    // 信用点/金币 (Gold)
   static String selectedCharacterId = "ironclad"; // 默认选择铁甲战士
   
@@ -27,6 +30,8 @@ class GameState {
 
   /// 应用脑机装备时的即时效果（仅触发一次）
   static void applyBrainChipInstantEffects(String chipId) {
+    if (appliedInstantChips.contains(chipId)) return;
+
     final chip = brainChipDatabase[chipId];
     if (chip == null || chip.effect == null) return;
 
@@ -45,6 +50,12 @@ class GameState {
           }
         }
       }
+      if (command == 'permanent_strength') {
+        if (parts.length > 1) {
+          final amount = int.tryParse(parts[1]) ?? 0;
+          permanentStrength += amount;
+        }
+      }
       // 如果有其他即时效果（如 heal），也可以在这里添加
       if (command == 'heal') {
         if (parts.length > 1) {
@@ -53,6 +64,9 @@ class GameState {
         }
       }
     }
+    
+    // 标记该脑机的即时效果已触发
+    appliedInstantChips.add(chipId);
   }
 
   /// 获取当前全局主题色（基于脑机）
@@ -76,6 +90,7 @@ class GameState {
     playerStrength = 0;
     permanentStrength = 0;
     permanentBlock = 0;
+    appliedInstantChips.clear();
     playerGold = 0;
     heatProgress = 0;
     selectedBrainChipId = null;

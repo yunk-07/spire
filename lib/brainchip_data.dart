@@ -144,10 +144,10 @@ BrainChip(
 BrainChip(
   id: "void_reaper",
   name: "虚空收割者",
-  level: 5,
-  effect: "strength 30; permanent_max_hp_mult 0.5",
+  level: 3,
+  effect: "permanent_strength 30; permanent_max_hp_mult 0.5",
   themeColor: 0xFFC62828, // 保持深猩红
-  description: "极其罕见的禁忌组件。提供 30 点算力，但最大生命值减半（仅限装备时触发一次）。",
+  description: "极其罕见的禁忌组件。永久提供 30 点算力，但最大生命值减半（仅限装备时触发一次）。",
   suite: BrainChipSuite.illegal,
 ),
 
