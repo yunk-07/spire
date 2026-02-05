@@ -126,7 +126,7 @@ BrainChip(
   level: 2,
   effect: "passive_energy_chance_50",
   themeColor: 0xFFD500F9, // 故障亮紫
-  description: "利用系统故障进行运算。每回合有 50% 概率额外获得 1 点带宽。",
+  description: "利用系统故障进行运算。每回合有 50% 概率额外获得 1 点能量。",
   suite: BrainChipSuite.experimental,
 ),
 
@@ -136,7 +136,7 @@ BrainChip(
   level: 4,
   effect: "quantum_link",
   themeColor: 0xFF3D5AFE, // 深量子蓝
-  description: "跨维度数据链路。每回合第一张消耗 2 点带宽的卡牌变为 0 消耗。",
+  description: "跨维度数据链路。每回合第一张消耗 2 点能量的卡牌变为 0 消耗。",
   suite: BrainChipSuite.experimental,
 ),
 

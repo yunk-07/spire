@@ -147,7 +147,7 @@ class _JiaohuanZhanPageState extends State<JiaohuanZhanPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: ThemeConfig.buildCyberDecoration(color),
-            child: Row(children: [Icon(Icons.favorite, size: 14, color: const Color(0xFFFF6A6A)), const SizedBox(width: 6), Text("生命值: ${GameState.playerHp}/${GameState.playerMaxHp}", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))]),
+            child: Row(children: [Icon(Icons.favorite, size: 14, color: const Color(0xFFFF6A6A)), const SizedBox(width: 6), Text("${GameState.playerHp} / ${GameState.playerMaxHp}", style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))]),
           ),
         ],
       ),
@@ -186,7 +186,7 @@ class _JiaohuanZhanPageState extends State<JiaohuanZhanPage> {
                     const Icon(Icons.favorite, size: 11, color: Color(0xFFFF6A6A)),
                     const SizedBox(width: 4),
                     Text(
-                      'HP -${_prices[i]}',
+                      '-${_prices[i]}',
                       style: const TextStyle(
                         color: Color(0xFFFF6A6A),
                         fontSize: 10,

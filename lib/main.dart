@@ -897,9 +897,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   
   /// 获取当前游戏的主题色（基于脑机、职业状态等）
   Color _getThemeColor() {
-    final hasBloodGlow = anim.roleEffects.any((e) => e.role == CharacterClass.xueye);
-    if (hasBloodGlow) return const Color(0xFFFF4D4D);
-    
     final isJianrenBoost = (characterData.characterClass == CharacterClass.jianren &&
         activePrograms.any((e) => e.hp > 0 && e.block <= 0));
     if (isJianrenBoost) return const Color(0xFFFFD700);
@@ -1597,7 +1594,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     if (card == null) return;
 
     int effectiveCost = card.cost;
-    // 脑机被动：量子链路接口 —— 每回合第一张消耗 2 点带宽的卡牌变为 0 消耗
+    // 脑机被动：量子链路接口 —— 每回合第一张消耗 2 点能量的卡牌变为 0 消耗
     if (GameState.selectedBrainChipId == 'quantum_link' && card.cost == 2 && !_quantumLinkUsedThisTurn) {
       effectiveCost = 0;
       _quantumLinkUsedThisTurn = true;
@@ -1605,9 +1602,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     }
 
     if (energy < effectiveCost) {
-      // 显示带宽不足提示
+      // 显示能量不足提示
 
-      _showStatusTip("带宽不足，无法使用该卡牌", Colors.redAccent);
+      _showStatusTip("能量不足，无法使用该卡牌", Colors.redAccent);
       return;
     }
 
@@ -1652,7 +1649,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
       if (_lastUsedSuite != null && card.suite == _lastUsedSuite) {
         energy = (energy + 1).clamp(0, 99);
         drawCards(1);
-        _showStatusTip("【结构链路】带宽回收 +1，数据读取 +1", const Color(0xFF00FF00));
+        _showStatusTip("【结构链路】能量回收 +1，数据读取 +1", const Color(0xFF00FF00));
         
         // 触发几何六边形网格特效
         final ctx = context;
@@ -2017,13 +2014,13 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     _lastUsedSuite = null; // 重置几何职业的上一张牌类别
     _quantumLinkUsedThisTurn = false; // 重置量子链路脑机使用记录
 
-    // 每周期开始时重置带宽（能量）为固定值
+    // 每周期开始时重置能量（能量）为固定值
     energy = 3;
 
-    // 脑机被动：故障频率处理器 —— 50% 概率额外获得 1 点带宽
+    // 脑机被动：故障频率处理器 —— 50% 概率额外获得 1 点能量
     if (GameState.selectedBrainChipId == 'glitch_processor' && Random().nextDouble() < 0.5) {
       energy += 1;
-      _showStatusTip("【故障频率】系统随机超频 +1 带宽", const Color(0xFFE26CFF));
+      _showStatusTip("【故障频率】系统随机超频 +1 能量", const Color(0xFFE26CFF));
     }
 
     int drawBonus = 0;
@@ -2366,7 +2363,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     }
   }
 
-  /// 检查带宽耗尽自动进入弃牌阶段
+  /// 检查能量耗尽自动进入弃牌阶段
   void checkEnergyExhaustion() {
     if (energy <= 0 && gamePhase == GamePhase.syncPhase && !isDiscardPhase) {
       startDiscardPhase();
@@ -2575,7 +2572,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                     child: RepaintBoundary(
                       child: _BattleBackground(
                       pulses: anim.gridPulses,
-                      gridColor: themeColor,
+                      gridColor: anim.roleEffects.any((e) => e.role == CharacterClass.xueye) 
+                          ? const Color(0xFFFF4D4D) 
+                          : themeColor,
                     )),
                   ),
                   if (characterData.characterClass == CharacterClass.langchao)
@@ -2735,7 +2734,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
               drawPile.length,
               themeColor,
               isDrawPile: true,
-              onTap: () => _showCardListDialog("待载入指令 (抽牌堆)", drawPile, themeColor),
+              onTap: () => _showCardListDialog("抽牌堆", drawPile, themeColor),
             ),
           ),
         ),
@@ -2750,7 +2749,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
               discardPile.length,
               const Color(0xFFFF5A5A),
               isDrawPile: false,
-              onTap: () => _showCardListDialog("已执行指令 (弃牌堆)", discardPile, const Color(0xFFFF5A5A)),
+              onTap: () => _showCardListDialog("弃牌堆", discardPile, const Color(0xFFFF5A5A)),
             ),
           ),
         ),
@@ -2786,7 +2785,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             drawPile.length,
             themeColor,
             isDrawPile: true,
-            onTap: () => _showCardListDialog("待载入指令 (抽牌堆)", drawPile, themeColor),
+            onTap: () => _showCardListDialog("抽牌堆", drawPile, themeColor),
           ),
         ),
         Positioned(
@@ -2797,7 +2796,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             discardPile.length,
             const Color(0xFFFF5A5A),
             isDrawPile: false,
-            onTap: () => _showCardListDialog("已执行指令 (弃牌堆)", discardPile, const Color(0xFFFF5A5A)),
+            onTap: () => _showCardListDialog("弃牌堆", discardPile, const Color(0xFFFF5A5A)),
           ),
         ),
       ],
@@ -3011,68 +3010,25 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 Flexible(
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (suiteIcon != null) ...[
-                          Icon(suiteIcon, size: 12, color: isLowHp ? Colors.red : barColor),
-                          const SizedBox(width: 4),
-                        ],
-                        Text(
-                          label,
-                          style: TextStyle(
-                            color: isLowHp ? Colors.red : barColor,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            fontFamily: 'monospace',
-                            letterSpacing: 1.0,
-                            shadows: [
-                              Shadow(color: Colors.black.withValues(alpha: 0.9), blurRadius: 3),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
                     alignment: Alignment.centerRight,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          "${(percent * 100).toInt()}%",
-                          style: TextStyle(
-                            color: (isLowHp ? Colors.red : barColor).withValues(alpha: 0.7),
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          "$current / $maxHp",
-                          style: TextStyle(
-                            color: isLowHp ? Colors.red : Colors.white,
-                            fontSize: 13, // 增大字体
-                            fontWeight: FontWeight.w900,
-                            fontFamily: 'monospace',
-                            letterSpacing: 0.8,
-                            shadows: [
-                              const Shadow(color: Colors.black, blurRadius: 4, offset: Offset(1, 1)),
-                              Shadow(color: (isLowHp ? Colors.red : barColor).withValues(alpha: 0.8), blurRadius: 10),
-                            ],
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      "$current / $maxHp",
+                      style: TextStyle(
+                        color: isLowHp ? Colors.red : Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        fontFamily: 'monospace',
+                        letterSpacing: 0.8,
+                        shadows: [
+                          const Shadow(color: Colors.black, blurRadius: 4, offset: Offset(1, 1)),
+                          Shadow(color: (isLowHp ? Colors.red : barColor).withValues(alpha: 0.8), blurRadius: 10),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -3258,7 +3214,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                             maxHp: player.maxHp,
                             width: 160,
                             height: 24,
-                            label: "ITG",
+                            label: "",
                             color: themeColor,
                             suiteIcon: brainChipDatabase[GameState.selectedBrainChipId]?.suiteIconCode != null 
                                 ? IconData(brainChipDatabase[GameState.selectedBrainChipId]!.suiteIconCode, fontFamily: 'MaterialIcons') 
@@ -4240,12 +4196,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                         ),
                         child: Stack(
                           children: [
-                            // 内部装饰：扫描线
-                            // Positioned.fill(
-                            //   child: IgnorePointer(
-                            //     child: CyberScanline(color: color.withValues(alpha: 0.1)),
-                            //   ),
-                            // ),
                             // 装饰边角
                             Positioned.fill(
                               child: IgnorePointer(
@@ -4632,7 +4582,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                     ),
                                     const SizedBox(height: 8),
                                     const Text(
-                                      "检测到架构冲突：最大完整度将下降 2 点",
+                                      "检测到架构冲突：最大生命值将下降 2 点",
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontSize: 14,
@@ -4801,7 +4751,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                           GameState.selectedBrainChipId = newChip.id;
                                           GameState.applyBrainChipInstantEffects(newChip.id);
                                           _bossRewardSelected = true;
-                                          _statusTip = "脑机已更换，最大完整度 -2";
+                                          _statusTip = "脑机已更换，最大生命值 -2";
                                           _statusTipColor = Colors.orangeAccent;
                                         });
                                       },
@@ -5014,11 +4964,11 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             ],
           ),
           const SizedBox(height: 12),
-          _statRow('数据同步周期 (回合)', '${GameStatistics.battleTurns}', const Color(0xFFE1E9FF)),
-          _statRow('指令集调用 (出牌)', '${GameStatistics.battleCardsUsed}', themeColor),
-          _statRow('数据破坏数值 (伤害)', '${GameStatistics.battleDamageDealt}', const Color(0xFFFF6A6A)),
-          _statRow('防火墙拦截 (护盾)', '${GameStatistics.battleDamageBlocked}', const Color(0xFF5AD1FF)),
-          _statRow('已攻破扇区 (胜场)', '${GameStatistics.totalBattlesWon}', const Color(0xFF44FF44)),
+          _statRow('执行回合数', '${GameStatistics.battleTurns}', const Color(0xFFE1E9FF)),
+          _statRow('本局出牌数', '${GameStatistics.battleCardsUsed}', themeColor),
+          _statRow('本局造成伤害)', '${GameStatistics.battleDamageDealt}', const Color(0xFFFF6A6A)),
+          _statRow('本局护盾拦截', '${GameStatistics.battleDamageBlocked}', const Color(0xFF5AD1FF)),
+          _statRow('胜场', '${GameStatistics.totalBattlesWon}', const Color(0xFF44FF44)),
         ],
       ),
     );
@@ -5448,7 +5398,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                         maxHp: program.maxHp,
                         width: (100 * s).clamp(70, 100), // 敌方血条稍窄
                         height: (18 * s).clamp(12, 18),
-                        label: "SYS",
+                        label: "",
                         color: isDead ? Colors.grey : (isHighlighted ? themeColor : const Color(0xFFE1E9FF)), // 增加主题色关联
                         isMonster: true,
                       ),
@@ -5639,7 +5589,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     );
   }
 
-  /// 带宽核心组件：科技感十足的数字仪表
+  /// 能量核心组件：科技感十足的数字仪表
   Widget _energyCoreWidget(Color color) {
     return SizedBox(
       width: 70,
@@ -5679,19 +5629,6 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                       bottomRight: Radius.circular(19),
                     ),
                     child: CyberScanline(color: color.withValues(alpha: 0.2)),
-                  ),
-                ),
-                // 装饰性：系统状态小字
-                Positioned(
-                  top: 6, left: 6,
-                  child: Text(
-                    "PWR_CORE",
-                    style: TextStyle(
-                      color: color.withValues(alpha: 0.4),
-                      fontSize: 6,
-                      fontFamily: 'monospace',
-                      fontWeight: FontWeight.bold,
-                    ),
                   ),
                 ),
                 Positioned(
@@ -5736,7 +5673,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      "BW.AVAIL",
+                      "当前能量",
                       style: TextStyle(
                         color: color.withValues(alpha: (0.6 + (scale - 1.0) * 2).clamp(0.0, 1.0)),
                         fontSize: 8,
@@ -6510,7 +6447,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         Container(
           padding: const EdgeInsets.only(bottom: 8),
           child: Text(
-            "锁定核心数据流，其余数据将执行清除程序",
+            "选择保留一张卡牌，其余的将会进入弃牌堆",
             style: TextStyle(
               fontSize: 12,
               color: Colors.orange.shade800.withValues(alpha: 0.8),

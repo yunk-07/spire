@@ -4,7 +4,7 @@
 // damage        -> 造成伤害
 // block         -> 获得防御
 // draw          -> 抽取卡牌
-// energy        -> 获得能量/带宽
+// energy        -> 获得能量/能量
 // vulnerable    -> 施加脆弱
 // weak          -> 施加虚弱
 // curse         -> 施加恶意代码
@@ -163,7 +163,7 @@ const Map<String, CardData> cardDatabase = {
     cost: 1,
     level: 1,
     effect: 'block 4; energy 1',
-    description: '获得 4 点防御和 1 点带宽。',
+    description: '获得 4 点防御和 1 点能量。',
   ),
 
   // 剑刃 (jianren) - 高额伤害
@@ -526,7 +526,7 @@ const Map<String, CardData> cardDatabase = {
     cost: 0,
     level: 1,
     effect: 'energy 1; self_damage 4',
-    description: '强行提升系统频率，获得 1 点带宽，受损 4 点。',
+    description: '强行提升系统频率，获得 1 点能量，受损 4 点。',
   ),
   'phase_shift': CardData(
     id: 'phase_shift',
@@ -581,18 +581,18 @@ const Map<String, CardData> cardDatabase = {
     cost: 1,
     level: 3,
     effect: 'draw 2; energy 1',
-    description: '开启双线程，读取 2 个数据包并获得 1 点带宽。',
+    description: '开启双线程，读取 2 个数据包并获得 1 点能量。',
   ),
   'energy_boost': CardData(
     id: 'energy_boost',
-    name: '带宽扩容',
+    name: '能量扩容',
     type: CardType.module,
     target: CardTarget.self,
     suite: CardSuite.quantum,
     cost: 0,
     level: 2,
     effect: 'energy 1',
-    description: '扩容系统带宽，获得 1 点额外带宽。',
+    description: '扩容系统能量，获得 1 点额外能量。',
   ),
   'eruption': CardData(
     id: 'eruption',
@@ -637,7 +637,7 @@ const Map<String, CardData> cardDatabase = {
     cost: 2,
     level: 3,
     effect: 'draw 3; energy 1',
-    description: '建立神经连接，读取 3 个数据包并获得 1 点带宽。',
+    description: '建立神经连接，读取 3 个数据包并获得 1 点能量。',
   ),
   'predator_program': CardData(
     id: 'predator_program',
@@ -693,7 +693,7 @@ const Map<String, CardData> cardDatabase = {
     cost: 3,
     level: 5,
     effect: 'damage 20; draw 4; energy 2',
-    description: '劫持对方主机，造成 20 点冲击，读取 4 个数据包并获得 2 点带宽。',
+    description: '劫持对方主机，造成 20 点冲击，读取 4 个数据包并获得 2 点能量。',
   ),
   'absolute_zero_ice': CardData(
     id: 'absolute_zero_ice',
@@ -943,7 +943,7 @@ const Map<String, CardData> cardDatabase = {
     cost: 0,
     level: 3,
     effect: 'max_hp_down 2; energy 3',
-    description: '减少冗余模块以换取性能，生命上限 -2 并获得 3 点带宽。',
+    description: '减少冗余模块以换取性能，生命上限 -2 并获得 3 点能量。',
   ),
   'fortify_wall': CardData(
     id: 'fortify_wall',
@@ -1035,7 +1035,7 @@ const Map<String, CardData> cardDatabase = {
     cost: 0,
     level: 999,
     effect: 'energy 2; draw 2',
-    description: '获得神圣的指引。获得 2 点带宽，抽取 2 张卡牌。',
+    description: '获得神圣的指引。获得 2 点能量，抽取 2 张卡牌。',
   ),
   'holy_judgment': CardData(
     id: 'holy_judgment',
@@ -1079,7 +1079,7 @@ const Map<String, CardData> cardDatabase = {
     cost: 4,
     level: 999,
     effect: 'strength 5; energy 1',
-    description: '灵魂的升华。获得 5 点算力，且每回合额外获得 1 点带宽。',
+    description: '灵魂的升华。获得 5 点算力，且每回合额外获得 1 点能量。',
   ),
   'holy_sanctuary': CardData(
     id: 'holy_sanctuary',

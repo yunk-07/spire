@@ -528,7 +528,7 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                                               crossAxisAlignment: CrossAxisAlignment.end,
                                               children: [
                                                 Text(
-                                                  "HP_CAP",
+                                                  "初始生命",
                                                   style: TextStyle(
                                                     color: isSelected ? ThemeConfig.getClassColor(character.characterClass).withValues(alpha: 0.5) : Colors.white10,
                                                     fontSize: 7,
@@ -551,7 +551,7 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                                               crossAxisAlignment: CrossAxisAlignment.end,
                                               children: [
                                                 Text(
-                                                  "INIT_CREDITS",
+                                                  "初始信用",
                                                   style: TextStyle(
                                                     color: isSelected ? const Color(0xFFFFD700).withValues(alpha: 0.5) : Colors.white10,
                                                     fontSize: 7,
@@ -574,7 +574,7 @@ class _CharacterSelectScreenState extends State<CharacterSelectScreen>
                                               crossAxisAlignment: CrossAxisAlignment.end,
                                               children: [
                                                 Text(
-                                                  "DECK_SIZE",
+                                                  "初始牌组数",
                                                   style: TextStyle(
                                                     color: isSelected ? Colors.blueAccent.withValues(alpha: 0.5) : Colors.white10,
                                                     fontSize: 7,

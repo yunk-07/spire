@@ -197,7 +197,7 @@ class MaintenanceBayScreen extends StatelessWidget {
         children: [
           Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: ThemeConfig.buildCyberDecoration(color), child: Row(children: [Icon(Icons.memory, size: 14, color: color), const SizedBox(width: 6), Text("节点编号: $levelId", style: const TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 1))])),
           const SizedBox(width: 12),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: ThemeConfig.buildCyberDecoration(color, isRight: true), child: Row(children: [Icon(Icons.shield, size: 14, color: color), const SizedBox(width: 6), Text("生命值: ${GameState.playerHp}/${GameState.playerMaxHp}", style: const TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2))])),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: ThemeConfig.buildCyberDecoration(color, isRight: true), child: Row(children: [Icon(Icons.shield, size: 14, color: color), const SizedBox(width: 6), Text("${GameState.playerHp} / ${GameState.playerMaxHp}", style: const TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace', letterSpacing: 2))])),
         ],
       ),
     );

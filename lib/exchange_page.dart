@@ -177,7 +177,7 @@ class _ExchangePageState extends State<ExchangePage> {
                 Icon(Icons.memory, size: 14, color: color),
                 const SizedBox(width: 6),
                 Text(
-                  "节点: $levelId",
+                  "当前节点: $levelId",
                   style: TextStyle(
                     color: color,
                     fontSize: 10,
@@ -206,7 +206,7 @@ class _ExchangePageState extends State<ExchangePage> {
           children: [
             const SizedBox(width: 6),
             Text(
-              "完整度: ${GameState.playerHp}/${GameState.playerMaxHp}",
+              "${GameState.playerHp} / ${GameState.playerMaxHp}",
               style: TextStyle(color: color, fontSize: 12, fontFamily: 'monospace', letterSpacing: 2),
             ),
           ],

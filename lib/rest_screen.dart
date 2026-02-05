@@ -195,7 +195,7 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
           _buildCyberOption(
             title: "逻辑回溯",
             subtitle: "完整性重构",
-            desc: "恢复 50% 已受损的生命完整度",
+            desc: "恢复 50% 已受损的生命",
             icon: Icons.history_edu,
             color: color,
             onTap: _onHeal,
@@ -280,9 +280,8 @@ class _RestScreenState extends State<RestScreen> with TickerProviderStateMixin {
       child: Column(
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              const Text("系统完整度", style: TextStyle(color: Colors.white54, fontSize: 10, fontFamily: 'Courier')),
               Text("${GameState.playerHp} / ${GameState.playerMaxHp}", 
                 style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.bold, fontFamily: 'Courier')),
             ],

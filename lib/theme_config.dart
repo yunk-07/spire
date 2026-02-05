@@ -109,8 +109,8 @@ class ThemeConfig {
         begin: isRight ? Alignment.centerRight : Alignment.centerLeft,
         end: isRight ? Alignment.centerLeft : Alignment.centerRight,
         colors: [
-          const Color(0xFF0A0F16).withValues(alpha: 0.95),
-          const Color(0xFF1A1F26).withValues(alpha: 0.9),
+          const Color(0xFF0A0F16).withValues(alpha: 0.1),
+          const Color(0xFF1A1F26).withValues(alpha: 0.1),
         ],
       ),
       borderRadius: BorderRadius.only(
@@ -120,8 +120,8 @@ class ThemeConfig {
         bottomRight: Radius.circular(isRight ? 16 : 0),
       ),
       border: Border.all(
-        color: themeColor.withValues(alpha: 0.4),
-        width: 1.2,
+        color: themeColor.withValues(alpha: 0.3),
+        width: 1,
       ),
       boxShadow: [
         BoxShadow(
@@ -167,17 +167,43 @@ class ThemeConfig {
     }
   }
 
+  /// 获取卡牌类型对应的图标
+  static IconData getTypeIcon(CardType type) {
+    switch (type) {
+      case CardType.exploit:
+        return Icons.track_changes_rounded; // 准心图标 (进攻)
+      case CardType.encryption:
+        return Icons.shield_rounded;        // 盾牌图标 (防守)
+      case CardType.routine:
+        return Icons.sync_rounded;
+      case CardType.module:
+        return Icons.view_in_ar_rounded;
+    }
+  }
+
+  /// 获取卡牌目标对应的图标
+  static IconData getTargetIcon(CardTarget target) {
+    switch (target) {
+      case CardTarget.enemy:
+        return Icons.gps_fixed; // 准心 (针对敌人)
+      case CardTarget.self:
+        return Icons.shield_rounded;        // 盾牌 (针对自己)
+      case CardTarget.all:
+        return Icons.blur_circular;        // 群体 (针对全体)
+    }
+  }
+
   /// 统一构建卡牌描述文本，智能识别正面/负面效果并着色
   static Widget buildCardDescription(CardData c, Color highlightColor) {
     final String text = c.description ?? "";
     if (text.isEmpty) return const SizedBox.shrink();
 
     // 关键词分类
-    const buffKeywords = {'防火墙加固', '算力', '系统修复', '能量', '能量点', '数据包', '带宽', '接入点', '两次'};
+    const buffKeywords = {'防火墙加固', '算力', '系统修复', '能量', '能量点', '数据包', '接入点', '两次'};
     const debuffKeywords = {'虚弱', '脆弱', '漏洞暴露', '恶意代码'};
     const damageKeywords = {'冲击', '自损', '受损', '过载伤害'};
 
-    final regex = RegExp(r'(\d+)|(冲击|防火墙加固|数据包|算力|虚弱|脆弱|恶意代码|自损|系统修复|能量|能量点|漏洞暴露|受损|带宽|过载伤害|接入点|两次)');
+    final regex = RegExp(r'(\d+)|(冲击|防火墙加固|数据包|算力|虚弱|脆弱|恶意代码|自损|系统修复|能量|能量点|漏洞暴露|受损|过载伤害|接入点|两次|全体)');
     final List<TextSpan> spans = [];
     int lastMatchEnd = 0;
 
@@ -318,52 +344,72 @@ class ThemeConfig {
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: Builder(
-                          builder: (_) {
-                            final name = c.name;
-                            final base = width * 0.11; // 动态计算基础字号
-                            final shrink = name.length > 4 ? (base - (name.length - 4) * 0.5) : base;
-                            final titleFont = shrink.clamp(6.5, base);
-                            return Text(
-                              name,
-                              softWrap: true,
-                              maxLines: 2,
-                              overflow: TextOverflow.visible,
-                              style: TextStyle(
-                                fontSize: titleFont,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white.withValues(alpha: 0.95),
-                                letterSpacing: 0.5,
-                                fontFamily: 'monospace',
-                                height: 1.1,
-                                shadows: [
-                                  Shadow(color: suiteColor.withValues(alpha: 0.5), blurRadius: 4),
-                                ],
-                              ),
-                            );
-                          },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  getTargetIcon(c.target),
+                                  size: 10,
+                                  color: suiteColor.withValues(alpha: 0.8),
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Builder(
+                                    builder: (_) {
+                                      final name = c.name;
+                                      final base = width * 0.11; // 动态计算基础字号
+                                      final shrink = name.length > 4 ? (base - (name.length - 4) * 0.5) : base;
+                                      final titleFont = shrink.clamp(6.5, base);
+                                      return Text(
+                                        name,
+                                        softWrap: true,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.visible,
+                                        style: TextStyle(
+                                          fontSize: titleFont,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white.withValues(alpha: 0.95),
+                                          letterSpacing: 0.5,
+                                          fontFamily: 'monospace',
+                                          height: 1.1,
+                                          shadows: [
+                                            Shadow(color: suiteColor.withValues(alpha: 0.5), blurRadius: 4),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 0),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF05060A),
-                          borderRadius: BorderRadius.circular(2),
+                          color: const Color(0xFF05060A).withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(4),
                           border: Border.all(color: suiteColor.withValues(alpha: 0.5), width: 0.5),
                         ),
                         child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              getSuiteIcon(c.suite),
-                              size: 8,
+                              Icons.bolt_rounded,
+                              size: 10,
                               color: suiteColor,
                             ),
                             Text(
                               "${c.cost}",
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w900,
                                 color: suiteColor,
                                 fontFamily: 'monospace',
@@ -397,14 +443,18 @@ class ThemeConfig {
                       Text(
                         (c.suite == CardSuite.demon || c.suite == CardSuite.holy) ? "Lv ?" : "Lv${c.level}",
                         style: TextStyle(
-                          fontSize: 6,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 7,
+                          fontWeight: FontWeight.w900,
                           color: rarityColor.withValues(alpha: 0.9),
                           fontFamily: 'monospace',
                           letterSpacing: 0.5,
                         ),
                       ),
-                      _smallTargetIcon(c.target, suiteColor),
+                      Icon(
+                        getSuiteIcon(c.suite),
+                        size: 10,
+                        color: suiteColor.withValues(alpha: 0.6),
+                      ),
                     ],
                   ),
                 ],

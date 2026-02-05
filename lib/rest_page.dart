@@ -218,32 +218,6 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
             children: [
               Column(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 4,
-                        height: 4,
-                        decoration: BoxDecoration(color: themeColor, shape: BoxShape.circle),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '单元完整度状态',
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: themeColor,
-                          fontFamily: 'monospace',
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        width: 4,
-                        height: 4,
-                        decoration: BoxDecoration(color: themeColor, shape: BoxShape.circle),
-                      ),
-                    ],
-                  ),
                   const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -252,21 +226,12 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
                       const Icon(Icons.favorite, color: Color(0xFFFF6A6A), size: 18),
                       const SizedBox(width: 12),
                       Text(
-                        '${GameState.playerHp}',
+                        '${GameState.playerHp} / ${GameState.playerMaxHp}',
                         style: const TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.w900,
                           color: Color(0xFFE1E9FF),
                           fontFamily: 'monospace',
-                        ),
-                      ),
-                      Text(
-                        ' / ${GameState.playerMaxHp}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: const Color(0xFFE1E9FF).withValues(alpha: 0.5),
-                          fontFamily: 'monospace',
-                          height: 2,
                         ),
                       ),
                     ],
@@ -487,7 +452,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
                 Icon(Icons.hub_outlined, size: 12, color: color),
                 const SizedBox(width: 6),
                 const Text(
-                  "OPTIONS: 2",
+                  "选项",
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: 10,
@@ -512,7 +477,7 @@ class _RestPageState extends State<RestPage> with SingleTickerProviderStateMixin
                 Icon(Icons.memory, size: 14, color: color),
                 const SizedBox(width: 6),
                 Text(
-                  "NODE: $levelId",
+                  "当前位置: $levelId",
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 10,

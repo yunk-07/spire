@@ -3,7 +3,6 @@
 // 重新设计：更加科幻、清晰的地图显示，突出玩家位置
 
 import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'game_state.dart';
 import 'nation_selection_screen.dart';
@@ -225,7 +224,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         const SizedBox(width: 16),
                         _hudStatusItem("操作员", characterDatabase[GameState.selectedCharacterId]?.name ?? "UNKNOWN", themeColor),
                         const SizedBox(width: 16),
-                        _hudStatusItem("系统完整性", "${GameState.playerHp}/${GameState.playerMaxHp}", GameState.playerHp / GameState.playerMaxHp < 0.3 ? Colors.redAccent : themeColor),
+                        _hudStatusItem("生命", "${GameState.playerHp} / ${GameState.playerMaxHp}", GameState.playerHp / GameState.playerMaxHp < 0.3 ? Colors.redAccent : themeColor),
                         const SizedBox(width: 16),
                         _hudStatusItem("信用点", GameState.playerGold.toString(), const Color(0xFFFFD700)),
                         const Spacer(),
@@ -864,7 +863,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   void _showLevelPreview(BuildContext context, LevelInfo node, int layerIndex) {
     final color = GameState.getThemeColor();
-    final nextLayer = layerIndex + 1 < _layers.length ? _layers[layerIndex + 1] : const <LevelInfo>[];
     final monsters = node.programIds.map((id) => systemDatabase[id]).whereType<SecurityProgram>().toList();
 
     String typeDescription = "";
@@ -1103,20 +1101,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               ),
               const SizedBox(width: 6),
               Text(
-                "HP",
-                style: TextStyle(color: Colors.red.withValues(alpha: 0.5), fontSize: 8, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
-              ),
-              const SizedBox(width: 2),
-              Text(
                 "${m.maxHp}",
                 style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 10, fontFamily: 'monospace'),
               ),
               const SizedBox(width: 8),
-              Text(
-                "ATK",
-                style: TextStyle(color: Colors.amber.withValues(alpha: 0.5), fontSize: 8, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
-              ),
-              const SizedBox(width: 2),
               Text(
                 "${m.baseDamage}",
                 style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 10, fontFamily: 'monospace'),
