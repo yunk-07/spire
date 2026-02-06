@@ -5,6 +5,7 @@ import '../models/game_state.dart';
 import '../models/level_data.dart';
 import '../models/character_data.dart';
 import 'animation_constants.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 /// 统一管理卡牌样式、配色和系列相关配置
 class ThemeConfig {
@@ -58,6 +59,8 @@ class ThemeConfig {
         return const Color(0xFF9D00FF); // 深紫色
       case CardSuite.holy:
         return const Color(0xFFFFD700); // 金色
+      case CardSuite.curse:
+        return const Color.fromARGB(255, 138, 7, 7); 
     }
   }
 
@@ -99,6 +102,8 @@ class ThemeConfig {
         return const Color(0xFF0F001A);
       case CardSuite.holy:
         return const Color(0xFF1A1A0A);
+      case CardSuite.curse:
+        return const Color(0xFF1A0A0A);
     }
   }
 
@@ -150,6 +155,8 @@ class ThemeConfig {
         return Icons.pest_control_rodent_rounded;
       case CardSuite.holy:
         return Icons.auto_awesome;
+      case CardSuite.curse:
+        return MdiIcons.skullCrossbones;
     }
   }
 
@@ -164,6 +171,8 @@ class ThemeConfig {
         return 'ROUTINE';
       case CardType.module:
         return 'MODULE';
+      case CardType.curse:
+       return 'CURSE';
     }
   }
 
@@ -178,6 +187,8 @@ class ThemeConfig {
         return Icons.sync_rounded;
       case CardType.module:
         return Icons.view_in_ar_rounded;
+      case CardType.curse:
+       return MdiIcons.skullCrossbones;
     }
   }
 
@@ -190,7 +201,9 @@ class ThemeConfig {
         return Icons.shield_rounded;        // 盾牌 (针对自己)
       case CardTarget.all:
         return Icons.blur_circular;        // 群体 (针对全体)
-    }
+      case CardTarget.curse:
+        return MdiIcons.skullCrossbones;
+      }
   }
 
   /// 统一构建卡牌描述文本，智能识别正面/负面效果并着色
@@ -465,22 +478,6 @@ class ThemeConfig {
       ),
     );
   }
-
-  static Widget _smallTargetIcon(CardTarget target, Color color) {
-    IconData icon;
-    switch (target) {
-      case CardTarget.enemy:
-        icon = Icons.gps_fixed;
-        break;
-      case CardTarget.self:
-        icon = Icons.shield;
-        break;
-      case CardTarget.all:
-        icon = Icons.grain;
-        break;
-    }
-    return Icon(icon, size: 8, color: color.withValues(alpha: 0.6));
-  }
 }
 
 /// 辅助 Painter
@@ -578,6 +575,44 @@ class SuiteTechPainter extends CustomPainter {
           12, 
           paint..style = PaintingStyle.stroke..strokeWidth = 0.5
         );
+        break;
+      case CardSuite.curse:
+        // 诅咒：骷髅头背景
+        final centerX = size.width * 0.5;
+        final centerY = size.height * 0.4;
+        
+        // 骷髅头轮廓 (简化的)
+        final skullPath = Path();
+        // 头部圆弧
+        skullPath.addArc(Rect.fromCircle(center: Offset(centerX, centerY), radius: 15), math.pi, -math.pi); // 上半圆
+        skullPath.lineTo(centerX + 15, centerY + 10); // 右脸颊
+        skullPath.lineTo(centerX + 10, centerY + 20); // 右下巴
+        skullPath.lineTo(centerX - 10, centerY + 20); // 左下巴
+        skullPath.lineTo(centerX - 15, centerY + 10); // 左脸颊
+        skullPath.close();
+
+        canvas.drawPath(skullPath, paint..style = PaintingStyle.stroke..strokeWidth = 1.5);
+
+        // 眼睛
+        canvas.drawCircle(Offset(centerX - 6, centerY), 3, paint..style = PaintingStyle.fill);
+        canvas.drawCircle(Offset(centerX + 6, centerY), 3, paint..style = PaintingStyle.fill);
+
+        // 鼻子
+        final nosePath = Path()
+          ..moveTo(centerX, centerY + 4)
+          ..lineTo(centerX - 2, centerY + 8)
+          ..lineTo(centerX + 2, centerY + 8)
+          ..close();
+        canvas.drawPath(nosePath, paint..style = PaintingStyle.fill);
+
+        // 骨头交叉 (X形)
+        final bonePaint = Paint()
+          ..color = color.withValues(alpha: 0.3)
+          ..strokeWidth = 3
+          ..strokeCap = StrokeCap.round;
+        
+        canvas.drawLine(Offset(centerX - 12, centerY + 25), Offset(centerX + 12, centerY + 35), bonePaint);
+        canvas.drawLine(Offset(centerX + 12, centerY + 25), Offset(centerX - 12, centerY + 35), bonePaint);
         break;
     }
   }
@@ -951,6 +986,31 @@ class CyberRoleEffectPainter extends CustomPainter {
     canvas.drawRect(bottomRect, Paint()..shader = bottomShader..colorFilter = ColorFilter.mode(edgeColor, BlendMode.srcIn));
     canvas.drawRect(leftRect, Paint()..shader = leftShader..colorFilter = ColorFilter.mode(edgeColor, BlendMode.srcIn));
     canvas.drawRect(rightRect, Paint()..shader = rightShader..colorFilter = ColorFilter.mode(edgeColor, BlendMode.srcIn));
+  }
+
+  void _drawOctagonWheel(Canvas canvas, Size size, Offset center, double progress) {
+    final paint = Paint()
+      ..color = const Color(0xFF536DFE).withValues(alpha: (1.0 - progress) * 0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    final radius = 60.0 + progress * 20.0;
+    final path = Path();
+    for (int i = 0; i < 8; i++) {
+      final angle = (i * math.pi / 4) + (progress * math.pi);
+      final x = center.dx + radius * math.cos(angle);
+      final y = center.dy + radius * math.sin(angle);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    path.close();
+    canvas.drawPath(path, paint);
+    
+    // 内圈
+    canvas.drawCircle(center, radius * 0.6, paint..strokeWidth = 1.0);
   }
 
   void _drawLangWave(Canvas canvas, Size size, Offset center, double progress) {

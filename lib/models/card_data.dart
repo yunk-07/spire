@@ -19,10 +19,10 @@
 // 关键区域：上述DSL关键字需与战斗页执行器保持一致
 
 /// 卡牌类型枚举
-enum CardType { exploit, encryption, routine, module }
+enum CardType { exploit, encryption, routine, module, curse }
 
 /// 卡牌使用目标枚举
-enum CardTarget { enemy, self, all }
+enum CardTarget { enemy, self, all,curse }
 
 /// 卡牌视觉套装枚举
 enum CardSuite { 
@@ -32,7 +32,8 @@ enum CardSuite {
   industrial, // 工业橙/机械
   quantum,    // 量子紫/虚空
   demon,      // 恶魔/独特样式
-  holy        // 神圣/高亮样式
+  holy,       // 神圣/高亮样式
+  curse       // 诅咒/恶意样式
 }
 
 /// 卡牌数据模型
@@ -307,6 +308,17 @@ const Map<String, CardData> cardDatabase = {
     level: 3,
     effect: 'damage 12',
     description: '对目标系统造成 12 点伤害。',
+  ),
+  'data_recovery': CardData(
+    id: 'data_recovery',
+    name: '数据回收',
+    type: CardType.routine,
+    target: CardTarget.self,
+    suite: CardSuite.classic,
+    cost: 1,
+    level: 2,
+    effect: 'retrieve_discard',
+    description: '从弃牌堆中回收一张卡牌到手牌。',
   ),
   'multi_effect_card': CardData(
     id: 'multi_effect_card',
@@ -1102,5 +1114,18 @@ const Map<String, CardData> cardDatabase = {
     level: 999,
     effect: 'block 15; draw 3',
     description: '净化心灵的阴霾。获得 15 点防火墙加固并抽取 3 张卡牌。',
+  ),
+
+  // --- 诅咒卡牌 ---
+  'locked_curse': CardData(
+    id: 'locked_curse',
+    name: '诅咒：枷锁',
+    type: CardType.curse,
+    target: CardTarget.curse,
+    suite: CardSuite.curse,
+    cost: 1,
+    level: 1,
+    effect: 'exhaust', // 需要在 useCard 中处理 exhaust 效果或类型判断
+    description: '当此牌在手牌中时，无法打出其他牌。打出此牌以解除诅咒。',
   ),
 };

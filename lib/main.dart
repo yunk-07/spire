@@ -975,7 +975,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         final card = instance?.data;
         if (card == null) return false;
         final effectStr = card.effect ?? "";
-        final baseAccept = (card.target == CardTarget.self || card.target == CardTarget.all);
+        final baseAccept = (card.target == CardTarget.self || card.target == CardTarget.all || card.target == CardTarget.curse);
         final faAccept = characterData.characterClass == CharacterClass.fa
             && card.target == CardTarget.enemy
             && (effectStr.contains('damage')
@@ -1598,6 +1598,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
             }
           }
           break;
+        case 'retrieve_discard':
+          retrieveFromDiscard();
+          break;
       }
     }
   }
@@ -1614,6 +1617,9 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   /// 弃牌堆
   final List<CardInstance> discardPile = [];
 
+  /// 消耗堆
+  final List<CardInstance> exhaustPile = [];
+
   /// 抽牌数量
   int drawCount = 5;
 
@@ -1626,6 +1632,14 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     if (card == null) return;
 
     int effectiveCost = card.cost;
+    
+    // 检查是否有诅咒牌（类型为 CardSuite.curse）
+    final hasCurse = hand.any((c) => c.data?.suite == CardSuite.curse);
+    if (hasCurse && card.suite != CardSuite.curse) {
+       _showStatusTip("必须先净化所有诅咒代码（使用诅咒牌）！", Colors.redAccent);
+       return;
+    }
+
     // 脑机被动：量子链路接口 —— 每回合第一张消耗 2 点能量的卡牌变为 0 消耗
     if (GameState.selectedBrainChipId == 'quantum_link' && card.cost == 2 && !_quantumLinkUsedThisTurn) {
       effectiveCost = 0;
@@ -1658,8 +1672,13 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
     }
     hand.remove(instance);
 
-    // 使用后的卡牌进入弃牌堆
-    discardPile.add(instance);
+    // 使用后的卡牌进入弃牌堆或消耗堆
+    if (card.effect != null && card.effect!.contains('exhaust')) {
+      exhaustPile.add(instance);
+      // _showStatusTip("卡牌已消耗", Colors.grey); 
+    } else {
+      discardPile.add(instance);
+    }
 
     // 关键区域：浪潮职业被动【涌动】—— 手牌为空时恢复能量并摸牌
     if (characterData.characterClass == CharacterClass.langchao && hand.isEmpty) {
@@ -2545,6 +2564,214 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
   }
 
   /// 手动选择保留的牌（供UI调用）
+  // 从弃牌堆中选择一张牌加入手牌
+  void retrieveFromDiscard() {
+    if (discardPile.isEmpty) {
+      _showStatusTip("弃牌堆为空", Colors.redAccent);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.6), // 背景压暗
+      builder: (context) {
+        final themeColor = GameState.getThemeColor();
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 60),
+          child: Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(maxWidth: 800, maxHeight: 600),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0A0F16).withValues(alpha: 0.9), // 半透明深色背景
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: themeColor.withValues(alpha: 0.5), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: themeColor.withValues(alpha: 0.2),
+                  blurRadius: 30,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Stack(
+                children: [
+                  // 背景装饰
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: CyberCornerPainter(
+                        color: themeColor.withValues(alpha: 0.3),
+                        cornerSize: 30,
+                        strokeWidth: 2,
+                      ),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: Opacity(
+                      opacity: 0.05,
+                      child: CyberScanline(color: themeColor),
+                    ),
+                  ),
+                  
+                  Column(
+                    children: [
+                      // 标题区域
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              themeColor.withValues(alpha: 0.1),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                        child: Text(
+                          " // 请选择一张卡牌回收 //",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: themeColor,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'monospace',
+                            letterSpacing: 4,
+                            shadows: [
+                              Shadow(
+                                color: themeColor.withValues(alpha: 0.5),
+                                blurRadius: 10,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    
+                      const SizedBox(height: 20),
+
+                      // 卡牌列表
+                      Expanded(
+                        child: Theme(
+                          data: ThemeData.dark().copyWith(
+                            scrollbarTheme: ScrollbarThemeData(
+                              thumbColor: WidgetStateProperty.all(themeColor.withValues(alpha: 0.3)),
+                              thickness: WidgetStateProperty.all(2),
+                              radius: Radius.zero,
+                            ),
+                          ),
+                          child: Scrollbar(
+                            child: GridView.builder(
+                              padding: const EdgeInsets.all(24),
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2, // 增加每行显示数量
+                                childAspectRatio: 0.72,
+                                crossAxisSpacing: 20,
+                                mainAxisSpacing: 20,
+                              ),
+                              itemCount: discardPile.length,
+                              itemBuilder: (context, index) {
+                                final cardInstance = discardPile[index];
+                                final cardData = cardInstance.data;
+                                if (cardData == null) return const SizedBox();
+                                return GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      discardPile.removeAt(index);
+                                      hand.add(cardInstance);
+                                    });
+                                    Navigator.of(context).pop();
+                                    _showStatusTip("已回收 ${cardData.name}", themeColor);
+                                  },
+                                  child: MouseRegion(
+                                    cursor: SystemMouseCursors.click,
+                                    child: _cardWidget(
+                                      cardData, 
+                                      width: 100, // 稍微调大一点以便看清
+                                      height: 133,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      // 底部留白
+                      const SizedBox(height: 20),
+
+                      // 底部取消按钮
+                      Center(
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 220,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  themeColor.withValues(alpha: 0.1),
+                                  themeColor.withValues(alpha: 0.02),
+                                ],
+                              ),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(2),
+                                bottomRight: Radius.circular(12),
+                              ),
+                              border: Border.all(
+                                color: themeColor.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Opacity(
+                                  opacity: 0.05,
+                                  child: Container(),
+                                ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      "> 取消操作",
+                                      style: TextStyle(
+                                        color: themeColor,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 2,
+                                        fontSize: 11,
+                                        fontFamily: 'monospace',
+                                        shadows: [
+                                          Shadow(color: themeColor.withValues(alpha: 0.3), blurRadius: 4),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    _BlinkingCursor(color: themeColor),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void selectCardToKeep(CardInstance instance) async {
     if (gamePhase != GamePhase.discardPhase) return;
 
@@ -5292,7 +5519,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
         if (card == null) return false;
         
         // 根据卡牌定义的 target 来决定是否接受
-        final accept = (card.target == CardTarget.enemy || card.target == CardTarget.all) && program.hp > 0;
+        final accept = (card.target == CardTarget.enemy || card.target == CardTarget.all || card.target == CardTarget.curse) && program.hp > 0;
         
         if (accept) {
           highlightedTarget = program;
@@ -6745,6 +6972,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                   case CardSuite.quantum: return const Color(0xFFE26CFF);
                   case CardSuite.demon: return const Color(0xFF9D00FF);
                   case CardSuite.holy: return const Color(0xFFFFD700);
+                  case CardSuite.curse: return const Color(0xFF8A0707);
                 }
               }
 
@@ -6848,6 +7076,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                   case CardSuite.quantum: return const Color(0xFFE26CFF);
                   case CardSuite.demon: return const Color(0xFF9D00FF);
                   case CardSuite.holy: return const Color(0xFFFFD700);
+                  case CardSuite.curse: return const Color.fromARGB(255, 110, 6, 6);
                 }
               }
 
@@ -6999,6 +7228,26 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                 fontSize: 9,
                 fontWeight: FontWeight.bold,
                 color: Colors.purple.shade700,
+              ),
+            ),
+          ],
+        );
+      case CardTarget.curse:
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.warning,
+              size: 10,
+              color: const Color.fromARGB(255, 110, 6, 6),
+            ),
+            const SizedBox(width: 2),
+            Text(
+              "诅咒目标",
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                color: const Color.fromARGB(255, 110, 6, 6),
               ),
             ),
           ],
@@ -7614,7 +7863,7 @@ class _BattlePageState extends State<BattlePage> with TickerProviderStateMixin {
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Text(
-                                        "> DISCONNECT_STREAM",
+                                        "> 关闭",
                                         style: TextStyle(
                                           color: color,
                                           fontWeight: FontWeight.w900,

@@ -100,6 +100,7 @@ const Map<String, CharacterData> characterDatabase = {
       "assemble",
       "fade_step",
       "peek_future",
+      "data_recovery",
     ],
     minDrawPerTurn: 3,
     maxDrawPerTurn: 6,

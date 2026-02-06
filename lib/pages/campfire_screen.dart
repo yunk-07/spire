@@ -394,6 +394,7 @@ class _CampfireScreenState extends State<CampfireScreen> with TickerProviderStat
       case CardSuite.quantum: return const Color(0xFFE26CFF);
       case CardSuite.demon: return const Color(0xFF9D00FF);
       case CardSuite.holy: return const Color(0xFFFFD700);
+      case CardSuite.curse: return const Color(0xFF8A0707);
     }
   }
 

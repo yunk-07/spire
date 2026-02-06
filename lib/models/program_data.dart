@@ -250,4 +250,18 @@ const Map<String, SecurityProgram> systemDatabase = {
       MonsterSkill(id: "lockdown", name: "协议锁定", chance: 0.3, buff: BuffKind.weak, stacks: 1),
     ],
   ),
+  "curse_monster": SecurityProgram(
+    id: "curse_monster",
+    name: "禁锢者",
+    type: SystemType.elite,
+    level: 3,
+    maxHp: 70,
+    baseDamage: 10,
+    damageMin: 8,
+    damageMax: 12,
+    description: "通过植入特殊的锁定协议来限制敌人的行动。",
+    skills: [
+      MonsterSkill(id: "curse_lock", name: "枷锁诅咒", chance: 0.4, buff: null, stacks: 0),
+    ],
+  ),
 };

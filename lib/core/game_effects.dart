@@ -147,6 +147,14 @@ class CardEffectExecutor {
           battle.anim.showHeal(battle.player, value);
         }
         break;
+      case 'retrieve_discard':
+        // 调用 battle 的 retrieveFromDiscard 方法
+        try {
+          battle.retrieveFromDiscard();
+        } catch (e) {
+          print('Error executing retrieve_discard: $e');
+        }
+        break;
       default:
         break;
     }
