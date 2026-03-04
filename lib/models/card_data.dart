@@ -22,7 +22,7 @@
 enum CardType { exploit, encryption, routine, module, curse }
 
 /// 卡牌使用目标枚举
-enum CardTarget { enemy, self, all,curse }
+enum CardTarget { enemy, self, all }
 
 /// 卡牌视觉套装枚举
 enum CardSuite { 
@@ -32,8 +32,7 @@ enum CardSuite {
   industrial, // 工业橙/机械
   quantum,    // 量子紫/虚空
   demon,      // 恶魔/独特样式
-  holy,       // 神圣/高亮样式
-  curse       // 诅咒/恶意样式
+  holy        // 神圣/高亮样式
 }
 
 /// 卡牌数据模型
@@ -1121,8 +1120,8 @@ const Map<String, CardData> cardDatabase = {
     id: 'locked_curse',
     name: '诅咒：枷锁',
     type: CardType.curse,
-    target: CardTarget.curse,
-    suite: CardSuite.curse,
+    target: CardTarget.self,
+    suite: CardSuite.demon,
     cost: 1,
     level: 1,
     effect: 'exhaust', // 需要在 useCard 中处理 exhaust 效果或类型判断
