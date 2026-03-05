@@ -1,7 +1,7 @@
 // level_data.dart
 // 作用：定义地图关卡数据，支持动态生成的国度、不规则形状、以及节点间的走线连接
 import 'dart:math';
-import 'package:flutter/painting.dart';
+import 'package:flutter/material.dart';
 import 'program_data.dart';
 
 enum LevelType {
@@ -39,12 +39,14 @@ class NationTemplate {
   final String descriptionBase;
   final List<String> possibleMonsters;
   final Color themeColor;
+  final IconData icon;
 
   const NationTemplate({
     required this.namePrefix,
     required this.descriptionBase,
     required this.possibleMonsters,
     required this.themeColor,
+    required this.icon,
   });
 }
 
@@ -54,18 +56,28 @@ const List<NationTemplate> nationTemplates = [
     descriptionBase: '尖塔高处的霓虹塔段，旧网路核心在此汇聚，不稳定的逻辑碎片游离其间。',
     possibleMonsters: ['slime', 'goblin', 'echo_bug', 'spark_ball', 'byte_imp', 'pulse_rider', 'sentinel', 'arc_knight'],
     themeColor: Color(0xFF6CE4FF),
+    icon: Icons.blur_on,
   ),
   NationTemplate(
     namePrefix: '荒原',
     descriptionBase: '尖塔下的荒原带，荒废的数据垃圾场中隐藏被遗忘的重型协议。',
     possibleMonsters: ['skeleton', 'orc_warrior', 'iron_dummy', 'scythe_hand', 'crawler', 'sentinel', 'arc_knight'],
     themeColor: Color(0xFFFFA726),
+    icon: Icons.broken_image,
   ),
   NationTemplate(
     namePrefix: '深渊',
     descriptionBase: '尖塔阴影下的深渊域，不确定性极高的深层网络，逻辑在此发生扭曲。',
     possibleMonsters: ['dark_mage', 'dragon', 'shadow_hunter', 'grand_manager', 'storm_core', 'arc_knight'],
     themeColor: Color(0xFFAB47BC),
+    icon: Icons.waves,
+  ),
+  NationTemplate(
+    namePrefix: '枯竭',
+    descriptionBase: '被彻底榨干的数据废墟，只有贪婪的虚空生物在此徘徊。',
+    possibleMonsters: ['void_leech', 'entropy_shade', 'null_beast', 'curse_monster', 'hollow_king', 'skeleton', 'scythe_hand'],
+    themeColor: Color(0xFF757575),
+    icon: Icons.hourglass_empty,
   ),
 ];
 
@@ -73,20 +85,24 @@ const List<NationTemplate> nationTemplates = [
 class Nation {
   final String id;
   final String title;
+  final String namePrefix;
   final String description;
   final int difficulty; // 难度系数：1-5
   final List<Offset> shapeVertices; // 不规则图形顶点（归一化坐标 0.0-1.0）
   final List<List<LevelInfo>> layers;
   final Color themeColor;
+  final IconData icon;
 
   const Nation({
     required this.id,
     required this.title,
+    required this.namePrefix,
     required this.description,
     required this.difficulty,
     required this.shapeVertices,
     required this.layers,
     required this.themeColor,
+    required this.icon,
   });
 
   /// 获取国度面积系数（难度越高面积越小）
@@ -115,11 +131,13 @@ class GameProgress {
   static Nation _dummyNation() => Nation(
     id: 'dummy',
     title: '未知区域',
+    namePrefix: '未知',
     description: '尚未初始化的扇区',
     difficulty: 1,
     shapeVertices: [Offset(0,0), Offset(1,0), Offset(1,1)],
     layers: [],
     themeColor: const Color(0xFF6CE4FF),
+    icon: Icons.help_outline,
   );
 
   static List<List<LevelInfo>> get levelLayers => currentNation.layers;
@@ -360,11 +378,13 @@ class GameProgress {
     return Nation(
       id: 'nation_$index',
       title: _getNationFriendlyTitle(template, index),
+      namePrefix: template.namePrefix,
       description: '${template.descriptionBase}（尖塔网络）',
       difficulty: difficulty,
       shapeVertices: vertices,
       layers: layers,
       themeColor: template.themeColor,
+      icon: template.icon,
     );
   }
 
@@ -383,6 +403,8 @@ class GameProgress {
     final eliteWasteland = ['锈蚀堡','风坍岗','荒潮枢','碎壁塔','砂脊门'];
     final infiltrationAbyss = ['裂幕小径','影语岔口','夜幕甬道','回声坡','深渊断层'];
     final eliteAbyss = ['深渊塔','影潮庭','裂隙门','夜幕枢','幽渊哨'];
+    final infiltrationExhaustion = ['干涸河床', '灰烬荒野', '枯骨小径', '虚空裂隙', '静默废墟'];
+    final eliteExhaustion = ['熵增核心', '虚无祭坛', '死寂之塔', '绝望深渊', '终焉之门'];
     final cacheNames = ['补给点','器械站','补给仓','休整处','维修舱','后勤点'];
     final exchangeNames = ['小摊位','货栈','商铺','交易点','数据柜','交换站'];
     final mysteryNames = ['奇遇点','偶发事件','未知之所','扭曲之门','随机扰动'];
@@ -398,6 +420,8 @@ class GameProgress {
             return infiltrationWasteland[r.nextInt(infiltrationWasteland.length)];
           case '深渊':
             return infiltrationAbyss[r.nextInt(infiltrationAbyss.length)];
+          case '枯竭':
+            return infiltrationExhaustion[r.nextInt(infiltrationExhaustion.length)];
           default:
             return infiltrationNamesDefault[r.nextInt(infiltrationNamesDefault.length)];
         }
@@ -409,6 +433,8 @@ class GameProgress {
             return eliteWasteland[r.nextInt(eliteWasteland.length)];
           case '深渊':
             return eliteAbyss[r.nextInt(eliteAbyss.length)];
+          case '枯竭':
+            return eliteExhaustion[r.nextInt(eliteExhaustion.length)];
           default:
             return eliteNamesDefault[r.nextInt(eliteNamesDefault.length)];
         }
@@ -433,6 +459,7 @@ class GameProgress {
     final neon = ['霓虹庭', '银灯街', '极光港', '光塔巷', '星辉城'];
     final wasteland = ['荒原谷', '风砂坍', '铁锈地', '残壁坡', '灰迹河'];
     final abyss = ['深渊岭', '影语原', '回声野', '裂幕境', '夜幕湾'];
+    final exhaustion = ['枯竭荒漠', '虚无之地', '终焉废墟', '灰烬之谷', '静默死域'];
     List<String> pool;
     switch (template.namePrefix) {
       case '霓虹':
@@ -443,6 +470,9 @@ class GameProgress {
         break;
       case '深渊':
         pool = abyss;
+        break;
+      case '枯竭':
+        pool = exhaustion;
         break;
       default:
         pool = ['星幕域', '晓光域', '长夜城', '晨雾港'];

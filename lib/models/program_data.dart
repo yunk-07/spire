@@ -1,23 +1,7 @@
-// monster_data.dart
+import 'skill_data.dart';
+export 'skill_data.dart';
 
 enum SystemType { normal, elite, boss }
-
-enum BuffKind { weak, vulnerable, curse, sturdy }
-
-class MonsterSkill {
-  final String id;
-  final String name;
-  final double chance;
-  final BuffKind? buff;
-  final int stacks;
-  const MonsterSkill({
-    required this.id,
-    required this.name,
-    required this.chance,
-    this.buff,
-    this.stacks = 0,
-  });
-}
 
 class SecurityProgram {
   final String id;
@@ -29,7 +13,8 @@ class SecurityProgram {
   final int damageMin;
   final int damageMax;
   final String description;
-  final List<MonsterSkill> skills;
+  final List<String> skillIds;
+  
   const SecurityProgram({
     required this.id,
     required this.name,
@@ -40,8 +25,11 @@ class SecurityProgram {
     required this.damageMin,
     required this.damageMax,
     required this.description,
-    this.skills = const [],
+    this.skillIds = const [],
   });
+
+  /// 获取对应的技能对象列表
+  List<MonsterSkill> get skills => skillIds.map((id) => skillDatabase[id]!).toList();
 }
 
 /// 系统防护程序数据库
@@ -56,9 +44,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     damageMin: 6,
     damageMax: 10,
     description: "一团具有粘性的数据残留，会拖慢系统的响应速度",
-    skills: [
-      MonsterSkill(id: "jam", name: "数据粘附", chance: 0.3, buff: BuffKind.vulnerable, stacks: 1),
-    ],
+    skillIds: ["jam"],
   ),
   "goblin": SecurityProgram(
     id: "goblin",
@@ -70,10 +56,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     damageMin: 8,
     damageMax: 12,
     description: "细小且灵活的程序，在系统角落里寻找任何可利用的缝隙",
-    skills: [
-      MonsterSkill(id: "probe", name: "漏洞侦察", chance: 0.35, buff: BuffKind.vulnerable, stacks: 1),
-      MonsterSkill(id: "strain", name: "指令干扰", chance: 0.25, buff: BuffKind.weak, stacks: 1),
-    ],
+    skillIds: ["probe", "strain"],
   ),
   "skeleton": SecurityProgram(
     id: "skeleton",
@@ -85,9 +68,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     damageMin: 10,
     damageMax: 14,
     description: "早已被淘汰的旧版代码，即便残破不堪仍在机械地执行最后的任务",
-    skills: [
-      MonsterSkill(id: "infect", name: "代码侵蚀", chance: 0.25, buff: BuffKind.curse, stacks: 1),
-    ],
+    skillIds: ["infect"],
   ),
   "orc_warrior": SecurityProgram(
     id: "orc_warrior",
@@ -99,10 +80,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     damageMin: 13,
     damageMax: 18,
     description: "配备了厚重防御装甲的安保程序，是任何渗透者的噩梦",
-    skills: [
-      MonsterSkill(id: "crush", name: "指令碾压", chance: 0.3, buff: BuffKind.vulnerable, stacks: 2),
-      MonsterSkill(id: "fortify", name: "系统加固", chance: 0.2, buff: BuffKind.sturdy, stacks: 1),
-    ],
+    skillIds: ["crush", "fortify"],
   ),
   "dark_mage": SecurityProgram(
     id: "dark_mage",
@@ -114,9 +92,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     damageMin: 16,
     damageMax: 20,
     description: "如阴影般潜伏在内存深处，能悄无声息地夺走系统的活力",
-    skills: [
-      MonsterSkill(id: "drain", name: "能量抽取", chance: 0.3, buff: BuffKind.curse, stacks: 2),
-    ],
+    skillIds: ["drain"],
   ),
   "dragon": SecurityProgram(
     id: "dragon",
@@ -128,11 +104,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     damageMin: 22,
     damageMax: 30,
     description: "系统最高层级的执行者，拥有决定任何数据生死存亡的终极权力",
-    skills: [
-      MonsterSkill(id: "lock", name: "权限封锁", chance: 0.4, buff: BuffKind.curse, stacks: 2),
-      MonsterSkill(id: "pressure", name: "系统压制", chance: 0.3, buff: BuffKind.weak, stacks: 2),
-      MonsterSkill(id: "expose", name: "弱点标记", chance: 0.3, buff: BuffKind.vulnerable, stacks: 2),
-    ],
+    skillIds: ["lock", "pressure", "expose"],
   ),
   // 新增更易理解和顺口的怪兽
   "echo_bug": SecurityProgram(
@@ -145,9 +117,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     damageMin: 6,
     damageMax: 10,
     description: "不断重复接收到的信号，造成严重的逻辑循环干扰",
-    skills: [
-      MonsterSkill(id: "repeat", name: "指令重放", chance: 0.3, buff: BuffKind.weak, stacks: 1),
-    ],
+    skillIds: ["repeat"],
   ),
   "spark_ball": SecurityProgram(
     id: "spark_ball",
@@ -159,9 +129,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     damageMin: 10,
     damageMax: 14,
     description: "极度不稳定的能量球，任何接触都可能导致系统瞬间过载",
-    skills: [
-      MonsterSkill(id: "shock", name: "高压脉冲", chance: 0.4, buff: BuffKind.vulnerable, stacks: 1),
-    ],
+    skillIds: ["shock"],
   ),
   "iron_dummy": SecurityProgram(
     id: "iron_dummy",
@@ -173,9 +141,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     damageMin: 1,
     damageMax: 4,
     description: "笨重但极其坚固的冗余模块，常被用作物理屏障",
-    skills: [
-      MonsterSkill(id: "heavy_slam", name: "重力冲击", chance: 0.2, buff: BuffKind.weak, stacks: 2),
-    ],
+    skillIds: ["heavy_slam"],
   ),
   "shadow_hunter": SecurityProgram(
     id: "shadow_hunter",
@@ -187,10 +153,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     damageMin: 15,
     damageMax: 22,
     description: "专门猎杀异常数据的暗杀程序，擅长从视觉死角发起攻击",
-    skills: [
-      MonsterSkill(id: "backstab", name: "隐蔽突击", chance: 0.4, buff: BuffKind.vulnerable, stacks: 2),
-      MonsterSkill(id: "hide", name: "掩蔽模式", chance: 0.2, buff: BuffKind.weak, stacks: 1),
-    ],
+    skillIds: ["backstab", "hide"],
   ),
   "scythe_hand": SecurityProgram(
     id: "scythe_hand",
@@ -202,9 +165,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     damageMin: 18,
     damageMax: 24,
     description: "挥舞着巨大的清理工具，将一切不符合规范的代码统统切碎",
-    skills: [
-      MonsterSkill(id: "reap", name: "逻辑清理", chance: 0.35, buff: BuffKind.curse, stacks: 1),
-    ],
+    skillIds: ["reap"],
   ),
   "grand_manager": SecurityProgram(
     id: "grand_manager",
@@ -216,11 +177,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     damageMin: 25,
     damageMax: 35,
     description: "整个系统的神经中枢，它的每一次波动都足以改写底层的运行逻辑",
-    skills: [
-      MonsterSkill(id: "format", name: "全域重构", chance: 0.25, buff: BuffKind.curse, stacks: 3),
-      MonsterSkill(id: "reboot", name: "强制归零", chance: 0.3, buff: BuffKind.weak, stacks: 2),
-      MonsterSkill(id: "optimize", name: "深度清理", chance: 0.3, buff: BuffKind.vulnerable, stacks: 2),
-    ],
+    skillIds: ["format", "reboot", "optimize"],
   ),
   "casino_boss": SecurityProgram(
     id: "casino_boss",
@@ -232,9 +189,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     damageMin: 18,
     damageMax: 22,
     description: "掌握着赌场所有核心算力的管理者，能够源源不断地调度安保程序。",
-    skills: [
-      MonsterSkill(id: "summon", name: "呼叫增援", chance: 1.0, buff: null, stacks: 0),
-    ],
+    skillIds: ["summon"],
   ),
   "casino_security": SecurityProgram(
     id: "casino_security",
@@ -246,9 +201,7 @@ const Map<String, SecurityProgram> systemDatabase = {
     damageMin: 10,
     damageMax: 15,
     description: "赌场的精英安保程序，专门处理强行闯入的渗透者。",
-    skills: [
-      MonsterSkill(id: "lockdown", name: "协议锁定", chance: 0.3, buff: BuffKind.weak, stacks: 1),
-    ],
+    skillIds: ["lockdown"],
   ),
   "curse_monster": SecurityProgram(
     id: "curse_monster",
@@ -260,8 +213,55 @@ const Map<String, SecurityProgram> systemDatabase = {
     damageMin: 8,
     damageMax: 12,
     description: "通过植入特殊的锁定协议来限制敌人的行动。",
-    skills: [
-      MonsterSkill(id: "curse_lock", name: "枷锁诅咒", chance: 0.4, buff: null, stacks: 0),
-    ],
+    skillIds: ["curse_lock"],
+  ),
+  // 枯竭国度的新怪兽
+  "void_leech": SecurityProgram(
+    id: "void_leech",
+    name: "虚空水蛭",
+    type: SystemType.normal,
+    level: 2,
+    maxHp: 35,
+    baseDamage: 9,
+    damageMin: 7,
+    damageMax: 11,
+    description: "依附在已损毁的数据簇上，贪婪地吸食残存的算力",
+    skillIds: ["siphon"],
+  ),
+  "entropy_shade": SecurityProgram(
+    id: "entropy_shade",
+    name: "熵影",
+    type: SystemType.normal,
+    level: 3,
+    maxHp: 45,
+    baseDamage: 14,
+    damageMin: 12,
+    damageMax: 16,
+    description: "系统熵增的具象化产物，所到之处秩序崩塌",
+    skillIds: ["decay"],
+  ),
+  "null_beast": SecurityProgram(
+    id: "null_beast",
+    name: "虚无巨兽",
+    type: SystemType.elite,
+    level: 4,
+    maxHp: 90,
+    baseDamage: 22,
+    damageMin: 18,
+    damageMax: 26,
+    description: "从数据黑洞中诞生的庞然大物，能吞噬一切碰触到的代码",
+    skillIds: ["void_crush", "consume"],
+  ),
+  "hollow_king": SecurityProgram(
+    id: "hollow_king",
+    name: "枯竭之王",
+    type: SystemType.boss,
+    level: 5,
+    maxHp: 220,
+    baseDamage: 32,
+    damageMin: 28,
+    damageMax: 36,
+    description: "统治着废弃扇区的古老核心，它的存在本身就是对系统资源的极致掠夺",
+    skillIds: ["drought", "famine", "desolation"],
   ),
 };

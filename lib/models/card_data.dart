@@ -22,7 +22,7 @@
 enum CardType { exploit, encryption, routine, module, curse }
 
 /// 卡牌使用目标枚举
-enum CardTarget { enemy, self, all }
+enum CardTarget { enemy, self, all, curse }
 
 /// 卡牌视觉套装枚举
 enum CardSuite { 
@@ -32,7 +32,8 @@ enum CardSuite {
   industrial, // 工业橙/机械
   quantum,    // 量子紫/虚空
   demon,      // 恶魔/独特样式
-  holy        // 神圣/高亮样式
+  holy,       // 神圣/高亮样式
+  curse       // 诅咒/负面样式
 }
 
 /// 卡牌数据模型

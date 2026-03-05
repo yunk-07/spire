@@ -988,30 +988,7 @@ class CyberRoleEffectPainter extends CustomPainter {
     canvas.drawRect(rightRect, Paint()..shader = rightShader..colorFilter = ColorFilter.mode(edgeColor, BlendMode.srcIn));
   }
 
-  void _drawOctagonWheel(Canvas canvas, Size size, Offset center, double progress) {
-    final paint = Paint()
-      ..color = const Color(0xFF536DFE).withValues(alpha: (1.0 - progress) * 0.6)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
 
-    final radius = 60.0 + progress * 20.0;
-    final path = Path();
-    for (int i = 0; i < 8; i++) {
-      final angle = (i * math.pi / 4) + (progress * math.pi);
-      final x = center.dx + radius * math.cos(angle);
-      final y = center.dy + radius * math.sin(angle);
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    path.close();
-    canvas.drawPath(path, paint);
-    
-    // 内圈
-    canvas.drawCircle(center, radius * 0.6, paint..strokeWidth = 1.0);
-  }
 
   void _drawLangWave(Canvas canvas, Size size, Offset center, double progress) {
     final base = const Color(0xFF4DCCFF);
